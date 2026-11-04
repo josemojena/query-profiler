@@ -1,7 +1,6 @@
 {
   "name": "query-profiler",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "A development-only database profiler for Node: every SQL statement of a request, with the Prisma operation and the line of code behind it, N+1, slow and duplicate warnings.",
   "keywords": [
     "database",
@@ -20,10 +19,18 @@
     "sql",
     "vite"
   ],
+  "homepage": "https://github.com/josemojena/query-profiler#readme",
+  "bugs": "https://github.com/josemojena/query-profiler/issues",
   "license": "MIT",
+  "author": "Jose Mojena",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/josemojena/query-profiler.git"
+  },
   "files": [
     "dist",
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "sideEffects": [
@@ -67,10 +74,13 @@
       "default": "./dist/ui/index.js"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
-    "prepare": "pnpm build",
+    "prepare": "npm run build",
     "check-types": "tsc --noEmit && pnpm examples:sync && pnpm --filter './examples/*' typecheck",
     "test": "pnpm build && vitest run",
     "test:browser": "playwright test",
@@ -127,6 +137,9 @@
     "vite": {
       "optional": true
     }
+  },
+  "engines": {
+    "node": ">=20.19"
   },
   "packageManager": "pnpm@10.23.0",
   "pnpm": {

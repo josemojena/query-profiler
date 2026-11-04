@@ -1,6 +1,8 @@
 # query-profiler
 
-> Not published yet.
+[![npm](https://img.shields.io/npm/v/query-profiler)](https://www.npmjs.com/package/query-profiler)
+[![CI](https://github.com/josemojena/query-profiler/actions/workflows/ci.yml/badge.svg)](https://github.com/josemojena/query-profiler/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 A development-only database profiler for Node, inspired by the Symfony profiler: for every
 request, what the database did and why. Every SQL statement with its parameters, duration and
@@ -8,7 +10,23 @@ the line of your code that caused it, grouped by the Prisma operation that sent 
 warnings for N+1, slow and duplicated queries. Shown in a bar at the bottom of your pages, in a
 full profile page, and as JSON.
 
-PostgreSQL only for now, through Prisma 7 (`@prisma/adapter-pg`) and raw `pg`. MySQL is planned.
+It runs only in development and leaves nothing in production builds.
+
+## Requirements
+
+| What      | Supported                                                            |
+| --------- | -------------------------------------------------------------------- |
+| Node      | 20.19 or later                                                       |
+| Database  | PostgreSQL (MySQL is planned)                                        |
+| Prisma    | 7.1 or later, with `@prisma/adapter-pg`. Not 6; 8 is planned         |
+| Raw SQL   | `pg` (node-postgres)                                                 |
+| Framework | React Router 7.9+ and 8 in framework mode (also Remix), with Vite 6+ |
+
+Prisma 6 is not supported: it has no SQL comments, and its query engine runs the driver adapter
+outside the request's async context. Next.js, NestJS and plain HTTP APIs (Express, Fastify, Hono)
+are planned: an adapter only opens and closes a profile per request; capture and the UI are shared.
+
+query-profiler is an independent project, not affiliated with Prisma or React Router.
 
 ## Entry points
 
@@ -23,10 +41,6 @@ an entry you don't import is never loaded.
 | `query-profiler/react-router` | Opens a profile per request in React Router 7.9+ and 8 (framework mode, also Remix).             | `react-router` 7.9+         |
 | `query-profiler/vite`         | Serves the profiler's API and UI from the Vite dev server, and keeps the profiler out of builds. | `vite` 6+                   |
 | `query-profiler/ui`           | The bar and the profiler page, as web components with their styles inside. No framework.         | a browser                   |
-
-Planned: Next.js, NestJS, and plain HTTP APIs (Express, Fastify, Hono). An adapter only opens and
-closes a profile per request; capture and the UI are shared. APIs get the profile token in the
-`X-Debug-Token` response header and read it at `/_profiler/:token`.
 
 ## How it works
 
@@ -199,6 +213,28 @@ It only runs with `NODE_ENV=development`. `QUERY_PROFILER_DISABLED=1` turns it o
 suites, for one): the middleware passes through, the API answers 404 and the bar shows nothing.
 Production builds resolve every package to its no-op entry.
 
+## Security and privacy
+
+- **Development only.** Nothing runs unless `NODE_ENV=development`, and production builds get the
+  no-op entries.
+- **Local only.** The API answers `localhost`, `127.0.0.1` and `[::1]`, even when the dev server
+  listens on the network.
+- **In memory only.** Profiles live in the dev server's memory: the last 100, at most 1000 queries
+  each. Nothing is written to disk, to a database or to cookies; the browser keeps only how you
+  left the bar.
+- **Secrets.** Prisma arguments whose key looks like a secret (`password`, `token`, `apiKey`,
+  `authorization`, `cookie`…) are shown as `[redacted]`, and long strings are cut. SQL
+  parameters have no names, so a secret you write through Prisma can still appear among the
+  parameters of its statement.
+
+## Known limitations
+
+- Profiles are lost when the dev server restarts, and each process keeps its own.
+- Each browser tab with the bar keeps a server-sent events connection open. Over HTTP/1.1 a
+  browser allows six per host, so many open tabs of the same app can stall new requests.
+- Query durations are measured from Node: they include the network and any wait for a pooled
+  connection.
+
 ## Examples
 
 One app per supported framework, each wired as this README describes, in [examples/](examples/):
@@ -219,12 +255,27 @@ pnpm test:browser   # the bar and the page in Chromium (pnpm exec playwright ins
 pnpm check          # lint, format and types
 ```
 
+CI runs lint, format and types, the tests against PostgreSQL on Node 20, 22 and 24 and on the
+oldest and newest supported Prisma, and the browser tests.
+
 The package ships compiled JavaScript from `dist/` (Node won't strip types inside
 `node_modules`), with its declarations and source maps. The Prisma tests need a PostgreSQL:
 set `QUERY_PROFILER_TEST_DATABASE_URL`, in the environment or in a `.env` file (default
 `postgresql://postgres:postgres@localhost:5432/query_profiler_test`). The database name must end in
 `_test`; it is created when missing.
 
+### Releasing
+
+1. Set the version in `package.json` (`0.x` while the API settles) and add it to
+   [CHANGELOG.md](CHANGELOG.md).
+2. Tag the commit and push the tag: `git tag v0.1.0 && git push origin v0.1.0`.
+3. The release workflow checks that the tag matches `package.json`, runs every check and test,
+   publishes to npm with provenance and creates the GitHub release.
+
+The workflow publishes through npm's trusted publishing, with no token. The first version is
+published by hand (`npm login`, then `npm publish`); after it, add this repository's
+`release.yml` as the package's trusted publisher in its settings on npmjs.com.
+
 ## License
 
-MIT
+[MIT](LICENSE) © Jose Mojena
