@@ -26,12 +26,12 @@ install it. Run it again after changing the package.
 
 ## Where query-profiler goes
 
-| File                     | What it adds                                                    |
-| ------------------------ | --------------------------------------------------------------- |
-| `vite.config.ts`         | `queryProfiler()`, before `reactRouter()`                       |
-| `app/db.server.ts`       | The Prisma client with `withProfiler()` and `profilerExtension` |
-| `app/profiler.server.ts` | `profilerMiddleware()`, printing one line per request           |
-| `app/root.tsx`           | The middleware in the root route                                |
+| File                     | What it adds                                                  |
+| ------------------------ | ------------------------------------------------------------- |
+| `vite.config.ts`         | `queryProfiler()`, before `reactRouter()`                     |
+| `app/db.server.ts`       | The Prisma client with `withProfiler()` and `profilePrisma()` |
+| `app/profiler.server.ts` | `profilerMiddleware()`, printing one line per request         |
+| `app/root.tsx`           | The middleware in the root route                              |
 
 React Router 8 has middleware on by default; with 7, also turn on `future.v8_middleware` in
 `react-router.config.ts`.

@@ -49,8 +49,10 @@ an entry you don't import is never loaded.
 - **Statements.** `withProfiler()` wraps Prisma's driver adapter: Prisma hands every statement
   over, with its parameters and timing. `profilePool(pool)` adds raw SQL sent straight to `pg`;
   a statement is never recorded twice.
-- **Operations.** `profilerExtension` records `User.findMany` and the like, with their arguments
-  and the first frames of your code.
+- **Operations.** `profilePrisma()` adds a client extension that records `User.findMany` and the
+  like, with their arguments. It also takes the line of your code that made each call when the
+  call is made: Prisma runs it later, when it is awaited, and Node before 26 loses the caller
+  across that gap.
 - **Linking statements to operations.** A sqlcommenter plugin, added by `withProfiler()`, stamps
   each statement with the operation it answers. The async context names the likely operation;
   the stamp settles it when Prisma batches or compacts queries. See [docs/spike.md](docs/spike.md).
@@ -97,22 +99,23 @@ export default defineConfig({
 ```
 
 **3. Profile the Prisma client.** `withProfiler()` wraps the client's options, so every SQL
-statement is recorded; `profilerExtension` records each operation (`User.findMany`…) and the
-line of your code that called it.
+statement is recorded; `profilePrisma()` records each operation (`User.findMany`…) and the line
+of your code that called it.
 
 ```ts
 // app/db.server.ts
 import { PrismaPg } from "@prisma/adapter-pg";
-import { profilerExtension, withProfiler } from "query-profiler/prisma";
+import { profilePrisma, withProfiler } from "query-profiler/prisma";
 import { PrismaClient } from "./generated/prisma/client";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 
-export const prisma = new PrismaClient(withProfiler({ adapter })).$extends(profilerExtension);
+export const prisma = profilePrisma(new PrismaClient(withProfiler({ adapter })));
 ```
 
-`$extends` gives the client its own type: where you typed it as `PrismaClient`, use
-`typeof prisma`.
+`profilePrisma()` applies a client extension, so the client gets its own type: where you typed it
+as `PrismaClient`, use `typeof prisma`. Add your own extensions before it:
+`profilePrisma(new PrismaClient(…).$extends(yours))`.
 
 If you also send raw SQL with `pg`, share one pool and wrap it with `profilePool()`:
 

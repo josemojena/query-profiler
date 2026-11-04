@@ -3,15 +3,13 @@ import { endProfile, runWithProfile, startProfile, type Profile } from "../../sr
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { profilePool, profilerExtension, withProfiler } from "../../src/prisma/index.js";
+import { profilePool, profilePrisma, withProfiler } from "../../src/prisma/index.js";
 import { TEST_DATABASE_URL } from "./database.js";
 import { PrismaClient } from "./fixture/generated/client.js";
 
 // Prisma's statements come through its adapter; the pool is profiled too, for raw SQL, as an app with both would.
 const pool = profilePool(new pg.Pool({ connectionString: TEST_DATABASE_URL }));
-const prisma = new PrismaClient(withProfiler({ adapter: new PrismaPg(pool) })).$extends(
-  profilerExtension,
-);
+const prisma = profilePrisma(new PrismaClient(withProfiler({ adapter: new PrismaPg(pool) })));
 
 const source = readFileSync(import.meta.filename, "utf8").split("\n");
 const lineOf = (snippet: string) => source.findIndex((line) => line.includes(snippet)) + 1;
@@ -115,8 +113,8 @@ describe("capturing a request's database work", () => {
   it("in an interactive transaction, keeps each statement with its operation and its transaction", async () => {
     const profile = await profiled(() =>
       prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({ data: { email: "b@example.test" } });
-        await tx.order.create({ data: { userId: user.id, total: 5, status: "new" } });
+        const user = await tx.user.create({ data: { email: "b@example.test" } }); // tx-user
+        await tx.order.create({ data: { userId: user.id, total: 5, status: "new" } }); // tx-order
       }),
     );
     const linked = profile.queries.filter((q) => q.opId);
@@ -131,6 +129,10 @@ describe("capturing a request's database work", () => {
       "COMMIT",
     ]);
     expect(new Set(profile.queries.map((q) => q.txId)).size).toBe(1);
+    expect(profile.operations.map((op) => op.origin?.[0]?.line)).toEqual([
+      lineOf("// tx-user"),
+      lineOf("// tx-order"),
+    ]);
   });
 
   it("keeps the error of a failed operation and of its statement", async () => {

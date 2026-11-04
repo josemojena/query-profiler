@@ -6,6 +6,8 @@ export interface Scope {
   profile: ActiveProfile;
   opId?: string;
   origin?: StackFrame[];
+  /** Where the app made the database call running now, taken when it was made. */
+  call?: StackFrame[];
   /** Set while a statement is being recorded, so a lower layer does not record it again. */
   recording?: boolean;
 }

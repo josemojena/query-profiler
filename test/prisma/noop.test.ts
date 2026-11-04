@@ -7,6 +7,7 @@ it("offers the same API, doing nothing, for production builds", () => {
   const options = { adapter: { connect: async () => ({}) } };
   expect(noop.withProfiler(options)).toBe(options);
   expect(noop.profilePool(options)).toBe(options);
+  expect(noop.profilePrisma(options)).toBe(options);
   expect(noop.profileAdapter(options.adapter)).toBe(options.adapter);
   expect(noop.profilerExtension).toEqual({ name: "query-profiler" });
 });

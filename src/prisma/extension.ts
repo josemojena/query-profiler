@@ -24,11 +24,11 @@ export const profilerExtension = {
         model,
         action: operation,
         args,
-        origin: captureOrigin(),
+        origin: scope.call ?? captureOrigin(),
       });
       // Prisma runs the query after this function returns, in this same async context:
       // a run() around query() would not reach it.
-      enterScope({ opId: op.id });
+      enterScope({ opId: op.id, call: undefined });
       try {
         const result = await query(args);
         finishOperation(scope.profile, op);
