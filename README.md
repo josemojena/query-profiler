@@ -4,23 +4,29 @@
 [![CI](https://github.com/josemojena/query-profiler/actions/workflows/ci.yml/badge.svg)](https://github.com/josemojena/query-profiler/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-A development-only database profiler for Node, inspired by the Symfony profiler: for every
-request, what the database did and why. Every SQL statement with its parameters, duration and
-the line of your code that caused it, grouped by the Prisma operation that sent it, with
-warnings for N+1, slow and duplicated queries. Shown in a bar at the bottom of your pages, in a
-full profile page, and as JSON.
+**The database profiler for Prisma ORM**, in development. Inspired by the Symfony profiler: for
+every request your app serves, what Prisma did in the database and why.
 
-It runs only in development and leaves nothing in production builds.
+- Every **Prisma operation** (`User.findMany`, `Order.create`…) with its arguments and the **line
+  of your code** that called it.
+- Every **SQL statement** Prisma sent for it, with its parameters and duration, including
+  transactions, batches and the queries Prisma compacts.
+- Warnings for **N+1** queries, **slow** queries and **duplicated** queries.
+- Shown in a **bar at the bottom of your pages**, in a **full profiler page** and as JSON.
+
+It is built for Prisma ORM and needs it: it hooks into Prisma's driver adapter and client
+extensions. Raw SQL you send with `pg` next to Prisma is captured too. It runs only in development
+and leaves nothing in production builds.
 
 ## Requirements
 
-| What      | Supported                                                            |
-| --------- | -------------------------------------------------------------------- |
-| Node      | 20.19 or later                                                       |
-| Database  | PostgreSQL (MySQL is planned)                                        |
-| Prisma    | 7.1 or later, with `@prisma/adapter-pg`. Not 6; 8 is planned         |
-| Raw SQL   | `pg` (node-postgres)                                                 |
-| Framework | React Router 7.9+ and 8 in framework mode (also Remix), with Vite 6+ |
+| What       | Supported                                                            |
+| ---------- | -------------------------------------------------------------------- |
+| Prisma ORM | **7.1 or later**, with `@prisma/adapter-pg`. Not 6; 8 is planned     |
+| Database   | PostgreSQL (MySQL is planned)                                        |
+| Node       | 20.19 or later                                                       |
+| Raw SQL    | `pg` (node-postgres), optional                                       |
+| Framework  | React Router 7.9+ and 8 in framework mode (also Remix), with Vite 6+ |
 
 Prisma 6 is not supported: it has no SQL comments, and its query engine runs the driver adapter
 outside the request's async context. Next.js, NestJS and plain HTTP APIs (Express, Fastify, Hono)
@@ -37,7 +43,7 @@ an entry you don't import is never loaded.
 | Import                        | What it does                                                                                     | Needs                       |
 | ----------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------- |
 | `query-profiler`              | The `Profile` format, the per-request context, storage, analysis and the HTTP handler.           | nothing                     |
-| `query-profiler/prisma`       | Captures every statement on a `pg` pool, and each Prisma operation with where it came from.      | `@prisma/client` 7.1+, `pg` |
+| `query-profiler/prisma`       | The Prisma ORM integration: every operation, its SQL and the line of code behind it.             | `@prisma/client` 7.1+, `pg` |
 | `query-profiler/react-router` | Opens a profile per request in React Router 7.9+ and 8 (framework mode, also Remix).             | `react-router` 7.9+         |
 | `query-profiler/vite`         | Serves the profiler's API and UI from the Vite dev server, and keeps the profiler out of builds. | `vite` 6+                   |
 | `query-profiler/ui`           | The bar and the profiler page, as web components with their styles inside. No framework.         | a browser                   |
