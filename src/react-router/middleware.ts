@@ -36,7 +36,7 @@ export function profilerMiddleware(
     const active = startProfile(
       {
         method: request.method,
-        url: url.pathname + url.search,
+        url: shownUrl(url),
         kind: kindOf(request.method, url),
         parentToken: parentOf(request),
       },
@@ -65,6 +65,14 @@ export function profilerMiddleware(
 function parentOf(request: Request): string | undefined {
   const token = request.headers.get(PARENT_HEADER);
   return token && /^[0-9a-f]{6}$/.test(token) ? token : undefined;
+}
+
+// A data request (`/orders.data?_routes=…`) shows as the route it loads.
+function shownUrl(url: URL): string {
+  const search = new URLSearchParams(url.search);
+  search.delete("_routes");
+  const path = url.pathname.replace(/\.data$/, "").replace(/^\/_root$/, "/");
+  return search.size ? `${path}?${search}` : path;
 }
 
 function kindOf(method: string, url: URL): ProfileKind {

@@ -1,6 +1,7 @@
 import { build } from "esbuild";
 import { expect, test, type Page } from "@playwright/test";
 import type { Profile } from "../src/core/index.js";
+import { toolbarSnippet } from "../src/react-router/inject.js";
 import { DATA_REQUEST, NEXT_PAGE, PROFILE, PROMOTIONS, listItem } from "./fixture.js";
 
 const ORIGIN = "http://app.test";
@@ -22,6 +23,8 @@ interface Options {
   api?: boolean;
   /** Script the page runs once the bar is there. */
   script?: string;
+  /** The page as the middleware sends it: the bar comes from its script, after the page loads. */
+  injected?: { script: string };
 }
 
 /** A page of the app with the bar, the profiler API answering with these profiles, and what the app's own calls carried. */
@@ -32,6 +35,13 @@ async function open(page: Page, options: Options = {}) {
     const url = new URL(route.request().url());
     const json = (body: unknown, headers: Record<string, string> = {}) =>
       route.fulfill({ contentType: "application/json", body: JSON.stringify(body), headers });
+    if (url.pathname === "/orders" && options.injected)
+      return route.fulfill({
+        contentType: "text/html",
+        body: `<!doctype html><html><body><h1>Orders</h1>${toolbarSnippet("/_profiler", PROFILE.token)}<script>${options.injected.script}</script></body></html>`,
+      });
+    if (url.pathname === "/_profiler/ui.js")
+      return route.fulfill({ contentType: "text/javascript", body: bundle });
     if (url.pathname === "/orders")
       return route.fulfill({
         contentType: "text/html",
@@ -132,6 +142,17 @@ test("tags the page's calls with its token and shows them under it", async ({ pa
   await expect(bar(page).locator("tr.child")).toContainText("/api/promotions");
   await bar(page).locator("tr.child").click();
   await expect(bar(page).locator(".tab.on")).toHaveText("Queries (1)");
+});
+
+test("tags the calls the page makes before the bar is there", async ({ page }) => {
+  const { parents } = await open(page, {
+    live: PROMOTIONS,
+    injected: { script: `fetch("/api/promotions")` },
+  });
+  await expect.poll(() => parents).toEqual([PROFILE.token]);
+  await expect(bar(page).locator(".strip")).toContainText("1 call");
+  await openPanel(page);
+  await expect(bar(page).locator("tr.child")).toContainText("/api/promotions");
 });
 
 test("starts a new page when the app navigates, without faking a popstate", async ({ page }) => {

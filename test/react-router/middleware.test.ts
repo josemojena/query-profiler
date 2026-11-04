@@ -36,6 +36,16 @@ describe("profilerMiddleware", () => {
     expect(response.headers.get(TOKEN_HEADER)).toBe(profiles[0]!.token);
   });
 
+  it("shows a data request as the route it loads", async () => {
+    const ok = async () => new Response(null);
+    await middleware()(
+      call("http://localhost/orders/offers.data?_routes=routes%2Foffers&page=2"),
+      ok,
+    );
+    await middleware()(call("http://localhost/_root.data?_routes=root"), ok);
+    expect(profiles.map((profile) => profile.request.url)).toEqual(["/orders/offers?page=2", "/"]);
+  });
+
   it("tells data requests and actions apart", async () => {
     const ok = async () => new Response(null);
     await middleware()(call("http://localhost/orders.data"), ok);
@@ -102,7 +112,7 @@ describe("profilerMiddleware", () => {
     })) as Response;
     const html = await response.text();
     expect(html).toMatch(
-      /<h1>Products<\/h1><script>\(function\(o\)\{.*<\/script><\/body><\/html>$/,
+      /<h1>Products<\/h1><script>\(function\(o\)\{.*<\/script><\/body><\/html>$/s,
     );
     expect(html).toContain(`"token":"${profiles[0]!.token}"`);
     expect(response.headers.has("Content-Length")).toBe(false);

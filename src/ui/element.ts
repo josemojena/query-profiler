@@ -1,8 +1,8 @@
 import type { Profile, ProfileListItem } from "../core/index.js";
-import { PARENT_HEADER, TOKEN_HEADER } from "../core/constants.js";
 import { runnableSql, type Editor } from "./format.js";
 import { getJson } from "./http.js";
 import { STRIP_HEIGHT, styles } from "./styles.js";
+import { installTracker, type Call, type Tracker } from "./tracker.js";
 import { render, type Tab, type ViewState } from "./view.js";
 
 const SAVED = "query-profiler:ui";
@@ -15,18 +15,13 @@ interface Saved {
   height: number;
 }
 
-/** A call this page made, as the browser saw it. */
-interface Call {
-  token: string;
-  path: string;
-}
-
 export class ProfilerToolbar extends HTMLElement {
   #root = this.attachShadow({ mode: "open" });
   #events?: EventSource;
   /** The page the browser is on, as opposed to the one shown when picked from Recent. */
   #livePage?: string;
   #calls: Call[] = [];
+  #tracker?: Tracker;
   /** The path navigated to, until the call that loads it is seen. */
   #navigatedTo?: string;
   #state: ViewState = {
@@ -55,6 +50,7 @@ export class ProfilerToolbar extends HTMLElement {
 
   disconnectedCallback() {
     this.#events?.close();
+    this.#tracker?.listeners.delete(this.#onCall);
   }
 
   // Shows nothing until the API answers: profiler off, or its routes not mounted.
@@ -71,14 +67,8 @@ export class ProfilerToolbar extends HTMLElement {
     this.#events.addEventListener("profile", (event) =>
       this.#onProfile(JSON.parse(event.data) as ProfileListItem),
     );
-    trackCalls(
-      base,
-      () => this.#livePage,
-      (call) => {
-        this.#calls.push(call);
-        this.#settleNavigation();
-      },
-    );
+    this.#tracker = installTracker(base);
+    this.#tracker.listeners.add(this.#onCall);
     onNavigation(() => {
       this.#navigatedTo = location.pathname;
       this.#settleNavigation();
@@ -93,7 +83,7 @@ export class ProfilerToolbar extends HTMLElement {
   }
 
   async #showPage(token: string, live: boolean) {
-    if (live) this.#livePage = token;
+    if (live) this.#follow(token);
     this.#state.pinned = !live;
     const [page, calls] = await Promise.all([
       this.#item(token),
@@ -141,8 +131,19 @@ export class ProfilerToolbar extends HTMLElement {
     if (!call) return;
     this.#navigatedTo = undefined;
     this.#calls = [];
-    if (this.#state.pinned) this.#livePage = call.token;
+    if (this.#state.pinned) this.#follow(call.token);
     else void this.#showPage(call.token, true);
+  }
+
+  #onCall = (call: Call) => {
+    this.#calls.push(call);
+    this.#settleNavigation();
+  };
+
+  /** The page the browser is on: new calls hang under it. */
+  #follow(token: string) {
+    this.#livePage = token;
+    if (this.#tracker) this.#tracker.page = token;
   }
 
   #onClick = (event: Event) => {
@@ -231,35 +232,6 @@ export class ProfilerToolbar extends HTMLElement {
     const body = this.#root.querySelector(".body");
     if (body) body.scrollTop = scroll;
   }
-}
-
-/** The page a call loads: `/orders.data` and `/orders` are the same page. */
-export function pagePath(url: URL): string {
-  const path = url.pathname.replace(/\.data$/, "");
-  return path === "/_root" ? "/" : path;
-}
-
-/**
- * Tags the page's own calls with the page's token, so the server hangs them under it,
- * and remembers the token each one comes back with.
- */
-function trackCalls(base: string, page: () => string | undefined, seen: (call: Call) => void) {
-  const original = window.fetch;
-  if ((original as { queryProfiler?: true }).queryProfiler) return;
-  const tracked = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const request = new Request(input, init);
-    const url = new URL(request.url);
-    const token = page();
-    if (url.origin !== location.origin || url.pathname.startsWith(base) || !token)
-      return original(request);
-    const headers = new Headers(request.headers);
-    headers.set(PARENT_HEADER, token);
-    const response = await original(new Request(request, { headers }));
-    const own = response.headers.get(TOKEN_HEADER);
-    if (own) seen({ token: own, path: pagePath(url) });
-    return response;
-  };
-  window.fetch = Object.assign(tracked, { queryProfiler: true as const });
 }
 
 const NAVIGATED = "query-profiler:navigated";

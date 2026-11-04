@@ -13,6 +13,9 @@ export async function loader() {
 export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <main className="p-8">
+      <a href="/products" className="underline">
+        Products
+      </a>
       <h1 className="mb-4 text-2xl font-bold">Users</h1>
       <ul>
         {loaderData.users.map((user) => (

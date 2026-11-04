@@ -1,8 +1,11 @@
 # React Router example
 
 React Router 8, Vite, Prisma 7 and PostgreSQL, with query-profiler wired as the main
-[README](../../README.md#usage-with-react-router) describes. The home page lists users with one
-query per user, so the bar flags an N+1.
+[README](../../README.md#usage-with-react-router) describes.
+
+- `/` lists users with one query per user, so the bar flags an N+1.
+- `/products` loads the products, then offers and purchases from two `useFetcher` calls on mount;
+  «Buy» posts with a fetcher. The bar hangs every one of those calls under the page.
 
 ## Run it
 

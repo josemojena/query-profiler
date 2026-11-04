@@ -19,3 +19,26 @@ model Post {
   authorId Int
   author   User   @relation(fields: [authorId], references: [id])
 }
+
+model Product {
+  id        Int        @id @default(autoincrement())
+  name      String
+  price     Int
+  offers    Offer[]
+  purchases Purchase[]
+}
+
+model Offer {
+  id        Int     @id @default(autoincrement())
+  productId Int
+  discount  Int
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Purchase {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  quantity  Int
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+}
