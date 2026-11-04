@@ -1,0 +1,297 @@
+import type { Profile, ProfileListItem } from "../core/index.js";
+import { PARENT_HEADER, TOKEN_HEADER } from "../core/constants.js";
+import { runnableSql, type Editor } from "./format.js";
+import { getJson } from "./http.js";
+import { STRIP_HEIGHT, styles } from "./styles.js";
+import { render, type Tab, type ViewState } from "./view.js";
+
+const SAVED = "query-profiler:ui";
+const MAX_RECENT = 20;
+
+interface Saved {
+  open: boolean;
+  minimized: boolean;
+  tab: Tab;
+  height: number;
+}
+
+/** A call this page made, as the browser saw it. */
+interface Call {
+  token: string;
+  path: string;
+}
+
+export class ProfilerToolbar extends HTMLElement {
+  #root = this.attachShadow({ mode: "open" });
+  #events?: EventSource;
+  /** The page the browser is on, as opposed to the one shown when picked from Recent. */
+  #livePage?: string;
+  #calls: Call[] = [];
+  /** The path navigated to, until the call that loads it is seen. */
+  #navigatedTo?: string;
+  #state: ViewState = {
+    base: "/_profiler",
+    root: "",
+    editor: "vscode",
+    calls: [],
+    recent: [],
+    open: false,
+    minimized: false,
+    showRecent: false,
+    pinned: false,
+    tab: "requests",
+    height: Math.round(window.innerHeight * 0.4),
+    expanded: new Set(),
+  };
+
+  connectedCallback() {
+    this.#state.base = this.dataset.base ?? this.#state.base;
+    this.#state.editor = (this.dataset.editor as Editor | undefined) ?? this.#state.editor;
+    Object.assign(this.#state, readSaved());
+    this.#root.addEventListener("click", this.#onClick);
+    this.#root.addEventListener("pointerdown", this.#onPointerDown);
+    void this.#load();
+  }
+
+  disconnectedCallback() {
+    this.#events?.close();
+  }
+
+  // Shows nothing until the API answers: profiler off, or its routes not mounted.
+  async #load() {
+    const { base } = this.#state;
+    const [meta, recent] = await Promise.all([
+      getJson<{ root: string }>(`${base}/api/meta`),
+      getJson<ProfileListItem[]>(`${base}/api/profiles?limit=${MAX_RECENT}`),
+    ]);
+    if (!meta) return;
+    this.#state.root = meta.root;
+    this.#state.recent = recent ?? [];
+    this.#events = new EventSource(`${base}/api/stream`);
+    this.#events.addEventListener("profile", (event) =>
+      this.#onProfile(JSON.parse(event.data) as ProfileListItem),
+    );
+    trackCalls(
+      base,
+      () => this.#livePage,
+      (call) => {
+        this.#calls.push(call);
+        this.#settleNavigation();
+      },
+    );
+    onNavigation(() => {
+      this.#navigatedTo = location.pathname;
+      this.#settleNavigation();
+    });
+    const here = location.pathname + location.search;
+    const page =
+      this.dataset.token ??
+      this.#state.recent.find((item) => item.kind === "document" && item.request.url === here)
+        ?.token;
+    if (page) await this.#showPage(page, true);
+    else this.#render();
+  }
+
+  async #showPage(token: string, live: boolean) {
+    if (live) this.#livePage = token;
+    this.#state.pinned = !live;
+    const [page, calls] = await Promise.all([
+      this.#item(token),
+      getJson<ProfileListItem[]>(`${this.#state.base}/api/profiles?parent=${token}`),
+    ]);
+    this.#state.page = page;
+    this.#state.calls = (calls ?? []).reverse();
+    await this.#select(token);
+  }
+
+  async #item(token: string): Promise<ProfileListItem | undefined> {
+    const known = this.#state.recent.find((item) => item.token === token);
+    if (known) return known;
+    const profile = await getJson<Profile>(`${this.#state.base}/api/profiles/${token}`);
+    if (!profile) return undefined;
+    const { operations: _operations, queries: _queries, warnings, ...rest } = profile;
+    return { ...rest, warningCount: warnings.length };
+  }
+
+  async #select(token: string) {
+    const profile = await getJson<Profile>(`${this.#state.base}/api/profiles/${token}`);
+    if (profile) {
+      this.#state.profile = profile;
+      this.#state.expanded = new Set();
+    }
+    this.#render();
+  }
+
+  #onProfile(item: ProfileListItem) {
+    const state = this.#state;
+    state.recent = [item, ...state.recent.filter((r) => r.token !== item.token)].slice(
+      0,
+      MAX_RECENT,
+    );
+    if (item.token === state.page?.token) state.page = item;
+    if (state.page && item.parentToken === state.page.token)
+      state.calls = [...state.calls.filter((call) => call.token !== item.token), item];
+    this.#render();
+  }
+
+  /** After a client navigation, the call that loads the new location becomes the page; it may come before or after. */
+  #settleNavigation() {
+    const path = this.#navigatedTo;
+    const call = path && [...this.#calls].reverse().find((candidate) => candidate.path === path);
+    if (!call) return;
+    this.#navigatedTo = undefined;
+    this.#calls = [];
+    if (this.#state.pinned) this.#livePage = call.token;
+    else void this.#showPage(call.token, true);
+  }
+
+  #onClick = (event: Event) => {
+    const target = (event.target as Element).closest<HTMLElement>("[data-action]");
+    if (!target || target.tagName === "A") return;
+    event.stopPropagation();
+    const state = this.#state;
+    switch (target.dataset.action) {
+      case "toggle":
+        state.open = !state.open;
+        state.showRecent = false;
+        break;
+      case "tab":
+        state.tab = target.dataset.tab as Tab;
+        break;
+      case "minimize":
+        state.minimized = true;
+        state.open = false;
+        state.showRecent = false;
+        break;
+      case "restore":
+        state.minimized = false;
+        break;
+      case "recent":
+        state.showRecent = !state.showRecent;
+        break;
+      case "select":
+        state.tab = "queries";
+        void this.#select(target.dataset.token!);
+        return;
+      case "pick": {
+        const item = state.recent.find((r) => r.token === target.dataset.token);
+        state.showRecent = false;
+        state.open = true;
+        if (item) {
+          const page = item.parentToken ?? item.token;
+          void this.#showPage(page, page === this.#livePage);
+        }
+        return;
+      }
+      case "follow":
+        if (this.#livePage) void this.#showPage(this.#livePage, true);
+        return;
+      case "expand": {
+        const id = target.dataset.id!;
+        const expanded = new Set(state.expanded);
+        if (!expanded.delete(id)) expanded.add(id);
+        state.expanded = expanded;
+        break;
+      }
+      case "copy": {
+        const query = state.profile?.queries.find((q) => q.id === target.dataset.id);
+        if (query)
+          void navigator.clipboard
+            .writeText(runnableSql(query))
+            .then(() => (target.textContent = "Copied"));
+        return;
+      }
+    }
+    save(state);
+    this.#render();
+  };
+
+  #onPointerDown = (event: Event) => {
+    const handle = (event.target as Element).closest("[data-drag]");
+    if (!handle) return;
+    event.preventDefault();
+    const move = (moved: PointerEvent) => {
+      const height = window.innerHeight - moved.clientY - STRIP_HEIGHT;
+      this.#state.height = Math.min(Math.max(height, 120), window.innerHeight - STRIP_HEIGHT - 40);
+      const panel = this.#root.querySelector<HTMLElement>(".panel");
+      if (panel) panel.style.height = `${this.#state.height}px`;
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      save(this.#state);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  #render() {
+    const scroll = this.#root.querySelector(".body")?.scrollTop ?? 0;
+    this.#root.innerHTML = `<style>${styles}</style>${render(this.#state)}`;
+    const body = this.#root.querySelector(".body");
+    if (body) body.scrollTop = scroll;
+  }
+}
+
+/** The page a call loads: `/orders.data` and `/orders` are the same page. */
+export function pagePath(url: URL): string {
+  const path = url.pathname.replace(/\.data$/, "");
+  return path === "/_root" ? "/" : path;
+}
+
+/**
+ * Tags the page's own calls with the page's token, so the server hangs them under it,
+ * and remembers the token each one comes back with.
+ */
+function trackCalls(base: string, page: () => string | undefined, seen: (call: Call) => void) {
+  const original = window.fetch;
+  if ((original as { queryProfiler?: true }).queryProfiler) return;
+  const tracked = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const request = new Request(input, init);
+    const url = new URL(request.url);
+    const token = page();
+    if (url.origin !== location.origin || url.pathname.startsWith(base) || !token)
+      return original(request);
+    const headers = new Headers(request.headers);
+    headers.set(PARENT_HEADER, token);
+    const response = await original(new Request(request, { headers }));
+    const own = response.headers.get(TOKEN_HEADER);
+    if (own) seen({ token: own, path: pagePath(url) });
+    return response;
+  };
+  window.fetch = Object.assign(tracked, { queryProfiler: true as const });
+}
+
+const NAVIGATED = "query-profiler:navigated";
+
+// pushState and replaceState fire no event; a popstate here would make routers think the user went back.
+function onNavigation(listener: () => void) {
+  const history = window.history as History & { queryProfiler?: true };
+  addEventListener("popstate", listener);
+  addEventListener(NAVIGATED, listener);
+  if (history.queryProfiler) return;
+  history.queryProfiler = true;
+  for (const method of ["pushState", "replaceState"] as const) {
+    const original = history[method].bind(history);
+    history[method] = (...args: Parameters<History["pushState"]>) => {
+      original(...args);
+      dispatchEvent(new Event(NAVIGATED));
+    };
+  }
+}
+
+function readSaved(): Partial<Saved> {
+  try {
+    return JSON.parse(localStorage.getItem(SAVED) ?? "{}") as Partial<Saved>;
+  } catch {
+    return {};
+  }
+}
+
+function save({ open, minimized, tab, height }: ViewState) {
+  try {
+    localStorage.setItem(SAVED, JSON.stringify({ open, minimized, tab, height } satisfies Saved));
+  } catch {
+    // Private windows can refuse storage; the bar works without it.
+  }
+}

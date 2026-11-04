@@ -1,0 +1,3 @@
+# Only for the examples: query-profiler itself is the single package at the root.
+packages:
+  - examples/*

@@ -1,0 +1,12 @@
+import { expect, it } from "vitest";
+import * as noop from "../../src/prisma/noop.js";
+import * as real from "../../src/prisma/index.js";
+
+it("offers the same API, doing nothing, for production builds", () => {
+  expect(Object.keys(noop).sort()).toEqual(Object.keys(real).sort());
+  const options = { adapter: { connect: async () => ({}) } };
+  expect(noop.withProfiler(options)).toBe(options);
+  expect(noop.profilePool(options)).toBe(options);
+  expect(noop.profileAdapter(options.adapter)).toBe(options.adapter);
+  expect(noop.profilerExtension).toEqual({ name: "query-profiler" });
+});

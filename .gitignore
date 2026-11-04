@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.turbo/
+test-results/
+playwright-report/
+test/prisma/fixture/generated/
+.DS_Store
+.env
