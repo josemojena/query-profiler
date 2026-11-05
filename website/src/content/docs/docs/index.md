@@ -26,5 +26,6 @@ The bar at the bottom of the [home page](/) is the real one, running on that sam
 ## Next steps
 
 - [Install it](/docs/installation) and check the requirements.
-- Set it up in [React Router](/docs/guides/react-router).
+- Set it up in [React Router](/docs/guides/react-router) or a [Node server](/docs/guides/node)
+  (Express, Fastify, Koa, Hapi, NestJS, Hono).
 - Learn [how it works](/docs/concepts/how-it-works).

@@ -1,0 +1,177 @@
+---
+title: Node servers
+description: Set up query-profiler in Express, Fastify, Koa, Hapi, NestJS or Hono, with no code in the server.
+---
+
+import { TabItem, Tabs } from "@astrojs/starlight/components";
+
+Any Node HTTP server, whatever the framework: Express, Fastify, Koa, Hapi, NestJS, Hono on
+`@hono/node-server`, with Prisma 7 and `@prisma/adapter-pg`. Your server's code does not change: a
+preload in the dev command profiles each request, and the profiler's page gets a port of its own.
+Complete apps are in
+[`examples/express`](https://github.com/josemojena/query-profiler/tree/main/examples/express) and
+[`examples/fastify`](https://github.com/josemojena/query-profiler/tree/main/examples/fastify).
+
+## 1. Install it as a dev dependency
+
+```sh
+npm i -D query-profiler
+```
+
+A production install (`npm ci --omit=dev`) leaves it out, and nothing in production loads it.
+
+## 2. Profile the Prisma client
+
+The package is only there in development, so import it only if it is installed. See
+[Prisma](/docs/guides/prisma) for what the two calls do.
+
+```ts
+// src/db.ts
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "./generated/prisma/client.js";
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+// A dev dependency: a production install leaves it out, and the client stays plain.
+const profiler = await import("query-profiler/prisma").catch(() => undefined);
+
+export const prisma: Omit<PrismaClient, "$on"> = profiler
+  ? profiler.profilePrisma(new PrismaClient(profiler.withProfiler({ adapter })))
+  : new PrismaClient({ adapter });
+```
+
+With a bundled server, plain imports work too: see
+[installation](/docs/installation#a-bundled-server).
+
+## 3. Add the preload to your dev command
+
+Two flags for Node, and nothing else:
+
+```sh
+node --conditions=development --import query-profiler/register src/server.js
+```
+
+- `--import query-profiler/register` profiles each request from Node itself, before your framework
+  sees it, and serves the profiler.
+- `--conditions=development` loads the profiler's real code. Without it, every entry is the version
+  that does nothing, as in production.
+
+With your watcher:
+
+<Tabs syncKey="runner">
+  <TabItem label="node --watch">
+
+```json
+{
+  "scripts": {
+    "dev": "node --watch --conditions=development --import query-profiler/register src/server.js",
+    "start": "node src/server.js"
+  }
+}
+```
+
+  </TabItem>
+  <TabItem label="tsx">
+
+```json
+{
+  "scripts": {
+    "dev": "tsx watch --conditions=development --import query-profiler/register src/server.ts",
+    "start": "node dist/server.js"
+  }
+}
+```
+
+  </TabItem>
+  <TabItem label="nodemon">
+
+```json
+{
+  "scripts": {
+    "dev": "nodemon --exec \"node --conditions=development --import query-profiler/register\" src/server.js",
+    "start": "node src/server.js"
+  }
+}
+```
+
+  </TabItem>
+  <TabItem label="Nest CLI">
+
+```json
+{
+  "scripts": {
+    "start:dev": "nest start --watch --exec \"node --conditions=development --import query-profiler/register\"",
+    "start:prod": "node dist/main"
+  }
+}
+```
+
+  </TabItem>
+  <TabItem label="Anything else">
+
+Put the flags in `NODE_OPTIONS`, and every Node process the command starts gets them:
+
+```sh
+NODE_OPTIONS="--conditions=development --import query-profiler/register" npm run dev
+```
+
+The profiler opens its port only in the process whose server listens, so a CLI that launches your
+app never takes it.
+
+  </TabItem>
+</Tabs>
+
+The `start` script stays as it is: there is nothing to remove before deploying.
+
+## 4. Open the profiler
+
+Run the dev server. Once your app listens, the terminal says where the profiler is:
+
+```txt
+[query-profiler] http://localhost:4983/_profiler
+```
+
+It shows every request, live. Port 4983 is the default; set `QUERY_PROFILER_PORT` to pick another.
+If the port is busy, the profiler waits a second for a restarting app to let go of it, then takes the
+next free one and prints it.
+
+## Seeing what your API did
+
+- **The page** at `http://localhost:4983/_profiler`: every request, with its queries, operations,
+  timeline and warnings.
+- **`X-Debug-Token`** on every response: open `/_profiler/<token>` for that request.
+- **One line per request** in the terminal, with `QUERY_PROFILER_LOG=1`:
+
+  ```txt
+  [query-profiler] GET /users 200 · 7 queries · 18.92 ms in db · 7 operations · 1 warning · 80.49 ms · 90dd08
+  ```
+
+- **The JSON** behind the page: see the [HTTP API](/docs/reference/http-api).
+
+## Frameworks
+
+Any framework that serves through Node's `http` module works the same way. These are tested in CI,
+with Prisma against PostgreSQL:
+
+| Framework | Tested with                 |
+| --------- | --------------------------- |
+| Express   | 4.18 and later, 5           |
+| Fastify   | 4.26 and later, 5           |
+| Koa       | 3                           |
+| Hapi      | 21                          |
+| NestJS    | 12, on Express              |
+| Hono      | 4, on `@hono/node-server` 2 |
+
+Before Express 4.18, its body parser loses the request's async context: a route that reads a body
+runs outside its profile, and its queries are lost.
+
+## CORS
+
+When a request comes from another origin, the preload adds `X-Debug-Token` to
+`Access-Control-Expose-Headers`, so a frontend there can read it. If your CORS settings set that
+header themselves (`exposedHeaders` in `cors`), list `X-Debug-Token` there too.
+
+## How it works
+
+Node publishes each request on its `http.server.request.start` diagnostics channel, right before the
+server hands it to its handler. The preload opens the request's profile there, so your framework,
+and every query it makes, runs inside it. More in [how it works](/docs/concepts/how-it-works).

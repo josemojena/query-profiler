@@ -3,7 +3,8 @@ title: HTTP API
 description: The routes under /_profiler and the headers on every profiled response.
 ---
 
-Under `/_profiler`, answering only `localhost`, only in development. `/_profiler`,
+Under `/_profiler`, answering only `localhost`, only in development: on the dev server for React
+Router, and on the profiler's own port (`http://localhost:4983`) for a Node server. `/_profiler`,
 `/_profiler/:token` and `/_profiler/stats` are the [page](/docs/concepts/profiler-page); the rest is
 JSON.
 

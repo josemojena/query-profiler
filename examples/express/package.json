@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "db:setup": "cp -n .env.example .env; prisma db push && prisma generate && tsx --env-file=.env prisma/seed.ts",
-    "dev": "tsx watch --conditions=development --env-file=.env src/server.ts",
+    "dev": "tsx watch --conditions=development --import query-profiler/register --env-file=.env src/server.ts",
     "build": "tsc",
     "start": "node --env-file=.env dist/server.js",
     "typecheck": "tsc --noEmit"
