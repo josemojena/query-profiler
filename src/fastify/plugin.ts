@@ -75,7 +75,7 @@ export const profilerPlugin = fastifyPlugin(
       done();
     });
   },
-  { name: "query-profiler", fastify: "5.x" },
+  { name: "query-profiler", fastify: ">=4.26.0" },
 );
 
 function parentOf(request: FastifyRequest): string | undefined {
@@ -95,7 +95,7 @@ function toRequest(request: FastifyRequest): Request {
   const headers = new Headers();
   for (const [key, value] of Object.entries(request.headers))
     if (value !== undefined) headers.set(key, [value].flat().join(", "));
-  return new Request(`${request.protocol}://${request.host}${request.url}`, {
+  return new Request(`${request.protocol}://${request.headers.host ?? "localhost"}${request.url}`, {
     method: request.method,
     headers,
   });

@@ -26,16 +26,24 @@ jobs:
       - run: pnpm check
 
   test:
-    name: Tests (Node ${{ matrix.node }}, Prisma ${{ matrix.prisma }})
+    name: Tests (Node ${{ matrix.node }}, Prisma ${{ matrix.prisma }}, Fastify ${{ matrix.fastify }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         node: [20, 22, 24]
         prisma: [locked]
+        fastify: [locked]
         include:
           - node: 24
             prisma: 7.1.0
+            fastify: locked
+          - node: 20
+            prisma: locked
+            fastify: 4.26.0
+          - node: 24
+            prisma: locked
+            fastify: 5.0.0
     services:
       postgres:
         image: postgres:18-alpine
@@ -61,6 +69,9 @@ jobs:
       - name: Use the oldest supported Prisma
         if: matrix.prisma != 'locked'
         run: pnpm add -D -w prisma@${{ matrix.prisma }} @prisma/client@${{ matrix.prisma }} @prisma/adapter-pg@${{ matrix.prisma }}
+      - name: Use another supported Fastify
+        if: matrix.fastify != 'locked'
+        run: pnpm add -D -w fastify@${{ matrix.fastify }}
       - run: pnpm test
 
   browser:
