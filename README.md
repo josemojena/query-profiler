@@ -44,15 +44,14 @@ One package, one entry per integration. Import only the ones you use: the framew
 are optional peer dependencies, so installing `query-profiler` never pulls in Next.js, React or Vite, and
 an entry you don't import is never loaded.
 
-| Import                        | What it does                                                                                      | Needs                       |
-| ----------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------- |
-| `query-profiler`              | The `Profile` format, the per-request context, storage, analysis and the HTTP handler.            | nothing                     |
-| `query-profiler/prisma`       | The Prisma ORM integration: every operation, its SQL and the line of code behind it.              | `@prisma/client` 7.1+, `pg` |
-| `query-profiler/react-router` | Opens a profile per request in React Router 7.9+ and 8 (framework mode, also Remix).              | `react-router` 7.9+         |
-| `query-profiler/express`      | An Express middleware: a profile per request, and the profiler's page and API under `/_profiler`. | `express` 4.18+             |
-| `query-profiler/fastify`      | A Fastify plugin: a profile per request, and the profiler's page and API under `/_profiler`.      | `fastify` 4.26+             |
-| `query-profiler/vite`         | Serves the profiler's API and UI from the Vite dev server, and keeps the profiler out of builds.  | `vite` 6+                   |
-| `query-profiler/ui`           | The bar and the profiler page, as web components with their styles inside. No framework.          | a browser                   |
+| Import                   | What it does                                                                                                                 | Needs                       |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `query-profiler`         | The `Profile` format, the per-request context, storage, analysis and the HTTP handler.                                       | nothing                     |
+| `query-profiler/prisma`  | The Prisma ORM integration: every operation, its SQL and the line of code behind it.                                         | `@prisma/client` 7.1+, `pg` |
+| `query-profiler/express` | An Express middleware: a profile per request, and the profiler's page and API under `/_profiler`.                            | `express` 4.18+             |
+| `query-profiler/fastify` | A Fastify plugin: a profile per request, and the profiler's page and API under `/_profiler`.                                 | `fastify` 4.26+             |
+| `query-profiler/vite`    | For React Router: a profile per request, the bar and `/_profiler` in the Vite dev server; nothing of the profiler in builds. | `vite` 6+                   |
+| `query-profiler/ui`      | The bar and the profiler page, as web components with their styles inside. No framework.                                     | a browser                   |
 
 ## How it works
 
@@ -124,22 +123,9 @@ core in the bundle, inert: leave it to the development build.
 ## Usage with React Router
 
 React Router 7.9+ or 8 in framework mode (also Remix, which is React Router now), Prisma 7 with
-`@prisma/adapter-pg`. Four files; nothing to remove before deploying.
+`@prisma/adapter-pg`. Two files; nothing to remove before deploying, and nothing in your routes.
 
-**1. Turn on middleware (React Router 7 only).** The profiler is a React Router middleware; in
-version 7 those are opt-in, in 8 they are always on:
-
-```ts
-// react-router.config.ts
-import type { Config } from "@react-router/dev/config";
-
-export default {
-  future: { v8_middleware: true },
-} satisfies Config;
-```
-
-**2. Add the Vite plugin**, before `reactRouter()`. In development it serves the profiler under
-`/_profiler`; in builds it swaps every `query-profiler` import for its no-op entry.
+**1. Add the Vite plugin**, before `reactRouter()`:
 
 ```ts
 // vite.config.ts
@@ -148,11 +134,19 @@ import { queryProfiler } from "query-profiler/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [queryProfiler(), reactRouter()],
+  plugins: [queryProfiler({ log: true }), reactRouter()],
 });
 ```
 
-**3. Profile the Prisma client.** `withProfiler()` wraps the client's options, so every SQL
+In development it profiles every request React Router answers, puts the bar on every page and
+serves `/_profiler`. In builds it swaps every `query-profiler` import for its no-op entry.
+
+| Option | Default      | What it does                                |
+| ------ | ------------ | ------------------------------------------- |
+| `base` | `/_profiler` | Where the profiler's page and API live.     |
+| `log`  | `false`      | Print one line per request in the terminal. |
+
+**2. Profile the Prisma client.** `withProfiler()` wraps the client's options, so every SQL
 statement is recorded; `profilePrisma()` records each operation (`User.findMany`…) and the line
 of your code that called it.
 
@@ -181,46 +175,12 @@ export const pool = profilePool(new pg.Pool({ connectionString: process.env.DATA
 const adapter = new PrismaPg(pool);
 ```
 
-**4. Add the middleware to the root route.** It runs in Node only, so create it in a `.server`
-module: React Router keeps those out of the browser bundle.
-
-```ts
-// app/profiler.server.ts
-import { profilerMiddleware } from "query-profiler/react-router";
-
-export const dbProfiler = profilerMiddleware();
-```
-
-```tsx
-// app/root.tsx
-import type { Route } from "./+types/root";
-import { dbProfiler } from "./profiler.server";
-
-export const middleware: Route.MiddlewareFunction[] = [dbProfiler];
-```
-
 Run your dev server and open any page: the bar is at the bottom, and `/_profiler` has the full
-view. The middleware opens a profile per request and adds the bar to every HTML page after it has
-loaded, so React's hydration never sees it. In a production build all four steps do nothing, with
-no `if (import.meta.env.DEV)` around them.
-
-`profilerMiddleware()` takes:
-
-| Option      | Default      | What it does                                                                         |
-| ----------- | ------------ | ------------------------------------------------------------------------------------ |
-| `base`      | `/_profiler` | Where the profiler's pages and API live. Pass the same to `queryProfiler({ base })`. |
-| `toolbar`   | `true`       | Add the bar to HTML pages.                                                           |
-| `onProfile` | none         | Called with each profile once its response is sent, to log it or keep it.            |
-
-To print one line per request in the terminal:
-
-```ts
-import { formatProfile } from "query-profiler";
-
-export const dbProfiler = profilerMiddleware({
-  onProfile: (profile) => console.log(formatProfile(profile)),
-});
-```
+view. The plugin adds a middleware to the Vite dev server, right before React Router's, that runs
+each request inside its profile. The bar comes in with React Router's client entry in development
+and learns its page's token from the page's `Server-Timing` header, so the calls the page makes
+before the bar is there still hang under it. In a production build both steps do nothing, with no
+`if (import.meta.env.DEV)` around them.
 
 The bar sits at the bottom of every page and adds up the page and the calls it made: requests,
 queries, time the database was busy and warnings. Click it to open:
@@ -282,7 +242,7 @@ operations and the line of code behind each, live. Each response's `X-Debug-Toke
 request at `/_profiler/<token>`, and `onProfile` with `formatProfile()` prints one line per request.
 
 It is a regular Fastify plugin (made with `fastify-plugin`), so it sees every route of the app.
-It takes `base` and `onProfile`, like `profilerMiddleware()`. When a request comes from another
+It takes `base` and `onProfile`. When a request comes from another
 origin, it adds `X-Debug-Token` to `Access-Control-Expose-Headers`, so a frontend there can read it.
 
 ## Usage with Express
@@ -319,8 +279,8 @@ queries.
 - **Stats** (`/_profiler/stats`): across the stored requests, the slowest and the most repeated
   statement shapes, time by model and by route.
 
-Without Vite (a custom server), mount `query-profiler/react-router/route` at `/_profiler/*`, pass
-`toolbar: false` and render `<ProfilerToolbar />` from `query-profiler/react-router/toolbar` in your layout.
+A custom server that runs Vite in middleware mode, as React Router's templates for Express do, gets
+the same: the plugin's middleware runs inside Vite's.
 
 ## HTTP API
 
@@ -343,7 +303,7 @@ Every profiled response carries `X-Debug-Token`.
 It only runs in development: with `NODE_ENV=development`, or with `NODE_ENV` unset, as servers
 without a bundler (Fastify, Express) leave it. `NODE_ENV=production` or `test` keep it off, so your app's own
 test runs are never profiled. `QUERY_PROFILER_DISABLED=1` turns it off in development too
-(end-to-end suites, for one): the middleware passes through, the API answers 404 and the bar shows
+(end-to-end suites, for one): requests are not profiled, the API answers 404 and the bar shows
 nothing. Production builds resolve every package to its no-op entry, and plain `node` without
 `--conditions=development` does too.
 

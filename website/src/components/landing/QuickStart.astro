@@ -6,10 +6,10 @@ import { link } from "../../data/site";
   <div class="wrap inner">
     <div class="copy">
       <div class="eyebrow">-- quick start</div>
-      <h2 class="title">Three lines, nothing to remove</h2>
+      <h2 class="title">Two lines, nothing to remove</h2>
       <p class="lead">
-        Add the Vite plugin, wrap your Prisma client, add the middleware. Production builds get empty
-        versions of all three, so there is no <code>if (DEV)</code> anywhere.
+        Add the Vite plugin and wrap your Prisma client. Nothing goes in your routes, and production
+        builds get empty versions of both, so there is no <code>if (DEV)</code> anywhere.
       </p>
       <a href={link("docs/guides/react-router")}>React Router guide →</a>
     </div>
@@ -17,7 +17,6 @@ import { link } from "../../data/site";
       <div role="tablist" aria-label="Files" class="tabs">
         <button type="button" role="tab" aria-selected="true" aria-controls="file-db" id="tab-db">db.server.ts</button>
         <button type="button" role="tab" aria-selected="false" aria-controls="file-vite" id="tab-vite">vite.config.ts</button>
-        <button type="button" role="tab" aria-selected="false" aria-controls="file-root" id="tab-root">root.tsx</button>
       </div>
       <pre id="file-db" role="tabpanel" aria-labelledby="tab-db"><span class="k">import</span> {"{"} PrismaPg {"}"} <span class="k">from</span> <span class="s">"@prisma/adapter-pg"</span>;
 <span class="k">import</span> {"{"} profilePrisma, withProfiler {"}"} <span class="k">from</span> <span class="s">"query-profiler/prisma"</span>;
@@ -31,13 +30,8 @@ import { link } from "../../data/site";
 <span class="k">import</span> {"{"} queryProfiler {"}"} <span class="k">from</span> <span class="s">"query-profiler/vite"</span>;
 
 <span class="k">export default</span> defineConfig({"{"}
-  plugins: [<span class="f">queryProfiler</span>(), reactRouter()],
+  plugins: [<span class="f">queryProfiler</span>({"{"} log: <span class="k">true</span> {"}"}), reactRouter()],
 {"}"});</pre>
-      <pre id="file-root" role="tabpanel" aria-labelledby="tab-root" hidden><span class="c">// app/profiler.server.ts</span>
-<span class="k">export const</span> dbProfiler = <span class="f">profilerMiddleware</span>();
-
-<span class="c">// app/root.tsx</span>
-<span class="k">export const</span> middleware = [dbProfiler];</pre>
     </div>
   </div>
 </section>

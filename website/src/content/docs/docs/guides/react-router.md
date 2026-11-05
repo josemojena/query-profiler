@@ -3,27 +3,19 @@ title: React Router
 description: Set up query-profiler in a React Router 7.9+ or 8 app (also Remix).
 ---
 
-React Router 7.9+ or 8 in framework mode, with Prisma 7 and `@prisma/adapter-pg`. Four files, and
-nothing to remove before deploying. A complete app is in
+React Router 7.9+ or 8 in framework mode, with Prisma 7 and `@prisma/adapter-pg`. Two files, nothing
+in your routes, and nothing to remove before deploying. A complete app is in
 [`examples/react-router`](https://github.com/josemojena/query-profiler/tree/main/examples/react-router).
 
-## 1. Turn on middleware (React Router 7 only)
-
-The profiler is a React Router middleware. In version 7 middleware is opt-in; in 8 it is always on.
-
-```ts
-// react-router.config.ts
-import type { Config } from "@react-router/dev/config";
-
-export default {
-  future: { v8_middleware: true },
-} satisfies Config;
+```sh
+npm i -D query-profiler
 ```
 
-## 2. Add the Vite plugin
+It is a dev dependency: the build gets none of it.
 
-Put it before `reactRouter()`. In development it serves the profiler under `/_profiler`; in builds it
-swaps every `query-profiler` import for its no-op entry.
+## 1. Add the Vite plugin
+
+Put it before `reactRouter()`:
 
 ```ts
 // vite.config.ts
@@ -32,11 +24,16 @@ import { queryProfiler } from "query-profiler/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [queryProfiler(), reactRouter()],
+  plugins: [queryProfiler({ log: true }), reactRouter()],
 });
 ```
 
-## 3. Profile the Prisma client
+| Option | Default      | What it does                                |
+| ------ | ------------ | ------------------------------------------- |
+| `base` | `/_profiler` | Where the profiler's page and API live.     |
+| `log`  | `false`      | Print one line per request in the terminal. |
+
+## 2. Profile the Prisma client
 
 ```ts
 // app/db.server.ts
@@ -51,52 +48,23 @@ export const prisma = profilePrisma(new PrismaClient(withProfiler({ adapter })))
 
 The [Prisma guide](/docs/guides/prisma) explains both calls, raw SQL and types.
 
-## 4. Add the middleware to the root route
+Run your dev server and open any page: [the bar](/docs/concepts/the-bar) is at the bottom, and
+`/_profiler` has [the full view](/docs/concepts/profiler-page).
 
-It runs in Node only, so create it in a `.server` module: React Router keeps those out of the
-browser bundle.
+## How it fits in React Router
 
-```ts
-// app/profiler.server.ts
-import { profilerMiddleware } from "query-profiler/react-router";
+Nothing goes in your routes, and React Router 7 needs no `future.v8_middleware`:
 
-export const dbProfiler = profilerMiddleware();
-```
+- In development, the plugin adds a middleware to the Vite dev server, right before React Router's.
+  It opens a profile for each request and runs the rest of it inside, so every loader, action and
+  query lands in it. It tags each response with `X-Debug-Token`, and with a `Server-Timing` entry
+  that carries the same token.
+- The bar comes in with React Router's client entry (yours, `app/entry.client.tsx`, or its default
+  one), added by the plugin in development only. It reads its page's token from the page's
+  `Server-Timing` header before the app hydrates, so the fetchers a page runs on mount already hang
+  under it.
+- In a build, the plugin swaps every `query-profiler` import for its no-op entry, and adds nothing
+  to the client.
 
-```tsx
-// app/root.tsx
-import type { Route } from "./+types/root";
-import { dbProfiler } from "./profiler.server";
-
-export const middleware: Route.MiddlewareFunction[] = [dbProfiler];
-```
-
-Run your dev server and open any page: the [bar](/docs/concepts/the-bar) is at the bottom, and
-[`/_profiler`](/docs/concepts/profiler-page) has the full view.
-
-## Options
-
-`profilerMiddleware()` takes:
-
-| Option      | Default      | What it does                                                                         |
-| ----------- | ------------ | ------------------------------------------------------------------------------------ |
-| `base`      | `/_profiler` | Where the profiler's pages and API live. Pass the same to `queryProfiler({ base })`. |
-| `toolbar`   | `true`       | Add the bar to HTML pages.                                                           |
-| `onProfile` | none         | Called with each profile once its response is sent, to log it or keep it.            |
-
-To print one line per request in the terminal:
-
-```ts
-import { formatProfile } from "query-profiler";
-import { profilerMiddleware } from "query-profiler/react-router";
-
-export const dbProfiler = profilerMiddleware({
-  onProfile: (profile) => console.log(formatProfile(profile)),
-});
-```
-
-## Without Vite
-
-With a custom server, mount `query-profiler/react-router/route` as a resource route at
-`/_profiler/*`, pass `toolbar: false`, and render `<ProfilerToolbar />` from
-`query-profiler/react-router/toolbar` in your layout.
+A custom server that runs Vite in middleware mode, as React Router's Express template does, gets the
+same: the plugin's middleware runs inside Vite's.

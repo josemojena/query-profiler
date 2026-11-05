@@ -12,7 +12,7 @@ turn off there.
 In development, set `QUERY_PROFILER_DISABLED=1` to switch it off, for example in an end-to-end test
 suite:
 
-- the middleware passes requests through untouched;
+- requests are not profiled;
 - the `/_profiler` API answers `404`;
 - the bar shows nothing.
 
