@@ -25,10 +25,10 @@ and leaves nothing in production builds.
 
 | What       | Supported                                                            |
 | ---------- | -------------------------------------------------------------------- |
-| Prisma ORM | **7.1 or later**, with `@prisma/adapter-pg`. Not 6; 8 is planned     |
-| Database   | PostgreSQL (MySQL is planned)                                        |
+| Prisma ORM | **7.1 or later**, with a driver adapter. Not 6; 8 is planned         |
+| Database   | PostgreSQL, MySQL, MariaDB and SQLite, through Prisma's own adapters |
 | Node       | 22.19+ or 24.5+                                                      |
-| Raw SQL    | `pg` (node-postgres), optional                                       |
+| Raw SQL    | Prisma's `$queryRaw` on any of them; `pg` (node-postgres), optional  |
 | Framework  | React Router 7.9+ and 8 in framework mode (also Remix), with Vite 6+ |
 | Framework  | Any Node server: Express, Fastify, Koa, Hapi, NestJS, Hono           |
 
@@ -100,7 +100,8 @@ development build.
 ## Usage with React Router
 
 React Router 7.9+ or 8 in framework mode (also Remix, which is React Router now), Prisma 7 with
-`@prisma/adapter-pg`. Two files; nothing to remove before deploying, and nothing in your routes.
+a driver adapter (the examples use `@prisma/adapter-pg`). Two files; nothing to remove before
+deploying, and nothing in your routes.
 
 **1. Add the Vite plugin**, before `reactRouter()`:
 
@@ -178,7 +179,7 @@ The bar and the profiler page are dark by default. The switch next to their name
 ## Usage with a Node server
 
 Express, Fastify, Koa, Hapi, NestJS, Hono on `@hono/node-server`, or any server built on Node's
-`http` module, with Prisma 7 and `@prisma/adapter-pg`. Your server's code does not change. Three
+`http` module, with Prisma 7 and a driver adapter. Your server's code does not change. Three
 steps, and nothing to remove before deploying.
 
 **1. Install it as a dev dependency**: `npm i -D query-profiler`.
@@ -337,7 +338,8 @@ pnpm check          # lint, format and types
 pnpm website:dev    # the website (landing page and docs) at http://localhost:4321
 ```
 
-CI runs lint, format and types, the tests against PostgreSQL on Node 22.19, 22 and 24 and on the
+CI runs lint, format and types, the tests against PostgreSQL, MySQL, MariaDB and SQLite on Node
+22.19, 22 and 24 and on the
 oldest and newest supported Prisma, and the browser tests.
 
 The package ships compiled JavaScript from `dist/` (Node won't strip types inside
