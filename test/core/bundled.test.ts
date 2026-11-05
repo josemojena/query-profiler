@@ -63,3 +63,32 @@ it("finds the app's line through the bundle's source map, even with the stack fo
 it("serves the bar's code when a bundler has moved the profiler out of its package", () => {
   expect(run().ui).toBe(200);
 });
+
+it("finds the app's line when Node already maps the stack itself, as with tsx", async () => {
+  const dir = mkdtempSync(join(realpathSync(tmpdir()), "query-profiler-tsx-"));
+  const file = join(dir, "app.ts");
+  writeFileSync(
+    file,
+    `import { captureOrigin } from ${JSON.stringify(CORE)};
+
+type User = { id: number };
+
+function loadUsers(): User[] {
+  const origin = captureOrigin()[0]; // the-call
+  console.log(JSON.stringify(origin));
+  return [];
+}
+
+loadUsers();
+`,
+  );
+  const tsx = new URL("../../node_modules/.bin/tsx", import.meta.url).pathname;
+  const origin = JSON.parse(
+    execFileSync(tsx, [file], { env: { ...process.env, NODE_PATH: "" }, encoding: "utf8" }),
+  ) as { file: string; line: number };
+  const line =
+    readFileSync(file, "utf8")
+      .split("\n")
+      .findIndex((text) => text.includes("// the-call")) + 1;
+  expect(origin).toMatchObject({ file, line });
+});

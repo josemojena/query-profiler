@@ -33,15 +33,15 @@ export function captureOrigin(limit = 5): StackFrame[] {
   return frames;
 }
 
-// Bundlers (Turbopack, webpack) run built chunks; Node knows their source maps when they were loaded
-// with --enable-source-maps, even if the framework formats stack traces itself.
+// A built chunk (Next.js, a bundle) shows in the stack as itself when the framework formats stack
+// traces: its source map, which Node keeps with --enable-source-maps, leads to the app's file. A
+// file compiled in place (tsx) maps to itself: its line is already the source's.
 function original(frame: StackFrame): StackFrame {
   const origin = findSourceMap(frame.file)?.findOrigin(frame.line, frame.column ?? 1);
   if (!origin || !("fileName" in origin)) return frame;
-  return {
-    file: origin.fileName.startsWith("file:") ? fileURLToPath(origin.fileName) : origin.fileName,
-    line: origin.lineNumber,
-    column: origin.columnNumber,
-    fn: frame.fn,
-  };
+  const file = origin.fileName.startsWith("file:")
+    ? fileURLToPath(origin.fileName)
+    : origin.fileName;
+  if (file === frame.file) return frame;
+  return { file, line: origin.lineNumber, column: origin.columnNumber, fn: frame.fn };
 }

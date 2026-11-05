@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- In React Router 8, a client navigation home now becomes the new page in the bar: React Router 8
+  loads `/` from `/_.data`, which the bar and the profiles took for a path of its own (`/_`).
+- An app run with tsx gets the right line of code for each query again; the line was mapped twice
+  through the same source map.
 - **Express 4.18 and later**, 5 included: `app.use(profilerMiddleware())` from
   `query-profiler/express` profiles each request, tags each response with `X-Debug-Token` (exposed
   to CORS), names the route that answered and serves `/_profiler`.
