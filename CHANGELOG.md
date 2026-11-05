@@ -42,6 +42,11 @@
 - Compiled code run without `--enable-source-maps` (`tsc` and `node --watch dist/server.js`) shows
   each query's line in its source again: the profiler reads the app file's source map itself.
 - A troubleshooting page in the docs, for when requests or queries do not show up.
+- **SQL laid out over lines.** Opening a query shows its SQL as it would be written by hand: one
+  clause per line, a long list one item per line, a long condition one `AND` per line, subqueries
+  indented, with keywords, strings and parameters in colour. "Copy runnable SQL" copies it that way.
+  Only whitespace moves, never inside strings or quoted names; SQL with a line comment or a
+  dollar-quoted body stays as written.
 - **One profiler for several processes**: Node's `cluster`, PM2 in cluster mode, or two apps at
   once. The first process serves it and the others send it their profiles
   (`POST /_profiler/api/profiles`, JSON only and never from a browser page); when it stops, another
