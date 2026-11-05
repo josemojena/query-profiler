@@ -15,7 +15,7 @@ never loaded.
 | `query-profiler/ui`       | The bar (`<query-profiler-toolbar>`) and the page (`<query-profiler-page>`) as web components.                              | a browser                   |
 
 Every entry that runs in your app has a no-op version with the same API, which production gets:
-builds through the Vite plugin, and plain `node` without `--conditions=development`.
+builds through the Vite plugin, and plain `node` without the preload.
 
 `query-profiler/register` is the only one you don't import: Node loads it before your app with
 `--import`, in the dev command. Its environment variables:

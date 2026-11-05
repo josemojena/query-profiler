@@ -9,7 +9,7 @@ description: Requirements and installing query-profiler.
 | ---------- | -------------------------------------------------------------------- |
 | Prisma ORM | **7.1 or later**, with `@prisma/adapter-pg`. Not 6; 8 is planned     |
 | Database   | PostgreSQL (MySQL is planned)                                        |
-| Node       | 20.19 or later                                                       |
+| Node       | 22.15 or later                                                       |
 | Raw SQL    | `pg` (node-postgres), optional                                       |
 | Framework  | React Router 7.9+ and 8 in framework mode (also Remix), with Vite 6+ |
 | Framework  | Any Node server: Express, Fastify, Koa, Hapi, NestJS, Hono           |
@@ -37,9 +37,9 @@ you ship the server:
 | A Node server run with plain `node`               | Only the dev command loads the preload; the app imports Prisma's entry if it is there |
 | A bundled server (tsup, esbuild, Rollup, webpack) | The bundler puts the empty entries in the bundle (see below)                          |
 
-There is no `if (import.meta.env.DEV)` around each call. In development, Node or the bundler picks the
-real code with the `development` condition: `--conditions=development` in the dev command, or the
-bundler's `conditions` option.
+There is no `if (import.meta.env.DEV)` around each call. In development, the real code comes from the
+`development` condition: the Vite plugin and the preload add it, and a bundler adds it with its
+`conditions` option.
 
 ### A Node server without a bundler
 
@@ -64,7 +64,7 @@ With plain imports, a production bundle gets the empty entries, and the package 
 dependency. tsup bundles dev dependencies by default; with esbuild, Rollup or webpack, do not mark
 `query-profiler` as external. Bundle for development with the `development` condition (esbuild's
 `conditions: ["development"]`), and run that bundle with the preload:
-`node --conditions=development --import query-profiler/register dist/server.js`. Importing
+`node --import query-profiler/register dist/server.js`. Importing
 `formatProfile` from `query-profiler` itself keeps the core in the bundle, inert: leave it to the
 development build.
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Breaking: Node 22.15 or later.** The preload gives the app's own imports of the profiler its real
+  code through Node's synchronous module hooks, which cover `require()` too and exist from Node 22.15
+  and 23.5. Node 20, out of support since April 2026, is no longer supported.
 - **React Router: the Vite plugin alone.** `queryProfiler()` in `vite.config.ts` now profiles every
   request in the dev server, puts the bar on every page and serves `/_profiler`; nothing goes in
   your routes, and React Router 7 no longer needs `future.v8_middleware`. The bar learns its page's
@@ -13,7 +16,7 @@
 - An app run with tsx gets the right line of code for each query again; the line was mapped twice
   through the same source map.
 - **Any Node server, with no code in it: Express, Fastify, Koa, Hapi, NestJS, Hono.** Add
-  `--conditions=development --import query-profiler/register` to the dev command (`node --watch`,
+  `--import query-profiler/register` to the dev command (`node --watch`,
   `tsx watch`, nodemon, the Nest CLI, or `NODE_OPTIONS`). The preload profiles each request from
   Node's `http.server.request.start` diagnostics channel, tags each response with `X-Debug-Token`
   (exposed to CORS), and serves the profiler on a port of its own: 4983, or `QUERY_PROFILER_PORT`.
@@ -30,9 +33,8 @@
   from the app too, as a bundler moves it out of its package.
 - The line of code behind each query is found through the bundle's source maps when Node runs with
   `--enable-source-maps`, even if a framework formats stack traces itself.
-- The preload says why it is off instead of staying silent: a `NODE_ENV` other than `development`,
-  or a dev command without `--conditions=development`. Production, test runs and
-  `QUERY_PROFILER_DISABLED=1` stay silent.
+- The preload says why it is off instead of staying silent: a `NODE_ENV` other than `development`.
+  Production, test runs and `QUERY_PROFILER_DISABLED=1` stay silent.
 - HTTP/2 servers (Fastify with `http2: true`, Hono on an HTTP/2 server) are profiled too, on Node
   22.17+ and 24.2+. Their responses carry no `X-Debug-Token`.
 - Compiled code run without `--enable-source-maps` (`tsc` and `node --watch dist/server.js`) shows

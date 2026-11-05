@@ -8,10 +8,9 @@ says where it is, or why it is off.
 
 ## The terminal says it is off
 
-| It says                                                                      | Change                                                                                |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `Off: add --conditions=development next to --import query-profiler/register` | Add the flag to the dev command: without it, Node loads the profiler's empty version. |
-| `Off: NODE_ENV is "local"`                                                   | Run development with `NODE_ENV=development`, or without `NODE_ENV`.                   |
+| It says                    | Change                                                              |
+| -------------------------- | ------------------------------------------------------------------- |
+| `Off: NODE_ENV is "local"` | Run development with `NODE_ENV=development`, or without `NODE_ENV`. |
 
 In production, in test runs (`NODE_ENV=test`) and with `QUERY_PROFILER_DISABLED=1` it stays off
 without a word: there, that is the point.
@@ -20,8 +19,8 @@ without a word: there, that is the point.
 
 The preload is not loaded:
 
-- **The flags never reach Node.** Some runners start Node themselves: use their option for it
-  (`--exec` in nodemon and the Nest CLI), or put both flags in `NODE_OPTIONS`. The
+- **The flag never reaches Node.** Some runners start Node themselves: use their option for it
+  (`--exec` in nodemon and the Nest CLI), or put it in `NODE_OPTIONS`. The
   [guide](/docs/guides/node#3-add-the-preload-to-your-dev-command) has each one.
 - **`Cannot find package 'query-profiler'`**: Node looks for the preload from the folder the command
   runs in. In a monorepo, install `query-profiler` in the package that runs the server, as well as

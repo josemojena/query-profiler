@@ -27,7 +27,7 @@ and leaves nothing in production builds.
 | ---------- | -------------------------------------------------------------------- |
 | Prisma ORM | **7.1 or later**, with `@prisma/adapter-pg`. Not 6; 8 is planned     |
 | Database   | PostgreSQL (MySQL is planned)                                        |
-| Node       | 20.19 or later                                                       |
+| Node       | 22.15 or later                                                       |
 | Raw SQL    | `pg` (node-postgres), optional                                       |
 | Framework  | React Router 7.9+ and 8 in framework mode (also Remix), with Vite 6+ |
 | Framework  | Any Node server: Express, Fastify, Koa, Hapi, NestJS, Hono           |
@@ -83,9 +83,9 @@ you ship the server:
 | A Node server run with plain `node`               | Only the dev command loads the preload; the app imports Prisma's entry if it is there |
 | A bundled server (tsup, esbuild, Rollup, webpack) | The bundler puts the empty entries in the bundle (see below)                          |
 
-There is no `if (import.meta.env.DEV)` around each call. In development, Node or the bundler picks the
-real code with the `development` condition: `--conditions=development` in the dev command, or the
-bundler's `conditions` option.
+There is no `if (import.meta.env.DEV)` around each call. In development, the real code comes from the
+`development` condition: the Vite plugin and the preload add it, and a bundler adds it with its
+`conditions` option.
 
 ### A bundled server
 
@@ -93,7 +93,7 @@ With plain imports, a production bundle gets the empty entries, and the package 
 dependency. tsup bundles dev dependencies by default; with esbuild, Rollup or webpack, do not mark
 `query-profiler` as external. Bundle for development with the `development` condition (esbuild's
 `conditions: ["development"]`), and run that bundle with the preload:
-`node --conditions=development --import query-profiler/register dist/server.js`. Importing
+`node --import query-profiler/register dist/server.js`. Importing
 `formatProfile` from `query-profiler` itself keeps the core in the bundle, inert: leave it to the
 development build.
 
@@ -205,15 +205,15 @@ export const prisma: Omit<PrismaClient, "$on"> = profiler
 ```json
 {
   "scripts": {
-    "dev": "tsx watch --conditions=development --import query-profiler/register src/server.ts",
+    "dev": "tsx watch --import query-profiler/register src/server.ts",
     "start": "node dist/server.js"
   }
 }
 ```
 
 `--import query-profiler/register` profiles each request from Node itself, before your framework
-sees it. `--conditions=development` loads the real code; without it every entry does nothing, as in
-production.
+sees it, and gives your app's own imports of the profiler (`query-profiler/prisma`) its real code.
+Without it, as in production, every entry does nothing.
 
 Run the dev server. Once your app listens, the terminal says where the profiler is:
 
@@ -280,12 +280,12 @@ without a bundler leave it. `NODE_ENV=production` or `test` keep it off, so your
 test runs are never profiled. `QUERY_PROFILER_DISABLED=1` turns it off in development too
 (end-to-end suites, for one): requests are not profiled, the API answers 404 and the bar shows
 nothing. Production builds resolve every package to its no-op entry, and plain `node` without the
-preload and `--conditions=development` does too.
+preload does too.
 
 ## Security and privacy
 
 - **Development only.** Production gets the no-op entries: builds through the Vite plugin, and
-  plain `node` without the preload and `--conditions=development`. Even the real code does nothing with `NODE_ENV`
+  plain `node` without the preload. Even the real code does nothing with `NODE_ENV`
   set to anything but `development` (`production`, `test`…).
 - **Local only.** The API answers `localhost`, `127.0.0.1` and `[::1]`, even when the dev server
   listens on the network. For a Node server, the profiler's own port listens on `localhost` only.
@@ -330,7 +330,7 @@ pnpm check          # lint, format and types
 pnpm website:dev    # the website (landing page and docs) at http://localhost:4321
 ```
 
-CI runs lint, format and types, the tests against PostgreSQL on Node 20, 22 and 24 and on the
+CI runs lint, format and types, the tests against PostgreSQL on Node 22.15, 22 and 24 and on the
 oldest and newest supported Prisma, and the browser tests.
 
 The package ships compiled JavaScript from `dist/` (Node won't strip types inside

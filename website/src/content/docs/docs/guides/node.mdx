@@ -44,16 +44,15 @@ With a bundled server, plain imports work too: see
 
 ## 3. Add the preload to your dev command
 
-Two flags for Node, and nothing else:
+One flag for Node, and nothing else:
 
 ```sh
-node --conditions=development --import query-profiler/register src/server.js
+node --import query-profiler/register src/server.js
 ```
 
-- `--import query-profiler/register` profiles each request from Node itself, before your framework
-  sees it, and serves the profiler.
-- `--conditions=development` loads the profiler's real code. Without it, every entry is the version
-  that does nothing, as in production.
+It profiles each request from Node itself, before your framework sees it, and serves the profiler.
+It also gives your app's own imports of the profiler (`query-profiler/prisma` in `db.ts`) its real
+code. Without it, as in production, every entry is the version that does nothing.
 
 With your watcher:
 
@@ -63,7 +62,7 @@ With your watcher:
 ```json
 {
   "scripts": {
-    "dev": "node --watch --conditions=development --import query-profiler/register src/server.js",
+    "dev": "node --watch --import query-profiler/register src/server.js",
     "start": "node src/server.js"
   }
 }
@@ -75,7 +74,7 @@ With your watcher:
 ```json
 {
   "scripts": {
-    "dev": "tsx watch --conditions=development --import query-profiler/register src/server.ts",
+    "dev": "tsx watch --import query-profiler/register src/server.ts",
     "start": "node dist/server.js"
   }
 }
@@ -87,7 +86,7 @@ With your watcher:
 ```json
 {
   "scripts": {
-    "dev": "nodemon --exec \"node --conditions=development --import query-profiler/register\" src/server.js",
+    "dev": "nodemon --exec \"node --import query-profiler/register\" src/server.js",
     "start": "node src/server.js"
   }
 }
@@ -99,7 +98,7 @@ With your watcher:
 ```json
 {
   "scripts": {
-    "start:dev": "nest start --watch --exec \"node --conditions=development --import query-profiler/register\"",
+    "start:dev": "nest start --watch --exec \"node --import query-profiler/register\"",
     "start:prod": "node dist/main"
   }
 }
@@ -108,10 +107,10 @@ With your watcher:
   </TabItem>
   <TabItem label="Anything else">
 
-Put the flags in `NODE_OPTIONS`, and every Node process the command starts gets them:
+Put the flag in `NODE_OPTIONS`, and every Node process the command starts gets it:
 
 ```sh
-NODE_OPTIONS="--conditions=development --import query-profiler/register" npm run dev
+NODE_OPTIONS="--import query-profiler/register" npm run dev
 ```
 
 The profiler opens its port only in the process whose server listens, so a CLI that launches your
@@ -135,8 +134,7 @@ If the port is busy, the profiler waits a second for a restarting app to let go 
 next free one and prints it. In a container, set `QUERY_PROFILER_HOST=0.0.0.0` and publish the port:
 see [troubleshooting](/docs/guides/troubleshooting#the-browser-cannot-reach-the-profiler).
 
-If it is off, the terminal says why: a missing `--conditions=development`, or a `NODE_ENV` other than
-`development`. Nothing at all, or an empty profiler? See [troubleshooting](/docs/guides/troubleshooting).
+If it is off, the terminal says why: a `NODE_ENV` other than `development`. Nothing at all, or an empty profiler? See [troubleshooting](/docs/guides/troubleshooting).
 
 ## Seeing what your API did
 
