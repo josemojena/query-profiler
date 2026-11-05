@@ -6,6 +6,7 @@
     "database",
     "debugbar",
     "devtools",
+    "express",
     "fastify",
     "n+1",
     "orm",
@@ -54,6 +55,11 @@
       "development": "./dist/prisma/index.js",
       "default": "./dist/prisma/noop.js"
     },
+    "./express": {
+      "types": "./dist/express/index.d.ts",
+      "development": "./dist/express/index.js",
+      "default": "./dist/express/noop.js"
+    },
     "./fastify": {
       "types": "./dist/fastify/index.d.ts",
       "development": "./dist/fastify/index.js",
@@ -100,6 +106,7 @@
     "check": "pnpm lint && pnpm format:check && pnpm check-types",
     "db:generate": "prisma generate --config test/prisma/fixture/prisma.config.ts",
     "example:react-router": "pnpm examples:sync && pnpm --filter example-react-router dev",
+    "example:express": "pnpm examples:sync && pnpm --filter example-express dev",
     "example:fastify": "pnpm examples:sync && pnpm --filter example-fastify dev",
     "examples:sync": "pnpm build && pnpm install --offline",
     "website:dev": "pnpm build && pnpm --filter website dev",
@@ -112,11 +119,13 @@
     "@playwright/test": "1.64.0",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
+    "@types/express": "5.0.3",
     "@types/node": "^22.15.3",
     "@types/pg": "^8.20.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "esbuild": "^0.27.7",
+    "express": "5.3.0",
     "fastify": "^5.12.7",
     "oxfmt": "0.72.0",
     "oxlint": "1.87.0",
@@ -132,6 +141,7 @@
   },
   "peerDependencies": {
     "@prisma/client": ">=7.1.0",
+    "express": ">=4.18.0",
     "fastify": ">=4.26.0",
     "pg": "^8.11.0",
     "react": ">=18.0.0",
@@ -140,6 +150,9 @@
   },
   "peerDependenciesMeta": {
     "@prisma/client": {
+      "optional": true
+    },
+    "express": {
       "optional": true
     },
     "fastify": {

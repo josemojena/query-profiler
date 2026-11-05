@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Express 4.18 and later**, 5 included: `app.use(profilerMiddleware())` from
+  `query-profiler/express` profiles each request, tags each response with `X-Debug-Token` (exposed
+  to CORS), names the route that answered and serves `/_profiler`.
+- The profiler's API answers `HEAD` like `GET`, with no body.
+
 ## 0.2.1
 
 - The package now links to its website, https://query-profiler.dev, with the docs and a live demo

@@ -14,9 +14,12 @@ Without a bundler there is no build step to swap the profiler out, so install it
 dependency. Node loads the real code only when started with `--conditions=development`; plain
 `node`, as in production, gets the entry that does nothing.
 
+```sh
+npm i query-profiler
+```
+
 ```json
 {
-  "dependencies": { "query-profiler": "^0.2.0" },
   "scripts": {
     "dev": "tsx watch --conditions=development src/server.ts",
     "start": "node dist/server.js"

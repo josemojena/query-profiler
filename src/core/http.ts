@@ -23,22 +23,23 @@ export function createHandler(
   const hosts = options.allowedHosts ?? LOCAL_HOSTS;
   return async (request) => {
     const url = new URL(request.url);
+    const method = request.method === "HEAD" ? "GET" : request.method;
     if (!enabled() || !hosts.includes(url.hostname) || !url.pathname.startsWith(base))
       return new Response("Not found", { status: 404 });
     const path = url.pathname.slice(base.length);
     const token = /^\/api\/profiles\/([0-9a-f]+)$/.exec(path)?.[1];
-    if (request.method === "GET" && isPage(path)) return page(base);
-    const asset = request.method === "GET" ? uiAsset(base, path) : undefined;
+    if (method === "GET" && isPage(path)) return page(base);
+    const asset = method === "GET" ? uiAsset(base, path) : undefined;
     if (asset) return asset;
-    if (request.method === "GET" && path === "/api/meta") return json({ root: projectRoot() });
-    if (request.method === "GET" && path === "/api/stats") return json(stats(listProfiles()));
-    if (request.method === "GET" && path === "/api/profiles") return json(list(url.searchParams));
-    if (request.method === "GET" && token) {
+    if (method === "GET" && path === "/api/meta") return json({ root: projectRoot() });
+    if (method === "GET" && path === "/api/stats") return json(stats(listProfiles()));
+    if (method === "GET" && path === "/api/profiles") return json(list(url.searchParams));
+    if (method === "GET" && token) {
       const profile = getProfile(token);
       return profile ? json(profile) : json({ error: "not_found" }, 404);
     }
-    if (request.method === "GET" && path === "/api/stream") return stream();
-    if (request.method === "DELETE" && path === "/api/profiles") {
+    if (method === "GET" && path === "/api/stream") return stream();
+    if (method === "DELETE" && path === "/api/profiles") {
       clearProfiles();
       return new Response(null, { status: 204 });
     }

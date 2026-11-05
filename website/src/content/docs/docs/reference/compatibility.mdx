@@ -20,6 +20,12 @@ import Integrations from "../../../../components/docs/Integrations.astro";
 - Before 4.26, `reply.send()` takes no Fetch `Response`, so `/_profiler` cannot be served; before
   4.20, the request's async context does not reach the handler.
 
+## Express versions
+
+- **Express 4.18 and later**, 5 included, tested in CI on 4.18.0, 5.0.0 and the newest.
+- Before 4.18, Express's body parser drops the request's async context: a route that reads a body
+  loses its queries.
+
 ## Node
 
 Node 20.19 or later, tested on 20, 22 and 24.
