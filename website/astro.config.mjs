@@ -40,6 +40,7 @@ export default defineConfig({
             "docs/guides/node",
             "docs/guides/prisma",
             "docs/guides/turning-it-off",
+            "docs/guides/troubleshooting",
           ],
         },
         {

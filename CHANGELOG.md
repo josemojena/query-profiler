@@ -30,6 +30,14 @@
   from the app too, as a bundler moves it out of its package.
 - The line of code behind each query is found through the bundle's source maps when Node runs with
   `--enable-source-maps`, even if a framework formats stack traces itself.
+- The preload says why it is off instead of staying silent: a `NODE_ENV` other than `development`,
+  or a dev command without `--conditions=development`. Production, test runs and
+  `QUERY_PROFILER_DISABLED=1` stay silent.
+- HTTP/2 servers (Fastify with `http2: true`, Hono on an HTTP/2 server) are profiled too, on Node
+  22.17+ and 24.2+. Their responses carry no `X-Debug-Token`.
+- Compiled code run without `--enable-source-maps` (`tsc` and `node --watch dist/server.js`) shows
+  each query's line in its source again: the profiler reads the app file's source map itself.
+- A troubleshooting page in the docs, for when requests or queries do not show up.
 - **Themes.** The bar and the profiler page are dark by default, in the website's colors, with a
   light theme and **Auto**, which follows the system. A switch in both picks it, and the browser
   keeps the choice. A page can set the starting theme with `data-theme` on the element.
