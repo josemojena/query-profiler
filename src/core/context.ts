@@ -16,6 +16,11 @@ export function runWithProfile<T>(profile: ActiveProfile, fn: () => T): T {
   return state().als.run({ profile }, fn);
 }
 
+/** Makes `profile` the current one for the rest of the current async execution, not just a callback. */
+export function enterProfile(profile: ActiveProfile): void {
+  state().als.enterWith({ profile });
+}
+
 export function runInScope<T>(patch: Omit<Scope, "profile">, fn: () => T): T {
   const scope = currentScope();
   return scope ? state().als.run({ ...scope, ...patch }, fn) : fn();
