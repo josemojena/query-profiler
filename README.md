@@ -197,14 +197,14 @@ Fastify 4.26 or later, Prisma 7 with `@prisma/adapter-pg`. For APIs: each respon
 deploying.
 
 **1. Install it as a dependency, and run the dev server with the `development` condition.** Node
-picks the real code only with that flag (and `NODE_ENV=development`); plain `node`, as in
-production, gets the entry that does nothing.
+picks the real code only with that flag; plain `node`, as in production, gets the entry that does
+nothing.
 
 ```json
 {
   "dependencies": { "query-profiler": "^0.2.0" },
   "scripts": {
-    "dev": "NODE_ENV=development tsx watch --conditions=development src/server.ts",
+    "dev": "tsx watch --conditions=development src/server.ts",
     "start": "node dist/server.js"
   }
 }
@@ -270,14 +270,18 @@ Every profiled response carries `X-Debug-Token`.
 
 ## Turning it off
 
-It only runs with `NODE_ENV=development`. `QUERY_PROFILER_DISABLED=1` turns it off there too (end-to-end
-suites, for one): the middleware passes through, the API answers 404 and the bar shows nothing.
-Production builds resolve every package to its no-op entry.
+It only runs in development: with `NODE_ENV=development`, or with `NODE_ENV` unset, as servers
+without a bundler (Fastify) leave it. `NODE_ENV=production` or `test` keep it off, so your app's own
+test runs are never profiled. `QUERY_PROFILER_DISABLED=1` turns it off in development too
+(end-to-end suites, for one): the middleware passes through, the API answers 404 and the bar shows
+nothing. Production builds resolve every package to its no-op entry, and plain `node` without
+`--conditions=development` does too.
 
 ## Security and privacy
 
-- **Development only.** Nothing runs unless `NODE_ENV=development`, and production builds get the
-  no-op entries.
+- **Development only.** Production gets the no-op entries: builds through the Vite plugin, and
+  plain `node` without `--conditions=development`. Even the real code does nothing with `NODE_ENV`
+  set to anything but `development` (`production`, `test`…).
 - **Local only.** The API answers `localhost`, `127.0.0.1` and `[::1]`, even when the dev server
   listens on the network.
 - **In memory only.** Profiles live in the dev server's memory: the last 100, at most 1000 queries

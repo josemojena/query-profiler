@@ -133,13 +133,13 @@ jobs:
       - run: pnpm examples:sync
       - run: pnpm --filter example-fastify exec prisma generate
       - run: pnpm --filter example-fastify build
-      - name: Plain node loads none of the profiler, even with NODE_ENV=development
+      - name: Plain node loads none of the profiler, even with NODE_ENV=development; the condition alone turns it on
         working-directory: examples/fastify
         env:
           NODE_ENV: development
         run: |
           PORT=3001 node dist/server.js &
-          PORT=3002 node --conditions=development dist/server.js &
+          PORT=3002 env -u NODE_ENV node --conditions=development dist/server.js &
           curl --retry 30 --retry-connrefused --retry-delay 1 -s -o /dev/null http://localhost:3001/nope
           curl --retry 30 --retry-connrefused --retry-delay 1 -s -o /dev/null http://localhost:3002/nope
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/_profiler)" = 404
