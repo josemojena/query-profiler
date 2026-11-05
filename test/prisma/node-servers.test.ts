@@ -17,6 +17,7 @@ import pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearProfiles, listProfiles, type Profile } from "../../src/core/index.js";
 import { profileRequests } from "../../src/node/requests.js";
+import { http2Channels, http2Get } from "../node/http2.js";
 import { profilePool, profilePrisma, withProfiler } from "../../src/prisma/index.js";
 import { TEST_DATABASE_URL } from "./database.js";
 import { PrismaClient } from "./fixture/generated/client.js";
@@ -146,6 +147,12 @@ const lines = (profile: Profile) => [
   ...new Set(profile.operations.map((op) => `${op.model}.${op.action}:${op.origin?.[0]?.line}`)),
 ];
 
+async function seed() {
+  clearProfiles();
+  await pool.query('TRUNCATE "Order", "User" RESTART IDENTITY CASCADE');
+  for (const n of [1, 2, 3]) await prisma.user.create({ data: { email: `u${n}@example.test` } });
+}
+
 let stop = () => {};
 beforeAll(() => {
   stop = profileRequests();
@@ -169,11 +176,7 @@ describe.each([
     app = await start();
   });
   afterAll(() => app.close());
-  beforeEach(async () => {
-    clearProfiles();
-    await pool.query('TRUNCATE "Order", "User" RESTART IDENTITY CASCADE');
-    for (const n of [1, 2, 3]) await prisma.user.create({ data: { email: `u${n}@example.test` } });
-  });
+  beforeEach(seed);
 
   it("records each query of a request in its profile, with the line that sent it, and the N+1", async () => {
     const profile = await profileOf(await fetch(`${app.origin}/users`));
@@ -201,3 +204,32 @@ describe.each([
     expect(new Set(profiles.map((profile) => profile.token)).size).toBe(4);
   });
 });
+
+describe.skipIf(!http2Channels())(
+  "Fastify over HTTP/2, profiled from Node's HTTP/2 channel",
+  () => {
+    const app = Fastify({ http2: true });
+    let origin = "";
+    beforeAll(async () => {
+      app.get("/users", () => listUsers());
+      await app.listen({ port: 0, host: "127.0.0.1" });
+      origin = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
+    });
+    afterAll(() => app.close());
+    beforeEach(seed);
+
+    it("records each query of a request in its profile, with the line that sent it", async () => {
+      expect(await http2Get(origin, "/users")).toBe(200);
+      const profile = await vi.waitFor(() => {
+        const found = listProfiles().find((candidate) => candidate.response?.status === 200);
+        expect(found).toBeDefined();
+        return found!;
+      });
+      expect(profile.summary.queryCount).toBe(4);
+      expect(lines(profile)).toEqual([
+        `User.findMany:${lineOf("// users-call")}`,
+        `Order.count:${lineOf("// count-call")}`,
+      ]);
+    });
+  },
+);

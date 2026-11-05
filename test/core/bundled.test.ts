@@ -94,9 +94,12 @@ loadUsers();
   expect(origin).toMatchObject({ file, line });
 });
 
-it.each(["linked", "inline"] as const)(
-  "finds the app's line in compiled code run without --enable-source-maps, from a %s source map",
-  async (sourcemap) => {
+it.each([
+  ["in a file of its own", "linked"],
+  ["inline", "inline"],
+] as const)(
+  "finds the app's line in compiled code run without --enable-source-maps, its source map %s",
+  async (_where, sourcemap) => {
     const dir = mkdtempSync(join(realpathSync(tmpdir()), "query-profiler-compiled-"));
     const source = join(dir, "users.ts");
     writeFileSync(
