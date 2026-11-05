@@ -227,6 +227,8 @@ behind each, live. Each response's `X-Debug-Token` opens that request at `/_prof
 - `QUERY_PROFILER_PORT` picks the port (4983 by default). If it is busy, the profiler waits a second
   for a restarting app to let go of it, then takes the next free one and prints it.
 - `QUERY_PROFILER_LOG=1` prints one line per request in the terminal.
+- `QUERY_PROFILER_HOST=0.0.0.0` makes it listen on every interface, to reach it from outside a
+  container with its port published. It still answers only requests addressed to a local host.
 - When a request comes from another origin, the preload adds `X-Debug-Token` to
   `Access-Control-Expose-Headers`; if your CORS settings set that header themselves, list
   `X-Debug-Token` there too.

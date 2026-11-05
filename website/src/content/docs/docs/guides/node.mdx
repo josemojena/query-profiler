@@ -132,7 +132,8 @@ Run the dev server. Once your app listens, the terminal says where the profiler 
 
 It shows every request, live. Port 4983 is the default; set `QUERY_PROFILER_PORT` to pick another.
 If the port is busy, the profiler waits a second for a restarting app to let go of it, then takes the
-next free one and prints it.
+next free one and prints it. In a container, set `QUERY_PROFILER_HOST=0.0.0.0` and publish the port:
+see [troubleshooting](/docs/guides/troubleshooting#the-browser-cannot-reach-the-profiler).
 
 If it is off, the terminal says why: a missing `--conditions=development`, or a `NODE_ENV` other than
 `development`. Nothing at all, or an empty profiler? See [troubleshooting](/docs/guides/troubleshooting).
