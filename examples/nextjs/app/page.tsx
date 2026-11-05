@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "../lib/db";
 import { createPost } from "./actions";
@@ -44,6 +45,7 @@ export default function Home() {
       <Suspense fallback={<p>Loading the latest posts…</p>}>
         <LatestPosts />
       </Suspense>
+      <Link href="/posts">All posts</Link>
       <form action={createPost}>
         <input name="title" defaultValue="Hello" />
         <button type="submit">Add a post</button>

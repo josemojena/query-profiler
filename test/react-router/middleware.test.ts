@@ -130,7 +130,7 @@ describe("profilerMiddleware", () => {
     })) as Response;
     const html = await response.text();
     expect(html).toMatch(
-      /<h1>Products<\/h1><script>\(function\(o\)\{.*<\/script><\/body><\/html>$/s,
+      /<h1>Products<\/h1><script>document\.currentScript\.remove\(\);\(function\(o\)\{.*<\/script><\/body><\/html>$/s,
     );
     expect(html).toContain(`"token":"${profiles[0]!.token}"`);
     expect(response.headers.has("Content-Length")).toBe(false);

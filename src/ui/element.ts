@@ -136,10 +136,17 @@ export class ProfilerToolbar extends HTMLElement {
     this.#render();
   }
 
-  /** After a client navigation, the call that loads the new location becomes the page; it may come before or after. */
+  /**
+   * After a client navigation, the call that loads the new location becomes the page; it may come
+   * before or after. Only a GET loads a page: an action posting to the same path stays a call.
+   */
   #settleNavigation() {
     const path = this.#navigatedTo;
-    const call = path && [...this.#calls].reverse().find((candidate) => candidate.path === path);
+    const call =
+      path &&
+      [...this.#calls]
+        .reverse()
+        .find((candidate) => candidate.method === "GET" && candidate.path === path);
     if (!call) return;
     this.#navigatedTo = undefined;
     this.#calls = [];

@@ -2,7 +2,7 @@ import { build } from "esbuild";
 import { expect, test, type Page } from "@playwright/test";
 import type { Profile } from "../src/core/index.js";
 import { toolbarSnippet } from "../src/react-router/inject.js";
-import { DATA_REQUEST, NEXT_PAGE, PROFILE, PROMOTIONS, listItem } from "./fixture.js";
+import { ACTION, DATA_REQUEST, NEXT_PAGE, PROFILE, PROMOTIONS, listItem } from "./fixture.js";
 import { openStreams, setVisibility, trackStreams } from "./visibility.js";
 
 const ORIGIN = "http://app.test";
@@ -36,6 +36,10 @@ async function open(page: Page, options: Options = {}) {
     const url = new URL(route.request().url());
     const json = (body: unknown, headers: Record<string, string> = {}) =>
       route.fulfill({ contentType: "application/json", body: JSON.stringify(body), headers });
+    if (url.pathname === "/orders" && route.request().method() === "POST") {
+      parents.push(route.request().headers()["x-debug-parent"] ?? null);
+      return json({}, { "X-Debug-Token": ACTION.token });
+    }
     if (url.pathname === "/orders" && options.injected)
       return route.fulfill({
         contentType: "text/html",
@@ -163,6 +167,19 @@ test("starts a new page when the app navigates, without faking a popstate", asyn
   });
   await expect(bar(page).locator(".strip")).toContainText("/orders/7.data");
   expect(await page.evaluate(() => (window as unknown as { popstates: number }).popstates)).toBe(0);
+});
+
+test("keeps an action that posts to the page's own path under it, though the app then rewrites history", async ({
+  page,
+}) => {
+  const { parents } = await open(page, {
+    live: ACTION,
+    script: `setTimeout(async () => { await fetch("/orders", { method: "POST" }); history.replaceState({}, "", "/orders"); }, 300);`,
+  });
+  await expect.poll(() => parents).toEqual([PROFILE.token]);
+  await expect(bar(page).locator(".strip")).toContainText("1 call");
+  await expect(bar(page).locator(".strip")).toContainText("GET 200");
+  await expect(bar(page).locator(".strip")).toContainText("8 queries");
 });
 
 test("lists recent requests and goes back to this page", async ({ page }) => {

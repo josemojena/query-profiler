@@ -98,3 +98,11 @@ export const NEXT_PAGE: Profile = {
   parentToken: PROFILE.token,
   request: { method: "GET", url: "/orders/7.data" },
 };
+
+export const ACTION: Profile = {
+  ...DATA_REQUEST,
+  token: "ac7100",
+  parentToken: PROFILE.token,
+  kind: "action",
+  request: { method: "POST", url: "/orders" },
+};

@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "db:setup": "cp -n .env.example .env; prisma db push && prisma generate && tsx --env-file=.env prisma/seed.ts",
-    "dev": "NODE_OPTIONS='--conditions=development --enable-source-maps --import query-profiler/next/register' next dev",
-    "dev:webpack": "NODE_OPTIONS='--conditions=development --enable-source-maps --import query-profiler/next/register' next dev --webpack",
+    "dev": "query-profiler-next dev",
+    "dev:webpack": "query-profiler-next dev --webpack",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit"

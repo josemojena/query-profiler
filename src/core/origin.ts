@@ -1,12 +1,12 @@
 import { findSourceMap } from "node:module";
-import { dirname, resolve, sep } from "node:path";
+import { sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PACKAGE_ROOTS } from "./installed.js";
 import type { StackFrame } from "./profile.js";
 
 const FRAME = /^\s*at (?:(?:async )?(.*?) \()?(.+?):(\d+):(\d+)\)?$/;
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..") + sep;
 // Built code, or its source when a stack trace is source-mapped.
-const OWN = [`${ROOT}dist${sep}`, `${ROOT}src${sep}`];
+const OWN = PACKAGE_ROOTS.flatMap((root) => [`${root}${sep}dist${sep}`, `${root}${sep}src${sep}`]);
 const isOwn = (file: string) => OWN.some((dir) => file.startsWith(dir));
 const SKIP = [/^node:/, /[\\/]node_modules[\\/]/, /^internal[\\/]/];
 

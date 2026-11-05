@@ -1,12 +1,9 @@
-import { installTracker } from "../ui/tracker.js";
+import { toolbarScript } from "../ui/snippet.js";
 
-/** The script that puts the bar on a page. */
+/** The script that puts the bar on a page served by the middleware. */
 export function toolbarSnippet(base: string, token: string): string {
-  const options = JSON.stringify({ base, token });
-  // React hydrates the whole document: the script removes itself before that, and only adds
-  // the bar once the page has loaded, so hydration never sees it. It tracks the page's calls
-  // from the start, as the app makes some (fetchers on mount) before the bar is there.
-  return `<script>(function(o){document.currentScript.remove();(${String(installTracker)})(o.base,o.token);addEventListener("load",function(){setTimeout(function(){import(o.base+"/ui.js").then(function(){var bar=document.createElement("query-profiler-toolbar");bar.dataset.base=o.base;bar.dataset.token=o.token;document.body.appendChild(bar)})},0)})})(${options})</script>`;
+  // React hydrates the whole document: the script removes itself before that.
+  return `<script>document.currentScript.remove();${toolbarScript(base, token)}</script>`;
 }
 
 /** Inserts `snippet` before `</body>`, or at the end if there is none, without buffering the page. */

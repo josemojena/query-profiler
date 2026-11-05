@@ -1,6 +1,7 @@
 /** A call the page made, with the token its profile got. */
 export interface Call {
   token: string;
+  method: string;
   path: string;
 }
 
@@ -36,7 +37,7 @@ export function installTracker(base: string, page?: string): Tracker {
     if (token) {
       // `/orders.data` loads the page `/orders`, and `/_root.data` loads `/`.
       const path = url.pathname.replace(/\.data$/, "").replace(/^\/_root$/, "/");
-      for (const listener of tracker.listeners) listener({ token, path });
+      for (const listener of tracker.listeners) listener({ token, method: request.method, path });
     }
     return response;
   };
