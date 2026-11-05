@@ -37,9 +37,9 @@ The preload is not loaded:
   `lsof -nP -iTCP:3000 -sTCP:LISTEN`.
 - **You opened another profiler.** If 4983 was busy, the profiler took the next free port, and the
   terminal printed it.
-- **Several processes serve the app**: Node's `cluster`, PM2 in cluster mode, several workers. Each
-  one has its own profiler, on 4983, 4984…, and the requests are spread among them. Run one process
-  in development.
+- **Several processes share one profiler**: Node's `cluster`, PM2 in cluster mode, or two apps run
+  side by side. The first one serves it, and the others send it their requests; the terminal says
+  `(shared with another process)`. To keep two apps apart, give each its own `QUERY_PROFILER_PORT`.
 - **HTTP/2.** It is profiled on Node 22.17+ and 24.2+ only, and its responses carry no
   `X-Debug-Token`: find them on the profiler's page.
 - **The server is not built on Node's `http` module** (uWebSockets.js, HyperExpress), or the app

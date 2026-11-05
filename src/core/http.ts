@@ -5,9 +5,18 @@ import { DEFAULT_BASE } from "./constants.js";
 import { enabled } from "./enabled.js";
 import type { Profile, ProfileListItem } from "./profile.js";
 import { stats } from "./stats.js";
-import { clearProfiles, getProfile, listProfiles, onClear, onProfile } from "./storage.js";
+import {
+  clearProfiles,
+  getProfile,
+  listProfiles,
+  onClear,
+  onProfile,
+  storeProfile,
+} from "./storage.js";
 
 const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
+// A profile holds at most MAX_QUERIES queries: far below this.
+const MAX_BODY = 20 * 1024 * 1024;
 
 export interface HandlerOptions {
   base?: string;
@@ -39,12 +48,45 @@ export function createHandler(
       return profile ? json(profile) : json({ error: "not_found" }, 404);
     }
     if (method === "GET" && path === "/api/stream") return stream();
+    if (method === "POST" && path === "/api/profiles") return receive(request);
     if (method === "DELETE" && path === "/api/profiles") {
       clearProfiles();
       return new Response(null, { status: 204 });
     }
     return json({ error: "not_found" }, 404);
   };
+}
+
+/**
+ * Another process's finished profile, for the profiler that serves the port to show. JSON only and
+ * no Origin: a page in a browser cannot send that across origins without a preflight, which this
+ * never answers.
+ */
+async function receive(request: Request): Promise<Response> {
+  if (request.headers.has("origin")) return json({ error: "forbidden" }, 403);
+  if (!request.headers.get("content-type")?.startsWith("application/json"))
+    return json({ error: "unsupported_media_type" }, 415);
+  if (Number(request.headers.get("content-length")) > MAX_BODY)
+    return json({ error: "too_large" }, 413);
+  const profile: unknown = await request.json().catch(() => undefined);
+  if (!isProfile(profile)) return json({ error: "bad_request" }, 400);
+  if (!getProfile(profile.token)) storeProfile(profile);
+  return new Response(null, { status: 204 });
+}
+
+function isProfile(value: unknown): value is Profile {
+  if (typeof value !== "object" || value === null) return false;
+  const profile = value as Partial<Profile>;
+  return (
+    profile.schemaVersion === 1 &&
+    typeof profile.token === "string" &&
+    /^[0-9a-f]{6}$/.test(profile.token) &&
+    typeof profile.request?.url === "string" &&
+    Array.isArray(profile.queries) &&
+    Array.isArray(profile.operations) &&
+    Array.isArray(profile.warnings) &&
+    typeof profile.summary === "object"
+  );
 }
 
 const isPage = (path: string) => /^(\/?|\/stats|\/[0-9a-f]{6})$/.test(path);
@@ -95,7 +137,9 @@ function stream(): Response {
       );
       // A browser drops an event that carries no data.
       const unsubscribeClear = onClear(() => send("event: clear\ndata: {}\n\n"));
+      // An open profiler page never keeps the app's process alive by itself.
       const heartbeat = setInterval(() => send(": ping\n\n"), 15_000);
+      heartbeat.unref?.();
       stop = () => {
         unsubscribe();
         unsubscribeClear();

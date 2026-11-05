@@ -15,6 +15,7 @@ JSON.
 | `GET /api/stream`                             | Server-sent events: one `profile` per finished request, `clear` when the storage is emptied, a ping every 15 s |
 | `GET /api/stats`                              | Stats across the stored profiles                                                                               |
 | `GET /api/meta`                               | The project root, to show short paths and open your editor                                                     |
+| `POST /api/profiles`                          | Takes another process's finished profile, as JSON; refuses a request with an `Origin`                          |
 | `DELETE /api/profiles`                        | Empties the storage                                                                                            |
 
 `createHandler()` from `query-profiler` is a plain Fetch handler (`Request` → `Response`), so any

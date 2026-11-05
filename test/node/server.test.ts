@@ -116,6 +116,16 @@ describe("the profiler on a port of its own", () => {
     await vi.waitFor(() => expect(state().listeners.size).toBe(0));
   });
 
+  it("shares the port another profiler serves, instead of taking the next one", async () => {
+    const port = await freePort();
+    const url = await start(port);
+    const joined = await new Promise<string>((resolve) =>
+      servers.push(profilerServer({ port, onJoin: resolve })),
+    );
+    expect(joined).toBe(url);
+    expect(servers[1]!.listening).toBe(false);
+  });
+
   it("moves to the next port when another program keeps its own", async () => {
     const port = await freePort();
     await holder(port);

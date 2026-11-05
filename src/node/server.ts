@@ -7,6 +7,7 @@ const DEFAULT_PORT = 4983;
 const WAITS = 10;
 const WAIT_MS = 100;
 const NEXT_PORTS = 10;
+const PROBE_MS = 300;
 
 export interface ProfilerServerOptions {
   /** The port to try first: QUERY_PROFILER_PORT, else 4983. 0 takes any free one. */
@@ -18,6 +19,11 @@ export interface ProfilerServerOptions {
   host?: string;
   /** Called with the profiler's address once it listens. */
   onListening?: (url: string) => void;
+  /**
+   * Called instead when another process's profiler holds the port (a cluster worker, a second app):
+   * this one shares it rather than opening another.
+   */
+  onJoin?: (url: string) => void;
 }
 
 /** Serves the profiler's page and API on a port of their own, next to the app's. */
@@ -33,7 +39,18 @@ export function profilerServer(options: ProfilerServerOptions = {}): Server {
   });
   let port = first;
   let waits = 0;
-  const listen = () => server.listen(port, host);
+  const notProfilers = new Set<number>();
+  // Exclusive, so cluster workers do not share one port through the primary, each with half.
+  const listen = () => server.listen({ port, host, exclusive: true });
+  const elsewhere = () => {
+    // A watcher (node --watch, tsx watch) starts the new app while the old one still holds the
+    // port: wait a moment for it, then move on to the next port.
+    if (port === first && waits++ < WAITS) setTimeout(listen, WAIT_MS);
+    else {
+      port += 1;
+      listen();
+    }
+  };
   server.on("error", (error: NodeJS.ErrnoException) => {
     const busy = error.code === "EADDRINUSE" && port !== 0 && port < first + NEXT_PORTS;
     if (!busy) {
@@ -42,23 +59,36 @@ export function profilerServer(options: ProfilerServerOptions = {}): Server {
       );
       return;
     }
-    // A watcher (node --watch, tsx watch) starts the new app while the old one still holds the
-    // port: wait a moment for it, then move on to the next port.
-    if (port === first && waits++ < WAITS) setTimeout(listen, WAIT_MS);
-    else {
-      port += 1;
-      listen();
-    }
+    if (!options.onJoin || notProfilers.has(port)) return elsewhere();
+    const url = `http://localhost:${port}${DEFAULT_BASE}`;
+    void servesProfiler(url).then((profiler) => {
+      if (profiler) return options.onJoin?.(url);
+      notProfilers.add(port);
+      elsewhere();
+    });
   });
   server.on("listening", () =>
     options.onListening?.(
       `http://localhost:${(server.address() as AddressInfo).port}${DEFAULT_BASE}`,
     ),
   );
-  // The app's own server keeps the process alive; this one never should.
+  // The app's own server keeps the process alive; this one never should, nor its connections: a
+  // page left open, or another process sharing it.
   server.unref();
+  server.on("connection", (socket) => socket.unref());
   listen();
   return server;
+}
+
+/** Whether a query-profiler answers at `url`, to share it instead of taking another port. */
+async function servesProfiler(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${url}/api/meta`, { signal: AbortSignal.timeout(PROBE_MS) });
+    const meta: unknown = await response.json();
+    return typeof meta === "object" && meta !== null && "root" in meta;
+  } catch {
+    return false;
+  }
 }
 
 function portFromEnvironment(): number {

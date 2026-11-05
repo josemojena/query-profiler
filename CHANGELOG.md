@@ -42,6 +42,11 @@
 - Compiled code run without `--enable-source-maps` (`tsc` and `node --watch dist/server.js`) shows
   each query's line in its source again: the profiler reads the app file's source map itself.
 - A troubleshooting page in the docs, for when requests or queries do not show up.
+- **One profiler for several processes**: Node's `cluster`, PM2 in cluster mode, or two apps at
+  once. The first process serves it and the others send it their profiles
+  (`POST /_profiler/api/profiles`, JSON only and never from a browser page); when it stops, another
+  one takes the port over. Before, a cluster's primary opened an empty profiler and its workers
+  shared another one, half of the requests at a time.
 - `QUERY_PROFILER_HOST` picks where the profiler listens: `0.0.0.0` reaches it from outside a
   container with its port published. It still answers only requests addressed to a local host, so
   the network cannot read it.
