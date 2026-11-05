@@ -67,7 +67,7 @@ async function bundle(name: keyof typeof APPS, conditions: string[]) {
 async function call(outfile: string, preload: boolean) {
   const child = fork(outfile, {
     cwd: preload ? ROOT : dirname(outfile),
-    execArgv: preload ? ["--conditions=development", "--import", "query-profiler/register"] : [],
+    execArgv: preload ? ["--import", "query-profiler/register"] : [],
     env: { PATH: process.env.PATH, NODE_PATH: "", QUERY_PROFILER_PORT: "0" },
     stdio: ["ignore", "pipe", "inherit", "ipc"],
   });

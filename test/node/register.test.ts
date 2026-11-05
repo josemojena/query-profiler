@@ -1,11 +1,11 @@
-import { fork, type ChildProcess } from "node:child_process";
-import { mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { execFileSync, fork, type ChildProcess } from "node:child_process";
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
-const PRELOAD = ["--conditions=development", "--import", "query-profiler/register"];
+const PRELOAD = ["--import", "query-profiler/register"];
 
 // An app that knows nothing of the profiler: it answers, and closes its server when told to.
 const APP = `
@@ -110,13 +110,6 @@ async function callOnce(flags: readonly string[], env: Record<string, string> = 
   };
 }
 
-it("says how to turn it on when Node runs without the development condition", async () => {
-  const result = await callOnce(["--import", "query-profiler/register"]);
-  expect(result.token).toBeNull();
-  expect(result.output).toBe("");
-  expect(result.notices).toContain("add --conditions=development");
-});
-
 it("says why it is off when NODE_ENV is neither development nor unset", async () => {
   const result = await callOnce(PRELOAD, { NODE_ENV: "local" });
   expect(result.token).toBeNull();
@@ -127,9 +120,46 @@ it("stays silent in production and in test runs, where being off is the point", 
   for (const [flags, env] of [
     [PRELOAD, { NODE_ENV: "production" }],
     [PRELOAD, { NODE_ENV: "test" }],
-    [["--import", "query-profiler/register"], { NODE_ENV: "production" }],
     [PRELOAD, { QUERY_PROFILER_DISABLED: "1" }],
   ] as const) {
     expect(await callOnce(flags, env)).toEqual({ token: null, output: "", notices: "" });
   }
+});
+
+// An app's own import of the profiler, by import and by require, saying which code it got.
+const PRISMA_ENTRY = {
+  "esm.mjs": `const { withProfiler } = await import("query-profiler/prisma");
+console.log("comments" in withProfiler({ adapter: {} }) ? "real" : "empty");`,
+  "cjs.cjs": `const { withProfiler } = require("query-profiler/prisma");
+console.log("comments" in withProfiler({ adapter: {} }) ? "real" : "empty");`,
+};
+
+/** An app folder with the package installed, as npm would, through a link to this repository. */
+function appWith(files: Record<string, string>) {
+  const dir = mkdtempSync(join(realpathSync(tmpdir()), "query-profiler-app-"));
+  mkdirSync(join(dir, "node_modules"));
+  symlinkSync(ROOT, join(dir, "node_modules", "query-profiler"), "dir");
+  for (const [name, code] of Object.entries(files)) writeFileSync(join(dir, name), code);
+  return dir;
+}
+
+const entryIn = (dir: string, file: string, flags: string[], env: Record<string, string> = {}) =>
+  execFileSync(process.execPath, [...flags, file], {
+    cwd: dir,
+    env: { PATH: process.env.PATH, NODE_PATH: "", ...env },
+    encoding: "utf8",
+  }).trim();
+
+it("gives the app's own imports of the profiler its real code, by import and require, with no other flag", () => {
+  const dir = appWith(PRISMA_ENTRY);
+  expect(entryIn(dir, "esm.mjs", PRELOAD)).toBe("real");
+  expect(entryIn(dir, "cjs.cjs", PRELOAD)).toBe("real");
+});
+
+it("leaves those imports empty without the preload, and in production even with it", () => {
+  const dir = appWith(PRISMA_ENTRY);
+  expect(entryIn(dir, "esm.mjs", [])).toBe("empty");
+  expect(entryIn(dir, "cjs.cjs", [])).toBe("empty");
+  expect(entryIn(dir, "esm.mjs", PRELOAD, { NODE_ENV: "production" })).toBe("empty");
+  expect(entryIn(dir, "cjs.cjs", PRELOAD, { NODE_ENV: "production" })).toBe("empty");
 });

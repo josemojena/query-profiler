@@ -31,17 +31,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 22, 24]
+        node: [22, 24]
         versions: [locked]
         # The oldest supported version of each library, and the first of a current major.
         include:
+          - node: 22.15.0
+            versions: locked
           - node: 24
             versions: prisma@7.1.0 @prisma/client@7.1.0 @prisma/adapter-pg@7.1.0
-          - node: 20
+          - node: 22
             versions: fastify@4.26.0
           - node: 24
             versions: fastify@5.0.0
-          - node: 20
+          - node: 22
             versions: express@4.18.0
           - node: 24
             versions: express@5.0.0
@@ -149,7 +151,7 @@ jobs:
           NODE_ENV: development
         run: |
           PORT=3001 node dist/server.js &
-          PORT=3002 env -u NODE_ENV node --conditions=development --import query-profiler/register dist/server.js &
+          PORT=3002 env -u NODE_ENV node --import query-profiler/register dist/server.js &
           curl --retry 30 --retry-connrefused --retry-delay 1 -s -o /dev/null http://localhost:3001/nope
           curl --retry 30 --retry-connrefused --retry-delay 1 -s -o /dev/null http://localhost:3002/nope
           ! curl -s -D - -o /dev/null http://localhost:3001/nope | grep -i x-debug-token
