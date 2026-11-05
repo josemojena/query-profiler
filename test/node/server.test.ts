@@ -1,10 +1,12 @@
 import { createServer, type Server } from "node:http";
+import { createServer as createHttp2Server } from "node:http2";
 import type { AddressInfo } from "node:net";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearProfiles, listProfiles } from "../../src/core/index.js";
+import { beginQuery, clearProfiles, currentScope, listProfiles } from "../../src/core/index.js";
 import { state } from "../../src/core/state.js";
 import { profileRequests } from "../../src/node/requests.js";
 import { profilerServer } from "../../src/node/server.js";
+import { http2Channels, http2Get } from "./http2.js";
 
 const servers: Server[] = [];
 let stop = () => {};
@@ -125,6 +127,24 @@ describe("the requests profiled", () => {
   it("keep the status the app answered, a failure too", async () => {
     await fetch(`${origin}/boom`);
     await vi.waitFor(() => expect(listProfiles()).toMatchObject([{ response: { status: 500 } }]));
+  });
+
+  it.skipIf(!http2Channels())("include HTTP/2 ones, with what their handler records", async () => {
+    const server = createHttp2Server((_request, response) => {
+      const scope = currentScope();
+      if (scope) beginQuery(scope.profile, { sql: "SELECT 1" });
+      response.writeHead(201).end("ok");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "localhost", resolve));
+    const { port } = server.address() as AddressInfo;
+    expect(await http2Get(`http://localhost:${port}`, "/orders?page=2")).toBe(201);
+    await vi.waitFor(() =>
+      expect(listProfiles()).toMatchObject([
+        { request: { method: "GET", url: "/orders?page=2" }, response: { status: 201 } },
+      ]),
+    );
+    expect(listProfiles()[0]!.summary.queryCount).toBe(1);
+    await new Promise((resolve) => server.close(resolve));
   });
 
   it("hang under the page that made them", async () => {

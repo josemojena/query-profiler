@@ -232,7 +232,10 @@ behind each, live. Each response's `X-Debug-Token` opens that request at `/_prof
   `X-Debug-Token` there too.
 - Tested in CI with Express 4.18+ and 5, Fastify 4.26+ and 5, Koa 3, Hapi 21, NestJS 12 and Hono 4.
   Before 4.18, Express's body parser drops the request's async context, so a route that reads a
-  body loses its queries.
+  body loses its queries. HTTP/2 servers are profiled on Node 22.17+ and 24.2+, without
+  `X-Debug-Token`.
+- If it is off, the terminal says why. Nothing at all, or an empty profiler: see
+  [troubleshooting](https://query-profiler.dev/docs/guides/troubleshooting).
 
 ## The profiler page
 

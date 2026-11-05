@@ -1,5 +1,6 @@
 import { subscribe, unsubscribe } from "node:diagnostics_channel";
-import type { IncomingMessage, Server, ServerResponse } from "node:http";
+import type { IncomingHttpHeaders, IncomingMessage, Server, ServerResponse } from "node:http";
+import type { ServerHttp2Stream } from "node:http2";
 import {
   endProfile,
   enterProfile,
@@ -10,6 +11,8 @@ import {
 } from "../core/index.js";
 
 const CHANNEL = "http.server.request.start";
+// Published by Node 22.17+ and 24.2+; earlier versions never do, and HTTP/2 goes unprofiled.
+const HTTP2_CHANNEL = "http2.server.stream.start";
 const SKIPPED = [/^\/favicon\.ico$/, /^\/\.well-known\//];
 const EXPOSE_HEADERS = "Access-Control-Expose-Headers";
 
@@ -17,6 +20,11 @@ interface RequestStart {
   request: IncomingMessage;
   response: ServerResponse;
   server: Server;
+}
+
+interface StreamStart {
+  stream: ServerHttp2Stream;
+  headers: IncomingHttpHeaders;
 }
 
 export interface RequestOptions {
@@ -31,22 +39,28 @@ export interface RequestOptions {
  * answers them, from Node's diagnostics channel. Returns how to stop.
  */
 export function profileRequests(options: RequestOptions = {}): () => void {
-  // Node publishes on this channel right before the server hands the request to its handler, so
-  // the context entered here is the one the framework, and every query it makes, runs in.
-  const onRequest = (message: unknown) => {
-    const { request, response, server } = message as RequestStart;
-    const url = new URL(request.url ?? "/", "http://localhost");
-    if (options.skip?.(server) || SKIPPED.some((path) => path.test(url.pathname))) return;
+  const open = (method: string, path: string, headers: IncomingHttpHeaders) => {
+    const url = new URL(path, "http://localhost");
+    if (SKIPPED.some((skipped) => skipped.test(url.pathname))) return undefined;
     const active = startProfile(
       {
-        method: request.method ?? "GET",
+        method,
         url: `${url.pathname}${url.search}`,
-        kind: (request.headers.accept ?? "").includes("text/html") ? "document" : "api",
-        parentToken: parentOf(request),
+        kind: (headers.accept ?? "").includes("text/html") ? "document" : "api",
+        parentToken: parentOf(headers),
       },
       { name: "node" },
     );
     enterProfile(active);
+    return active;
+  };
+  // Node publishes on these channels right before the server hands the request to its handler,
+  // so the context entered here is the one the framework, and every query it makes, runs in.
+  const onRequest = (message: unknown) => {
+    const { request, response, server } = message as RequestStart;
+    if (options.skip?.(server)) return;
+    const active = open(request.method ?? "GET", request.url ?? "/", request.headers);
+    if (!active) return;
     response.setHeader(TOKEN_HEADER, active.profile.token);
     // A page on another origin can only read the token if CORS exposes it; the app's own CORS
     // settings, set later, win.
@@ -56,11 +70,29 @@ export function profileRequests(options: RequestOptions = {}): () => void {
       options.onProfile?.(profile);
     });
   };
+  // An HTTP/2 stream has no response to set a header on before the app answers: no token there.
+  const onStream = (message: unknown) => {
+    const { stream, headers } = message as StreamStart;
+    const active = open(
+      String(headers[":method"] ?? "GET"),
+      String(headers[":path"] ?? "/"),
+      headers,
+    );
+    stream.once("close", () => {
+      if (!active) return;
+      const profile = endProfile(active, { status: Number(stream.sentHeaders[":status"] ?? 0) });
+      options.onProfile?.(profile);
+    });
+  };
   subscribe(CHANNEL, onRequest);
-  return () => unsubscribe(CHANNEL, onRequest);
+  subscribe(HTTP2_CHANNEL, onStream);
+  return () => {
+    unsubscribe(CHANNEL, onRequest);
+    unsubscribe(HTTP2_CHANNEL, onStream);
+  };
 }
 
-function parentOf(request: IncomingMessage): string | undefined {
-  const token = request.headers[PARENT_HEADER.toLowerCase()];
+function parentOf(headers: IncomingHttpHeaders): string | undefined {
+  const token = headers[PARENT_HEADER.toLowerCase()];
   return typeof token === "string" && /^[0-9a-f]{6}$/.test(token) ? token : undefined;
 }

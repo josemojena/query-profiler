@@ -45,6 +45,7 @@
   "type": "module",
   "sideEffects": [
     "./dist/node/register.js",
+    "./dist/node/register-noop.js",
     "./dist/ui/index.js"
   ],
   "exports": {
