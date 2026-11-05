@@ -90,6 +90,19 @@ describe("the bar", () => {
     expect(html).toContain('href="vscode://file/repo/app/orders.server.ts:31:1"');
   });
 
+  it("lays an open query out over lines, in colour, and keeps a closed one as written", () => {
+    const sql = `SELECT "id" FROM "Order" WHERE "userId" = $1`;
+    const profile = profileWith([query("q_1", sql, "op_1")]);
+    const closed = render(state(profile, { open: true, tab: "queries" }));
+    expect(closed).toContain(`class="sql mono clip"`);
+    expect(closed).toContain("SELECT &quot;id&quot; FROM &quot;Order&quot;");
+    const open = render(state(profile, { open: true, tab: "queries", expanded: new Set(["q_1"]) }));
+    expect(open).toContain(`class="sql mono formatted"`);
+    expect(open).toContain(
+      `<span class="kw">SELECT</span> &quot;id&quot;\n<span class="kw">FROM</span> &quot;Order&quot;\n<span class="kw">WHERE</span>`,
+    );
+  });
+
   it("shrinks to a pill", () => {
     const html = render(state(profileWith([query("q_1", "SELECT 1")]), { minimized: true }));
     expect(html).toContain('class="pill"');

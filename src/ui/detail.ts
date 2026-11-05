@@ -1,6 +1,7 @@
 import type { OperationRecord, Profile, QueryRecord, StackFrame, Warning } from "../core/index.js";
 import { count } from "./count.js";
 import { editorLink, escape, ms, shortPath, statusTone, type Editor } from "./format.js";
+import { formatSql, highlightSql } from "./sql.js";
 
 // What a single request shows, in the bar and in the profiler page.
 
@@ -112,7 +113,7 @@ function queriesTab(context: Detail, profile: Profile): string {
       return `<tr class="${row.repeated || kinds.has("duplicate") ? "warn" : ""}">
         <td class="num">${index + 1}</td>
         <td>
-          <div class="sql mono${expanded ? "" : " clip"}" data-action="expand" data-id="${escape(first.id)}">${escape(first.sql)}${badges}</div>
+          <div class="sql mono ${expanded ? "formatted" : "clip"}" data-action="expand" data-id="${escape(first.id)}">${expanded ? highlightSql(formatSql(first.sql)) : escape(first.sql)}${badges}</div>
           <div class="sub">${escape(what)}${detail ? ` · ${detail}` : ""}${first.error ? ` · <span class="badge error">${escape(first.error.code ?? "")}</span> ${escape(first.error.message)}` : ""}</div>
           ${expanded ? `<div class="actions"><button data-action="copy" data-id="${escape(first.id)}">Copy runnable SQL</button></div>` : ""}
         </td>
