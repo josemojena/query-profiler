@@ -3,9 +3,10 @@ import { escape } from "./format.js";
 // About what fits in the SQL column of the bar and of the profiler page.
 const WIDTH = 50;
 const INDENT = "  ";
-// Whitespace, a 'string', a "name", a comment, $1, a word, ( ) , and anything else, in that order.
+// Whitespace, a 'string', a "name" or `name`, a comment, $1 or ?, a word, ( ) , and anything else,
+// in that order.
 const PATTERN =
-  /(\s+)|('(?:[^']|'')*'?)|("(?:[^"]|"")*"?)|(--[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|(\$\d+)|([A-Za-z_][\w$]*)|(\()|(\))|(,)|([^\s'"(),A-Za-z_$]+|\$)/g;
+  /(\s+)|('(?:[^']|'')*'?)|("(?:[^"]|"")*"?|`(?:[^`]|``)*`?)|(--[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|(\$\d+|\?)|([A-Za-z_][\w$]*)|(\()|(\))|(,)|([^\s'"`(),A-Za-z_$?]+|\$)/g;
 // Dollar-quoted bodies ($$ … $$) keep their own layout: left as written. So is SQL with a line
 // comment, which ends at its line: moving what follows it could comment that out.
 const DOLLAR_QUOTE = /\$[A-Za-z_]*\$/;

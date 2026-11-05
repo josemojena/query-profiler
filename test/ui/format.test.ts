@@ -35,6 +35,17 @@ describe("format", () => {
     );
   });
 
+  it("puts MySQL's and SQLite's ? parameters back in order, skipping a ? inside a string", () => {
+    expect(
+      runnableSql({
+        sql: "SELECT `id` FROM `User` WHERE `email` LIKE CONCAT('%', ?, '%') AND note <> 'why?' LIMIT ? OFFSET ?",
+        params: ["x", "5", "0"],
+      }),
+    ).toBe(
+      "SELECT `id` FROM `User` WHERE `email` LIKE CONCAT('%', 'x', '%') AND note <> 'why?' LIMIT '5' OFFSET '0'",
+    );
+  });
+
   it("colours statuses", () => {
     expect([200, 302, 404, 500, undefined].map(statusTone)).toEqual([
       "ok",

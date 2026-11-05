@@ -114,6 +114,35 @@ describe("formatted SQL", () => {
   });
 });
 
+describe("MySQL and SQLite", () => {
+  it("lay out like the rest, with backtick names kept whole", () => {
+    expect(
+      formatSql(
+        "SELECT `User`.`id`, `User`.`email`, `User`.`password` FROM `User` WHERE `User`.`email` LIKE CONCAT('%', ?, '%') ORDER BY `User`.`id` ASC LIMIT ? OFFSET ?",
+      ),
+    ).toBe(
+      [
+        "SELECT",
+        "  `User`.`id`,",
+        "  `User`.`email`,",
+        "  `User`.`password`",
+        "FROM `User`",
+        "WHERE `User`.`email` LIKE CONCAT('%', ?, '%')",
+        "ORDER BY `User`.`id` ASC",
+        "LIMIT ?",
+        "OFFSET ?",
+      ].join("\n"),
+    );
+    expect(formatSql("SELECT `a  b` FROM `t`")).toBe("SELECT `a  b`\nFROM `t`");
+  });
+
+  it("mark ? as a parameter", () => {
+    expect(highlightSql("LIMIT ?")).toBe(
+      `<span class="kw">LIMIT</span> <span class="param">?</span>`,
+    );
+  });
+});
+
 describe("highlighted SQL", () => {
   it("marks keywords, strings, parameters and comments, and escapes the rest", () => {
     expect(highlightSql(`SELECT "id" FROM "t" WHERE "x" = '<b>' AND "y" = $1 /* c */`)).toBe(

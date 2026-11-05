@@ -3,6 +3,6 @@ dist/
 .turbo/
 test-results/
 playwright-report/
-test/prisma/fixture/generated/
+test/prisma/fixture*/generated/
 .DS_Store
 .env

@@ -1,7 +1,12 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import pg from "pg";
-import { TEST_DATABASE_URL } from "./database.js";
+import {
+  TEST_DATABASE_URL,
+  TEST_MARIADB_URL,
+  TEST_MYSQL_URL,
+  TEST_SQLITE_URL,
+} from "./database.js";
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS "User" (id SERIAL PRIMARY KEY, email TEXT NOT NULL UNIQUE);
@@ -32,4 +37,21 @@ export default async function setup() {
 
   const config = path.join(import.meta.dirname, "fixture", "prisma.config.ts");
   execFileSync("npx", ["prisma", "generate", "--config", config], { stdio: "pipe" });
+
+  // MySQL, MariaDB and SQLite get the same tables from their own schema.
+  for (const [fixture, url] of [
+    ["fixture-mysql", TEST_MYSQL_URL],
+    ["fixture-mysql", TEST_MARIADB_URL],
+    ["fixture-sqlite", TEST_SQLITE_URL],
+  ] as const) {
+    if (!url.startsWith("file:") && !new URL(url).pathname.endsWith("_test"))
+      throw new Error(`Refusing to use "${url}": not a _test database`);
+    const schema = path.join(import.meta.dirname, fixture, "prisma.config.ts");
+    const env = { ...process.env, DATABASE_URL: url.replace(/^mariadb:/, "mysql:") };
+    execFileSync("npx", ["prisma", "db", "push", "--config", schema], {
+      stdio: "pipe",
+      env,
+    });
+    execFileSync("npx", ["prisma", "generate", "--config", schema], { stdio: "pipe", env });
+  }
 }
