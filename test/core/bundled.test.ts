@@ -6,6 +6,7 @@ import { build } from "esbuild";
 import { beforeAll, expect, it } from "vitest";
 
 const CORE = new URL("../../src/core/index.ts", import.meta.url).pathname;
+const BUILT_CORE = new URL("../../dist/core/index.js", import.meta.url).pathname;
 
 // The app's code, bundled with the profiler the way Next bundles a server module, in a folder of
 // its own; and Next's habit of formatting stack traces itself.
@@ -92,3 +93,39 @@ loadUsers();
       .findIndex((text) => text.includes("// the-call")) + 1;
   expect(origin).toMatchObject({ file, line });
 });
+
+it.each(["linked", "inline"] as const)(
+  "finds the app's line in compiled code run without --enable-source-maps, from a %s source map",
+  async (sourcemap) => {
+    const dir = mkdtempSync(join(realpathSync(tmpdir()), "query-profiler-compiled-"));
+    const source = join(dir, "users.ts");
+    writeFileSync(
+      source,
+      `import { captureOrigin } from ${JSON.stringify(BUILT_CORE)};
+
+type User = { id: number };
+
+export function loadUsers(): User[] {
+  console.log(JSON.stringify(captureOrigin()[0])); // the-call
+  return [];
+}
+
+loadUsers();
+`,
+    );
+    // Compiled in place, as tsc does: one file out, its imports untouched, a comment to its map.
+    const outfile = join(dir, "users.js");
+    await build({ entryPoints: [source], outfile, format: "esm", sourcemap, logLevel: "silent" });
+    const origin = JSON.parse(
+      execFileSync(process.execPath, [outfile], {
+        env: { ...process.env, NODE_PATH: "", NODE_OPTIONS: "", NODE_ENV: "development" },
+        encoding: "utf8",
+      }),
+    ) as { file: string; line: number };
+    const line =
+      readFileSync(source, "utf8")
+        .split("\n")
+        .findIndex((text) => text.includes("// the-call")) + 1;
+    expect(origin).toMatchObject({ file: source, line });
+  },
+);
