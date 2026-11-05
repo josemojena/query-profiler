@@ -10,12 +10,15 @@ deploying. A complete API is in
 
 ## 1. Install it, and run the dev server with the `development` condition
 
-Without a bundler there is no build step to swap the profiler out, so install it as a regular
-dependency. Node loads the real code only when started with `--conditions=development`; plain
-`node`, as in production, gets the entry that does nothing.
+Without a bundler there is no build step to swap the profiler out. Install it as a dev dependency
+and import it only if it is there, so a production install leaves it out (see
+[development only, without a bundler](/docs/installation#development-only-without-a-bundler)); or
+install it as a regular dependency and use plain imports, as below: plain `node` then loads the
+entry that does nothing. Either way, Node loads the real code only when started with
+`--conditions=development`.
 
 ```sh
-npm i query-profiler
+npm i -D query-profiler   # or npm i query-profiler
 ```
 
 ```json

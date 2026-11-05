@@ -75,11 +75,51 @@ an entry you don't import is never loaded.
 npm i -D query-profiler
 ```
 
-With Vite it is a dev dependency. Each entry that runs inside your app has a `development` build
-with the real code and a `default` one that does nothing: dev servers use the first, production
-builds get the second, inlined by the Vite plugin, so a deploy with `npm ci --omit=dev` never needs
-it. Without a bundler, as with Fastify or Express, install it as a dependency instead (`npm i query-profiler`):
-Node loads the real code only when started with `--conditions=development`.
+Every entry that runs inside your app has a `development` build with the real code and a
+`default` one that does nothing, with the same API. How it stays out of production depends on how
+you ship the server:
+
+| How you ship                                      | Install it as  | What leaves the profiler out                                                   |
+| ------------------------------------------------- | -------------- | ------------------------------------------------------------------------------ |
+| A Vite build (React Router)                       | dev dependency | The Vite plugin puts the empty entries in the build: production never needs it |
+| A bundled server (tsup, esbuild, Rollup, webpack) | dev dependency | The bundler puts the empty entries in the bundle (see below)                   |
+| Plain `node`, development only                    | dev dependency | The app imports it only if it is installed (see below)                         |
+| Plain `node`, simplest                            | dependency     | Node loads the empty entries unless started with `--conditions=development`    |
+
+Either way, there is no `if (import.meta.env.DEV)` around each call, and in development Node or the
+bundler picks the real code with the `development` condition (`tsx watch --conditions=development`,
+`node --conditions=development`, or the bundler's `conditions` option).
+
+### Development only, without a bundler
+
+Install it with `npm i -D query-profiler`, and import it only if it is there, so a production
+install (`npm ci --omit=dev`) leaves it out and the app runs without it:
+
+```ts
+// src/server.ts
+const profiler = await import("query-profiler/express").catch(() => undefined);
+if (profiler) app.use(profiler.profilerMiddleware());
+```
+
+```ts
+// src/db.ts
+const profiler = await import("query-profiler/prisma").catch(() => undefined);
+
+export const prisma: Omit<PrismaClient, "$on"> = profiler
+  ? profiler.profilePrisma(new PrismaClient(profiler.withProfiler({ adapter })))
+  : new PrismaClient({ adapter });
+```
+
+The same goes for `query-profiler/fastify`. The examples in `examples/express` and
+`examples/fastify` are set up this way.
+
+### A bundled server
+
+With plain imports, a production bundle gets the empty entries, and the package can be a dev
+dependency. tsup bundles dev dependencies by default; with esbuild, Rollup or webpack, do not mark
+`query-profiler` as external. Bundle for development with the `development` condition (esbuild's
+`conditions: ["development"]`). Importing `formatProfile` from `query-profiler` itself keeps the
+core in the bundle, inert: leave it to the development build.
 
 ## Usage with React Router
 
@@ -200,13 +240,9 @@ Fastify 4.26 or later, Prisma 7 with `@prisma/adapter-pg`. For APIs: each respon
 `X-Debug-Token`, and `/_profiler` shows every request. Three steps; nothing to remove before
 deploying.
 
-**1. Install it as a dependency, and run the dev server with the `development` condition.** Node
-picks the real code only with that flag; plain `node`, as in production, gets the entry that does
-nothing.
-
-```sh
-npm i query-profiler
-```
+**1. Install it, and run the dev server with the `development` condition.** As a dev dependency
+with the import shown in [Development only, without a bundler](#development-only-without-a-bundler),
+or as a dependency with plain imports, as below. Node picks the real code only with that flag.
 
 ```json
 {
@@ -252,8 +288,8 @@ origin, it adds `X-Debug-Token` to `Access-Control-Expose-Headers`, so a fronten
 ## Usage with Express
 
 Express 4.18 or later, 5 included, with Prisma 7 and `@prisma/adapter-pg`. Set up as for Fastify:
-install the package as a dependency, run the dev server with `--conditions=development` and
-profile the Prisma client (steps 1 and 2 above). Then add the middleware, **first**:
+install the package, run the dev server with `--conditions=development` and profile the Prisma
+client (steps 1 and 2 above). Then add the middleware, **first**:
 
 ```ts
 // src/server.ts

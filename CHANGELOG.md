@@ -6,6 +6,14 @@
   `query-profiler/express` profiles each request, tags each response with `X-Debug-Token` (exposed
   to CORS), names the route that answered and serves `/_profiler`.
 - The profiler's API answers `HEAD` like `GET`, with no body.
+- **Development only, without a bundler**: the docs show how to keep `query-profiler` a dev
+  dependency for a server run with plain `node` (import it only if it is installed), or bundled
+  with tsup, esbuild, Rollup or webpack; the Express and Fastify examples are set up that way, and
+  CI checks that the examples run with the package not installed.
+- A server bundled with the profiler in development starts and serves `/_profiler`: the core finds
+  its UI files from the app too, as a bundler moves it out of its package.
+- The line of code behind each query is found through the bundle's source maps when Node runs with
+  `--enable-source-maps`, even if a framework formats stack traces itself.
 
 ## 0.2.1
 
