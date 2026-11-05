@@ -4,6 +4,7 @@ import { registerHooks } from "node:module";
 import { enabled, formatProfile } from "../core/index.js";
 import { profileRequests } from "./requests.js";
 import { profilerServer } from "./server.js";
+import { addsConditions } from "./support.js";
 
 const LISTENING = "tracing:net.server.listen:asyncEnd";
 const PACKAGE = "query-profiler";
@@ -11,7 +12,11 @@ const PACKAGE = "query-profiler";
 const QUIET = new Set(["production", "test"]);
 
 // Loaded before the app by its development command: node --import query-profiler/register server.js
-if (enabled()) {
+if (enabled() && !addsConditions()) {
+  console.warn(
+    `[query-profiler] Off: it needs Node 22.19+ or 24.5+, and this is ${process.version}.`,
+  );
+} else if (enabled()) {
   // The app's own imports of the profiler (query-profiler/prisma) get its real code, as with
   // --conditions=development. A synchronous hook, so require() follows it too, not only import.
   registerHooks({

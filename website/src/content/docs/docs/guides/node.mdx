@@ -134,7 +134,8 @@ If the port is busy, the profiler waits a second for a restarting app to let go 
 next free one and prints it. In a container, set `QUERY_PROFILER_HOST=0.0.0.0` and publish the port:
 see [troubleshooting](/docs/guides/troubleshooting#the-browser-cannot-reach-the-profiler).
 
-If it is off, the terminal says why: a `NODE_ENV` other than `development`. Nothing at all, or an empty profiler? See [troubleshooting](/docs/guides/troubleshooting).
+If it is off, the terminal says why: a `NODE_ENV` other than `development`, or a Node older than
+22.19 or 24.5. Nothing at all, or an empty profiler? See [troubleshooting](/docs/guides/troubleshooting).
 
 ## Seeing what your API did
 

@@ -27,5 +27,7 @@ CI runs the same requests, with Prisma against PostgreSQL, in each of these:
 
 ## Node
 
-Node 22.15 or later, tested on 22.15, 22 and 24. Node 20 is not supported: it lacks the synchronous
-module hooks the preload uses, and its support ended in April 2026.
+Node 22.19+ or 24.5+, tested on 22.19, the newest 22 and the newest 24. The preload gives your app's
+imports of the profiler its real code through Node's synchronous module hooks: before those versions,
+Node ignores the conditions such a hook adds on `import` and throws on them in `require()`. Node 20,
+whose support ended in April 2026, lacks those hooks altogether.

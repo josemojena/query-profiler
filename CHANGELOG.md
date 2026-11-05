@@ -2,9 +2,11 @@
 
 ## Unreleased
 
-- **Breaking: Node 22.15 or later.** The preload gives the app's own imports of the profiler its real
-  code through Node's synchronous module hooks, which cover `require()` too and exist from Node 22.15
-  and 23.5. Node 20, out of support since April 2026, is no longer supported.
+- **Breaking: Node 22.19+ or 24.5+.** The preload gives the app's own imports of the profiler its real
+  code through Node's synchronous module hooks, so `--import query-profiler/register` is the only flag
+  a dev command needs; they cover `require()` too. Before 22.19 and 24.5, Node ignores the conditions
+  such a hook adds on `import` and throws on them in `require()`: there the preload says so and stays
+  off. Node 20, out of support since April 2026, is no longer supported.
 - **React Router: the Vite plugin alone.** `queryProfiler()` in `vite.config.ts` now profiles every
   request in the dev server, puts the bar on every page and serves `/_profiler`; nothing goes in
   your routes, and React Router 7 no longer needs `future.v8_middleware`. The bar learns its page's

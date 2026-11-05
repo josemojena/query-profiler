@@ -35,7 +35,7 @@ jobs:
         versions: [locked]
         # The oldest supported version of each library, and the first of a current major.
         include:
-          - node: 22.15.0
+          - node: 22.19.0
             versions: locked
           - node: 24
             versions: prisma@7.1.0 @prisma/client@7.1.0 @prisma/adapter-pg@7.1.0

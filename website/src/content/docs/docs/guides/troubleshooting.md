@@ -8,9 +8,10 @@ says where it is, or why it is off.
 
 ## The terminal says it is off
 
-| It says                    | Change                                                              |
-| -------------------------- | ------------------------------------------------------------------- |
-| `Off: NODE_ENV is "local"` | Run development with `NODE_ENV=development`, or without `NODE_ENV`. |
+| It says                              | Change                                                              |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| `Off: NODE_ENV is "local"`           | Run development with `NODE_ENV=development`, or without `NODE_ENV`. |
+| `Off: it needs Node 22.19+ or 24.5+` | Update Node: earlier versions break on what the preload needs.      |
 
 In production, in test runs (`NODE_ENV=test`) and with `QUERY_PROFILER_DISABLED=1` it stays off
 without a word: there, that is the point.
