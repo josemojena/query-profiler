@@ -1,0 +1,85 @@
+---
+import type { Profile } from "query-profiler";
+import demo from "../../demo/profiles.json";
+import { INSTALL, link } from "../../data/site";
+import InstallButton from "./InstallButton.astro";
+
+const page = (demo.profiles as Profile[]).find((profile) => profile.warnings.length)!;
+const flagged = new Set(
+  page.warnings.flatMap((warning) =>
+    warning.queryIds.map((id) => page.queries.find((query) => query.id === id)?.opId),
+  ),
+);
+const span = Math.max(...page.operations.map((op) => op.startMs + (op.durationMs ?? 0)));
+const rows = page.operations.map((op) => ({
+  label: `${op.model}.${op.action}`,
+  left: (op.startMs / span) * 96,
+  width: Math.max(((op.durationMs ?? 0) / span) * 96, 1.5),
+  warn: flagged.has(op.id),
+}));
+const repeated = page.operations.find((op) => flagged.has(op.id))!;
+const where = `${repeated.origin?.[0]?.file.split("/").slice(-3).join("/")}:${repeated.origin?.[0]?.line}`;
+---
+
+<section class="hero">
+  <div class="wrap grid">
+    <div class="copy">
+      <span class="tag">-- v0.1 · prisma 7.1+ · postgresql</span>
+      <h1>See every query your <span>Prisma&nbsp;app</span> makes.</h1>
+      <p class="lead">
+        The database profiler for Prisma ORM, in development. Every SQL statement of a request, the
+        line of your code that sent it, and a warning the moment an N+1 shows up.
+      </p>
+      <div class="actions">
+        <a class="button primary" href={link("docs")}>Get started →</a>
+        <InstallButton command={INSTALL} />
+      </div>
+    </div>
+
+    <figure class="panel timeline">
+      <div class="head"><span>TIMELINE · GET {page.request.url}</span><span>0 ─ {span.toFixed(1)} ms</span></div>
+      <div class="rows">
+        {
+          rows.map((row) => (
+            <>
+              <span class:list={["label", { warn: row.warn }]}>{row.label}</span>
+              <div class="track">
+                <span class:list={["bar", { warn: row.warn }]} style={`left:${row.left}%;width:${row.width}%`} />
+              </div>
+            </>
+          ))
+        }
+      </div>
+      <div class="finding">
+        <span class="badge amber">N+1</span>
+        {repeated.model}.{repeated.action}, {rows.filter((row) => row.warn).length} times from <code>{where}</code>
+      </div>
+      <figcaption>Each bar is one Prisma operation, on the request's own clock. Recorded from the example app.</figcaption>
+    </figure>
+  </div>
+  <p class="wrap hint">↓ The bar at the bottom of this page is the real one, on the same sample data. Click it.</p>
+</section>
+
+<style>
+  .hero { border-bottom: 1px solid var(--line); }
+  .grid { display: flex; flex-wrap: wrap; gap: 56px; align-items: center; padding-block: 80px 40px; }
+  .copy { flex: 1 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+  .tag { align-self: flex-start; font: 13px var(--mono); color: var(--muted); border: 1px solid var(--line-strong); border-radius: 6px; padding: 4px 10px; background: var(--surface); }
+  h1 { margin: 0; font: 700 clamp(32px, 4.2vw, 46px)/1.15 var(--display); letter-spacing: -0.03em; text-wrap: balance; }
+  h1 span { color: var(--blue); }
+  .lead { max-width: 34em; font-size: 19px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .timeline { flex: 1 1 500px; min-width: 0; margin: 0; padding: 20px 20px 16px; }
+  .head { display: flex; justify-content: space-between; gap: 12px; font: 12px var(--mono); color: var(--dim); margin-bottom: 14px; }
+  .rows { display: grid; grid-template-columns: minmax(0, 130px) 1fr; row-gap: 9px; column-gap: 14px; align-items: center; font: 12px var(--mono); }
+  .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .label.warn { color: var(--amber); }
+  .track { position: relative; height: 12px; background: var(--track); border-radius: 3px; }
+  .bar { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; background: var(--blue); }
+  .bar.warn { background: var(--amber); }
+  .finding { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; font-size: 14px; color: var(--muted); }
+  .finding code { color: var(--ink); font-size: 13px; }
+  figcaption { margin-top: 12px; font-size: 13px; color: var(--dim); }
+  .hint { margin: 0; padding-block: 0 28px; font-size: 14px; color: var(--dim); }
+  @media (max-width: 720px) { .hint { display: none; } }
+</style>

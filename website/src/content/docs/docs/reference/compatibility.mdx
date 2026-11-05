@@ -1,0 +1,19 @@
+---
+title: Compatibility
+description: What query-profiler works with today, and what is coming.
+---
+
+import Integrations from "../../../../components/docs/Integrations.astro";
+
+<Integrations />
+
+## Prisma versions
+
+- **Prisma 7.1 and later** are supported, and tested on the oldest and the newest in CI.
+- **Prisma 6** is not: it has no SQL comments, and its query engine runs the driver adapter outside
+  the request's async context, so statements cannot be tied to their request.
+- **Prisma 8** needs its own integration, built on its new middleware, once it is stable.
+
+## Node
+
+Node 20.19 or later, tested on 20, 22 and 24.

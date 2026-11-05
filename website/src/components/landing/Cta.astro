@@ -1,0 +1,22 @@
+---
+import { GITHUB, link } from "../../data/site";
+---
+
+<section class="wrap cta">
+  <div class="panel box">
+    <h2>Find the <span>N+1</span> before your users do.</h2>
+    <p class="lead">Free and open source, MIT licensed.</p>
+    <div class="actions">
+      <a class="button primary" href={link("docs")}>Get started →</a>
+      <a class="button ghost" href={GITHUB}>Star on GitHub</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .cta { padding-block: 0 80px; }
+  .box { padding: 60px 32px; text-align: center; display: flex; flex-direction: column; gap: 18px; align-items: center; }
+  h2 { margin: 0; font: 700 clamp(24px, 3.4vw, 34px)/1.2 var(--display); letter-spacing: -0.02em; text-wrap: balance; }
+  h2 span { color: var(--amber); }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+</style>

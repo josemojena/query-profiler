@@ -1,0 +1,46 @@
+---
+import "@fontsource/ibm-plex-sans/400.css";
+import { stats, type Profile } from "query-profiler";
+import demo from "../../demo/profiles.json";
+import { link } from "../../data/site";
+
+export function getStaticPaths() {
+  const pages = [undefined, "stats", ...demo.profiles.map((profile) => profile.token)];
+  return pages.map((path) => ({ params: { path } }));
+}
+
+const demoStats = JSON.stringify(stats(demo.profiles as Profile[]));
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>query-profiler · Demo profiler page</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href={link("favicon.svg")} type="image/svg+xml" />
+  </head>
+  <body>
+    <p class="notice">
+      Demo of the <code>/_profiler</code> page, on sample data recorded from the React Router example.
+      <a href={link()}>← Back to query-profiler</a>
+    </p>
+    <div id="demo-stats" data-stats={demoStats} hidden></div>
+    <query-profiler-page data-base={link("demo-profiler")}></query-profiler-page>
+  </body>
+</html>
+
+<style is:global>
+  body { margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
+  .notice { margin: 0; padding: 10px 16px; font-size: 14px; background: #0d0f14; color: #e6e9f2; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+  .notice a { color: #7c9cff; }
+</style>
+
+<script>
+  import { installDemoApi } from "../../demo/api";
+
+  const raw = document.getElementById("demo-stats")?.dataset.stats;
+  installDemoApi(raw ? JSON.parse(raw) : undefined);
+  await import("query-profiler/ui");
+</script>

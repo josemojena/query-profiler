@@ -1,0 +1,70 @@
+---
+import { link } from "../../data/site";
+---
+
+<section class="quick">
+  <div class="wrap inner">
+    <div class="copy">
+      <div class="eyebrow">-- quick start</div>
+      <h2 class="title">Three lines, nothing to remove</h2>
+      <p class="lead">
+        Add the Vite plugin, wrap your Prisma client, add the middleware. Production builds get empty
+        versions of all three, so there is no <code>if (DEV)</code> anywhere.
+      </p>
+      <a href={link("docs/guides/react-router")}>React Router guide →</a>
+    </div>
+    <div class="panel code" data-tabs>
+      <div role="tablist" aria-label="Files" class="tabs">
+        <button type="button" role="tab" aria-selected="true" aria-controls="file-db" id="tab-db">db.server.ts</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="file-vite" id="tab-vite">vite.config.ts</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="file-root" id="tab-root">root.tsx</button>
+      </div>
+      <pre id="file-db" role="tabpanel" aria-labelledby="tab-db"><span class="k">import</span> {"{"} PrismaPg {"}"} <span class="k">from</span> <span class="s">"@prisma/adapter-pg"</span>;
+<span class="k">import</span> {"{"} profilePrisma, withProfiler {"}"} <span class="k">from</span> <span class="s">"query-profiler/prisma"</span>;
+
+<span class="k">const</span> adapter = <span class="k">new</span> PrismaPg({"{"} connectionString: process.env.DATABASE_URL {"}"});
+
+<span class="k">export const</span> prisma = <span class="f">profilePrisma</span>(
+  <span class="k">new</span> PrismaClient(<span class="f">withProfiler</span>({"{"} adapter {"}"})),
+);</pre>
+      <pre id="file-vite" role="tabpanel" aria-labelledby="tab-vite" hidden><span class="k">import</span> {"{"} reactRouter {"}"} <span class="k">from</span> <span class="s">"@react-router/dev/vite"</span>;
+<span class="k">import</span> {"{"} queryProfiler {"}"} <span class="k">from</span> <span class="s">"query-profiler/vite"</span>;
+
+<span class="k">export default</span> defineConfig({"{"}
+  plugins: [<span class="f">queryProfiler</span>(), reactRouter()],
+{"}"});</pre>
+      <pre id="file-root" role="tabpanel" aria-labelledby="tab-root" hidden><span class="c">// app/profiler.server.ts</span>
+<span class="k">export const</span> dbProfiler = <span class="f">profilerMiddleware</span>();
+
+<span class="c">// app/root.tsx</span>
+<span class="k">export const</span> middleware = [dbProfiler];</pre>
+    </div>
+  </div>
+</section>
+
+<style>
+  .quick { border-block: 1px solid var(--line); background: var(--surface-2); }
+  .inner { display: flex; flex-wrap: wrap; gap: 48px; align-items: center; padding-block: 80px; }
+  .copy { flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+  .copy .title { margin: 0; }
+  .copy code { font-size: 15px; color: var(--ink); }
+  .code { flex: 1 1 540px; min-width: 0; background: var(--bg); overflow: hidden; }
+  .tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+  .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--dim); font: 13px var(--mono); padding: 10px 14px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--blue); }
+  pre { margin: 0; padding: 20px; font-size: 14px; line-height: 1.7; color: #c3c9d8; overflow-x: auto; }
+</style>
+
+<script>
+  for (const box of document.querySelectorAll<HTMLElement>("[data-tabs]")) {
+    const tabs = [...box.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    for (const tab of tabs)
+      tab.addEventListener("click", () => {
+        for (const other of tabs) {
+          const selected = other === tab;
+          other.setAttribute("aria-selected", String(selected));
+          box.querySelector<HTMLElement>(`#${other.getAttribute("aria-controls")}`)!.hidden = !selected;
+        }
+      });
+  }
+</script>

@@ -1,0 +1,41 @@
+---
+import "@fontsource/martian-mono/500.css";
+import "@fontsource/martian-mono/700.css";
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/600.css";
+import "../styles/landing.css";
+import DemoBar from "../components/landing/DemoBar.astro";
+import Footer from "../components/landing/Footer.astro";
+import Nav from "../components/landing/Nav.astro";
+import { link } from "../data/site";
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <link rel="icon" href={link("favicon.svg")} type="image/svg+xml" />
+  </head>
+  <body>
+    <Nav />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+    <DemoBar />
+  </body>
+</html>

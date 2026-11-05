@@ -6,6 +6,7 @@
     "**/.react-router/**",
     "test/prisma/fixture/generated/**",
     "examples/*/app/generated/**",
-    "pnpm-lock.yaml"
+    "pnpm-lock.yaml",
+    "**/.astro/**"
   ]
 }

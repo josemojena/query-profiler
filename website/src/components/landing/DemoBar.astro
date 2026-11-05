@@ -1,0 +1,13 @@
+---
+---
+
+<script>
+  import { DEMO_BASE, DEMO_PAGE, installDemoApi } from "../../demo/api";
+
+  installDemoApi();
+  await import("query-profiler/ui");
+  const bar = document.createElement("query-profiler-toolbar");
+  bar.dataset.base = DEMO_BASE;
+  bar.dataset.token = DEMO_PAGE;
+  document.body.append(bar);
+</script>
