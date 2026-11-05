@@ -23,7 +23,7 @@
     "sql",
     "vite"
   ],
-  "homepage": "https://github.com/josemojena/query-profiler#readme",
+  "homepage": "https://query-profiler.dev",
   "bugs": "https://github.com/josemojena/query-profiler/issues",
   "license": "MIT",
   "author": "Jose Mojena",
