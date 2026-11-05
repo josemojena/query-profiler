@@ -26,11 +26,11 @@ install it. Run it again after changing the package.
 
 ## Where query-profiler goes
 
-| File            | What it adds                                                                            |
-| --------------- | --------------------------------------------------------------------------------------- |
-| `package.json`  | `query-profiler` as a dependency; the `dev` script runs with `--conditions=development` |
-| `src/db.ts`     | The Prisma client with `withProfiler()` and `profilePrisma()`                           |
-| `src/server.ts` | `app.register(profilerPlugin)`, printing one line per request                           |
+| File            | What it adds                                                                                        |
+| --------------- | --------------------------------------------------------------------------------------------------- |
+| `package.json`  | `query-profiler` as a dev dependency; the `dev` script runs with `--conditions=development`         |
+| `src/db.ts`     | The Prisma client with `withProfiler()` and `profilePrisma()`, when the package is installed        |
+| `src/server.ts` | `app.register(profilerPlugin)`, first, when the package is installed, printing one line per request |
 
-`pnpm --filter example-fastify build` and `start` run plain `node`, which loads the profiler's empty
-entry: nothing of it runs in production.
+It is set up as development only: `pnpm --filter example-fastify build` and `start` run plain `node`,
+and a production install (`npm ci --omit=dev`) leaves the package out, so the app runs without it.
