@@ -3,15 +3,6 @@ import { prisma } from "./db.js";
 
 const app = express();
 
-// query-profiler is a dev dependency: a production install leaves it out, and the app runs without it.
-const profiler = await Promise.all([
-  import("query-profiler"),
-  import("query-profiler/express"),
-]).catch(() => undefined);
-if (profiler) {
-  const [{ formatProfile }, { profilerMiddleware }] = profiler;
-  app.use(profilerMiddleware({ onProfile: (profile) => console.log(formatProfile(profile)) }));
-}
 app.use(express.json());
 
 // One query per user, on purpose: the profiler flags it as an N+1.
@@ -42,6 +33,4 @@ app.post("/posts", async (request, response) => {
 });
 
 const port = Number(process.env.PORT ?? 3000);
-app.listen(port, () =>
-  console.log(`Listening on http://localhost:${port}: try /users, and the profiler at /_profiler`),
-);
+app.listen(port, () => console.log(`Listening on http://localhost:${port}: try /users`));

@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearProfiles, listProfiles } from "../../src/core/index.js";
+import { state } from "../../src/core/state.js";
 import { profileRequests } from "../../src/node/requests.js";
 import { profilerServer } from "../../src/node/server.js";
 
@@ -66,6 +67,24 @@ describe("the profiler on a port of its own", () => {
     expect((await fetch(await url)).status).toBe(200);
   });
 
+  it("answers HEAD like GET, without a body", async () => {
+    const url = await start(0);
+    const page = await fetch(url, { method: "HEAD" });
+    expect(page.status).toBe(200);
+    expect(page.headers.get("Content-Type")).toMatch(/^text\/html/);
+    expect(await page.text()).toBe("");
+  });
+
+  it("stops streaming to a browser that goes away", async () => {
+    const url = await start(0);
+    const browser = new AbortController();
+    const stream = await fetch(`${url}/api/stream`, { signal: browser.signal });
+    await stream.body!.getReader().read();
+    expect(state().listeners.size).toBe(1);
+    browser.abort();
+    await vi.waitFor(() => expect(state().listeners.size).toBe(0));
+  });
+
   it("moves to the next port when another program keeps its own", async () => {
     const port = await freePort();
     await holder(port);
@@ -80,7 +99,10 @@ describe("the requests profiled", () => {
   let origin = "";
   beforeEach(async () => {
     stop = profileRequests();
-    app = createServer((_request, response) => response.end("ok"));
+    app = createServer((request, response) => {
+      response.statusCode = request.url === "/boom" ? 500 : 200;
+      response.end("ok");
+    });
     servers.push(app);
     await listening(app);
     origin = `http://localhost:${(app.address() as AddressInfo).port}`;
@@ -98,6 +120,11 @@ describe("the requests profiled", () => {
         { token, kind: "document", request: { method: "GET", url: "/orders" } },
       ]),
     );
+  });
+
+  it("keep the status the app answered, a failure too", async () => {
+    await fetch(`${origin}/boom`);
+    await vi.waitFor(() => expect(listProfiles()).toMatchObject([{ response: { status: 500 } }]));
   });
 
   it("hang under the page that made them", async () => {

@@ -184,11 +184,12 @@ describe.each([
     ]);
   });
 
-  it("keeps the request's context while the framework reads a JSON body", async () => {
+  // Just under Express's 100 KB limit, so the body still arrives in several reads from the socket.
+  it("keeps the request's context while the framework reads a large JSON body", async () => {
     const response = await fetch(`${app.origin}/users`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "new@example.test" }),
+      body: JSON.stringify({ email: "new@example.test", note: "x".repeat(90_000) }),
     });
     expect(lines(await profileOf(response))).toEqual([`User.create:${lineOf("// create-call")}`]);
   });
