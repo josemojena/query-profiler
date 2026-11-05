@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- The package now links to its website, https://query-profiler.dev, with the docs and a live demo
+  of the bar and the profiler page.
+
 ## 0.2.0
 
 - **Fastify 4.26 and later.** `app.register(profilerPlugin)` from `query-profiler/fastify` profiles
