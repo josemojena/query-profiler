@@ -1,11 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHandler } from "../../src/core/http.js";
 import { beginQuery, endProfile, startProfile } from "../../src/core/recorder.js";
-import { clearProfiles } from "../../src/core/storage.js";
+import { clearProfiles, listProfiles } from "../../src/core/storage.js";
 import type { Profile, ProfileListItem } from "../../src/core/profile.js";
 
 const handle = createHandler();
 const get = (path: string, host = "localhost:3100") => handle(new Request(`http://${host}${path}`));
+
+const send = (body: string, headers: Record<string, string> = {}) =>
+  handle(
+    new Request("http://localhost:4983/_profiler/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body,
+    }),
+  );
 
 function record(url: string, kind: "document" | "data" = "document") {
   const active = startProfile({ method: "GET", url, kind }, { name: "test" });
@@ -82,6 +91,29 @@ describe("the profiler API", () => {
     );
     expect(response.status).toBe(204);
     expect(await (await get("/_profiler/api/profiles")).json()).toEqual([]);
+  });
+
+  it("takes another process's finished profile, once, and streams it", async () => {
+    const profile = record("/from-a-worker");
+    clearProfiles();
+    const reader = (await get("/_profiler/api/stream")).body!.getReader();
+    await reader.read();
+    const response = await send(JSON.stringify(profile));
+    expect(response.status).toBe(204);
+    expect(new TextDecoder().decode((await reader.read()).value)).toMatch(/^event: profile\n/);
+    await send(JSON.stringify(profile));
+    expect(listProfiles().map((stored) => stored.token)).toEqual([profile.token]);
+    await reader.cancel();
+  });
+
+  it("takes no profile from a browser page, nor anything that is not one", async () => {
+    const body = JSON.stringify(record("/"));
+    clearProfiles();
+    expect((await send(body, { Origin: "https://evil.example" })).status).toBe(403);
+    expect((await send(body, { "Content-Type": "text/plain" })).status).toBe(415);
+    expect((await send(JSON.stringify({ token: "zzz" }))).status).toBe(400);
+    expect((await send("{not json")).status).toBe(400);
+    expect(listProfiles()).toEqual([]);
   });
 
   it("tells every open stream when the storage is emptied", async () => {

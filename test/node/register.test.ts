@@ -1,5 +1,7 @@
 import { execFileSync, fork, type ChildProcess } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
@@ -162,4 +164,72 @@ it("leaves those imports empty without the preload, and in production even with 
   expect(entryIn(dir, "cjs.cjs", [])).toBe("empty");
   expect(entryIn(dir, "esm.mjs", PRELOAD, { NODE_ENV: "production" })).toBe("empty");
   expect(entryIn(dir, "cjs.cjs", PRELOAD, { NODE_ENV: "production" })).toBe("empty");
+});
+
+// Node's cluster: a primary and two workers that share the app's port.
+const CLUSTER = `
+import cluster from "node:cluster";
+import { createServer } from "node:http";
+if (cluster.isPrimary) {
+  let ready = 0;
+  for (let i = 0; i < 2; i++)
+    cluster.fork().on("message", (port) => ++ready === 2 && process.send(port));
+  process.on("message", () => {
+    for (const worker of Object.values(cluster.workers)) worker.kill();
+    process.disconnect();
+  });
+} else {
+  const server = createServer((_request, response) => response.end(String(cluster.worker.id)));
+  server.listen(0, "127.0.0.1", () => process.send(server.address().port));
+}
+`;
+
+/** A free port, found by listening on port 0 and letting it go. */
+async function freePort() {
+  const probe = createServer();
+  await new Promise<void>((resolve) => probe.listen(0, "localhost", resolve));
+  const { port } = probe.address() as AddressInfo;
+  await new Promise((resolve) => probe.close(resolve));
+  return port;
+}
+
+const tokens = async (url: string) =>
+  ((await (await fetch(`${url}/api/profiles`)).json()) as { token: string }[]).map(
+    (profile) => profile.token,
+  );
+
+it("gives a Node cluster one profiler, with every worker's requests", async () => {
+  const port = String(await freePort());
+  const app = run(CLUSTER, PRELOAD, { QUERY_PROFILER_PORT: port });
+  const origin = `http://127.0.0.1:${await app.port}`;
+  const answers = await Promise.all(
+    [1, 2, 3, 4, 5, 6].map(async () => {
+      const response = await fetch(`${origin}/users`);
+      return { worker: await response.text(), token: response.headers.get("X-Debug-Token")! };
+    }),
+  );
+  expect(new Set(answers.map((answer) => answer.worker))).toEqual(new Set(["1", "2"]));
+  const url = `http://localhost:${port}/_profiler`;
+  await vi.waitFor(async () =>
+    expect((await tokens(url)).sort()).toEqual(answers.map((answer) => answer.token).sort()),
+  );
+  app.child.send("close");
+  expect(await app.exit).toBe(0);
+});
+
+it("lets a second app share the first one's profiler, and take it over when the first one ends", async () => {
+  const port = String(await freePort());
+  const first = run(APP, PRELOAD, { QUERY_PROFILER_PORT: port });
+  await first.port;
+  const url = await profilerUrl(first.output);
+  const second = run(APP, PRELOAD, { QUERY_PROFILER_PORT: port });
+  const origin = `http://127.0.0.1:${await second.port}`;
+  await vi.waitFor(() => expect(second.output()).toContain(`${url} (shared with another process)`));
+  const before = (await fetch(`${origin}/users`)).headers.get("X-Debug-Token")!;
+  await vi.waitFor(async () => expect(await tokens(url)).toContain(before));
+  first.child.send("close");
+  expect(await first.exit).toBe(0);
+  await vi.waitFor(() => expect(second.output()).toContain(`[query-profiler] ${url}\n`));
+  const after = (await fetch(`${origin}/users`)).headers.get("X-Debug-Token")!;
+  await vi.waitFor(async () => expect(await tokens(url)).toEqual([after, before]));
 });
