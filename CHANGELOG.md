@@ -18,6 +18,11 @@
   its UI files from the app too, as a bundler moves it out of its package.
 - The line of code behind each query is found through the bundle's source maps when Node runs with
   `--enable-source-maps`, even if a framework formats stack traces itself.
+- **Themes.** The bar and the profiler page are dark by default, in the website's colors, with a
+  light theme and **Auto**, which follows the system. A switch in both picks it, and the browser
+  keeps the choice. A page can set the starting theme with `data-theme` on the element.
+- A page's calls hang from it on one line, a branch and a dot each, in the bar and in the profiler
+  page's list, instead of a box each.
 
 ## 0.2.1
 

@@ -14,7 +14,8 @@ every request your app serves, what Prisma did in the database and why.
 - Every **SQL statement** Prisma sent for it, with its parameters and duration, including
   transactions, batches and the queries Prisma compacts.
 - Warnings for **N+1** queries, **slow** queries and **duplicated** queries.
-- Shown in a **bar at the bottom of your pages**, in a **full profiler page** and as JSON.
+- Shown in a **bar at the bottom of your pages**, in a **full profiler page** and as JSON, dark by
+  default or light.
 
 It is built for Prisma ORM and needs it: it hooks into Prisma's driver adapter and client
 extensions. Raw SQL you send with `pg` next to Prisma is captured too. It runs only in development
@@ -233,6 +234,9 @@ queries, time the database was busy and warnings. Click it to open:
 - **Operations**, **Timeline**, **Warnings** and **Request**.
 
 It updates live while its tab is visible, catches up when you come back to it, and lists recent requests. Minimize it to a pill, or open the full profile.
+
+The bar and the profiler page are dark by default. The switch next to their name picks **Dark**,
+**Light** or **Auto** (your system's); your browser keeps the choice for both.
 
 ## Usage with Fastify
 

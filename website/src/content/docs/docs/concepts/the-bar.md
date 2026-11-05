@@ -16,6 +16,9 @@ made: requests, queries, the time the database was busy and warnings. Click it t
 It updates live, lists recent requests, shrinks to a pill, and links to the
 [full profile](/docs/concepts/profiler-page).
 
+It is dark by default. The switch next to its name picks **Dark**, **Light** or **Auto**, which
+follows your system; your browser keeps the choice for the bar and the profiler page.
+
 ## How it gets there without touching your code
 
 The middleware adds a small script before `</body>`. It starts tracking the page's `fetch` calls

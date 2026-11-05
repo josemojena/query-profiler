@@ -3,6 +3,7 @@ import { LOGO } from "./brand.js";
 import { count } from "./count.js";
 import { detail, type Detail, type DetailTab } from "./detail.js";
 import { escape, ms, statusTone } from "./format.js";
+import { themeSwitch, type Theme } from "./theme.js";
 
 export interface PageState extends Detail {
   list: ProfileListItem[];
@@ -11,6 +12,7 @@ export interface PageState extends Detail {
   profile?: Profile;
   tab: DetailTab;
   stats?: Stats;
+  theme: Theme;
 }
 
 const TABS: [DetailTab, string][] = [
@@ -24,7 +26,7 @@ const TABS: [DetailTab, string][] = [
 export function renderPage(state: PageState): string {
   return `<div class="app">
     <aside class="side">
-      <div class="brand-row">${LOGO}Query Profiler</div>
+      <div class="brand-row">${LOGO}Query Profiler<span class="spacer"></span>${themeSwitch(state.theme)}</div>
       <nav class="switch">
         <a href="${escape(state.base)}" data-action="go" class="${state.view === "requests" ? "on" : ""}">Requests</a>
         <a href="${escape(`${state.base}/stats`)}" data-action="go" class="${state.view === "stats" ? "on" : ""}">Stats</a>
@@ -59,15 +61,19 @@ export function tree(
 export function renderList(state: PageState): string {
   const groups = tree(state.list, state.filter);
   if (!groups.length) return `<div class="empty">Nothing matches.</div>`;
-  const item = (
-    entry: ProfileListItem,
-    child: boolean,
-  ) => `<a href="${escape(`${state.base}/${entry.token}`)}" data-action="go" class="item${child ? " child" : ""}${entry.token === state.profile?.token && state.view === "requests" ? " on" : ""}">
-      ${child ? `<span class="tree">└</span>` : ""}<b>${escape(entry.request.method)} ${entry.response?.status ?? "…"}</b> <span class="mono">${escape(entry.request.url)}</span>
+  const item = (entry: ProfileListItem, child: boolean) => {
+    const on = entry.token === state.profile?.token && state.view === "requests";
+    return `<a href="${escape(`${state.base}/${entry.token}`)}" data-action="go" class="item${child ? " child" : ""}${on ? " on" : ""}">
+      ${child ? `<i class="node"></i>` : ""}<b>${escape(entry.request.method)} ${entry.response?.status ?? "…"}</b> <span class="mono">${escape(entry.request.url)}</span>
       <div class="sub">${entry.kind} · ${count(entry.summary.queryCount, "query", "queries")} · ${ms(entry.summary.dbTimeMs)}${entry.warningCount ? ` · <i class="dot"></i>${count(entry.warningCount, "warning")}` : ""}</div>
     </a>`;
+  };
+  const calls = (entries: ProfileListItem[]) =>
+    entries.length
+      ? `<ul class="calls-tree">${entries.map((call) => `<li>${item(call, true)}</li>`).join("")}</ul>`
+      : "";
   return groups
-    .map(([root, calls]) => [item(root, false), ...calls.map((call) => item(call, true))].join(""))
+    .map(([root, entries]) => `<div class="group">${item(root, false)}${calls(entries)}</div>`)
     .join("");
 }
 

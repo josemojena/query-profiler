@@ -3,6 +3,7 @@ import { runnableSql, type Editor } from "./format.js";
 import { getJson } from "./http.js";
 import { followProfiles, mergeProfiles } from "./live.js";
 import { STRIP_HEIGHT, styles } from "./styles.js";
+import { choiceOf, chooseTheme, initialTheme } from "./theme.js";
 import { installTracker, type Call, type Tracker } from "./tracker.js";
 import { render, type Tab, type ViewState } from "./view.js";
 
@@ -38,12 +39,15 @@ export class ProfilerToolbar extends HTMLElement {
     tab: "requests",
     height: Math.round(window.innerHeight * 0.4),
     expanded: new Set(),
+    theme: "dark",
   };
 
   connectedCallback() {
     this.#state.base = this.dataset.base ?? this.#state.base;
     this.#state.editor = (this.dataset.editor as Editor | undefined) ?? this.#state.editor;
     Object.assign(this.#state, readSaved());
+    this.#state.theme = initialTheme(this);
+    this.dataset.theme = this.#state.theme;
     this.#root.addEventListener("click", this.#onClick);
     this.#root.addEventListener("pointerdown", this.#onPointerDown);
     void this.#load();
@@ -171,6 +175,14 @@ export class ProfilerToolbar extends HTMLElement {
       case "tab":
         state.tab = target.dataset.tab as Tab;
         break;
+      case "theme": {
+        const theme = choiceOf(target);
+        if (theme) {
+          chooseTheme(this, theme);
+          state.theme = theme;
+        }
+        break;
+      }
       case "minimize":
         state.minimized = true;
         state.open = false;

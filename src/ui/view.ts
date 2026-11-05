@@ -3,6 +3,7 @@ import { LOGO } from "./brand.js";
 import { count } from "./count.js";
 import { detail, type DetailTab } from "./detail.js";
 import { escape, ms, statusTone, type Editor } from "./format.js";
+import { themeSwitch, type Theme } from "./theme.js";
 
 export type Tab = "requests" | DetailTab;
 
@@ -24,6 +25,7 @@ export interface ViewState {
   tab: Tab;
   height: number;
   expanded: ReadonlySet<string>;
+  theme: Theme;
 }
 
 export function render(state: ViewState): string {
@@ -61,6 +63,7 @@ function strip(state: ViewState): string {
     <button class="summary" data-action="toggle" aria-expanded="${state.open}" title="${state.open ? "Close" : "Open"} the database profiler">${summary}</button>
     ${state.pinned ? `<button class="chip" data-action="follow">Back to this page</button>` : ""}
     <button class="chip${state.showRecent ? " on" : ""}" data-action="recent">Recent (${state.recent.length})</button>
+    ${themeSwitch(state.theme)}
     <span class="brand">${LOGO}Query Profiler</span>
     <button class="chip" data-action="minimize" title="Minimize" aria-label="Minimize">▾</button>
   </div>`;
@@ -123,10 +126,17 @@ function panel(state: ViewState): string {
   </div>`;
 }
 
-function requestRow(state: ViewState, item: ProfileListItem, child: boolean): string {
+type Place = "page" | "call" | "last call";
+
+function requestRow(state: ViewState, item: ProfileListItem, place: Place): string {
   const on = item.token === state.profile?.token;
-  return `<tr class="${child ? "child" : "main"}${on ? " on" : ""}" data-action="select" data-token="${escape(item.token)}">
-    <td>${child ? `<span class="tree">└</span>` : ""}<span class="status tone-${statusTone(item.response?.status)}">${escape(item.request.method)} ${item.response?.status ?? "…"}</span></td>
+  const call = place !== "page";
+  // A call hangs from the page's line: a branch and a dot, the line ending at the last call.
+  const branch = call
+    ? `<span class="branch${place === "last call" ? " last" : ""}"><i></i></span>`
+    : "";
+  return `<tr class="${call ? "child" : "main"}${on ? " on" : ""}" data-action="select" data-token="${escape(item.token)}">
+    <td>${branch}<span class="status tone-${statusTone(item.response?.status)}">${escape(item.request.method)} ${item.response?.status ?? "…"}</span></td>
     <td><span class="mono">${escape(item.request.url)}</span><div class="sub">${item.kind}${item.warningCount ? ` · <i class="dot"></i>${count(item.warningCount, "warning")}` : ""}</div></td>
     <td>${count(item.summary.queryCount, "query", "queries")}</td>
     <td class="dur">${ms(item.summary.dbTimeMs)}<div class="sub">${ms(item.durationMs)} total</div></td>
@@ -136,8 +146,10 @@ function requestRow(state: ViewState, item: ProfileListItem, child: boolean): st
 function requestsTab(state: ViewState): string {
   if (!state.page) return `<div class="empty">No profile for this page yet.</div>`;
   const rows = [
-    requestRow(state, state.page, false),
-    ...state.calls.map((call) => requestRow(state, call, true)),
+    requestRow(state, state.page, "page"),
+    ...state.calls.map((call, index) =>
+      requestRow(state, call, index === state.calls.length - 1 ? "last call" : "call"),
+    ),
   ];
   return `<table class="requests"><thead><tr><th>Request</th><th>URL</th><th>Queries</th><th>In DB</th></tr></thead><tbody>${rows.join("")}</tbody></table>
     <div class="hint">The page and the calls it made. Pick one to see its queries.</div>`;
