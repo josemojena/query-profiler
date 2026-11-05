@@ -1,0 +1,19 @@
+---
+import { formatProfile, type Profile } from "query-profiler";
+import demo from "../../demo/profiles.json";
+
+const page = (demo.profiles as Profile[]).find((profile) => profile.warnings.length)!;
+const line = formatProfile(page).replace(/^\[query-profiler\] /, "");
+---
+
+<section class="wrap log">
+  <div class="line"><span class="who">[query-profiler]</span> {line}</div>
+  <p>One line per request in your terminal, too.</p>
+</section>
+
+<style>
+  .log { padding-block: 40px 0; }
+  .line { font: 14px var(--mono); color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 18px; overflow-x: auto; white-space: nowrap; }
+  .who { color: var(--blue); }
+  p { margin: 10px 0 0; font-size: 13px; color: var(--dim); }
+</style>

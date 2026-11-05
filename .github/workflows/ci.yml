@@ -93,3 +93,16 @@ jobs:
       - run: pnpm --filter example-react-router build
       - name: The build has none of the profiler
         run: "! grep -rlE 'query-profiler-toolbar|X-Debug-Token|async_hooks' examples/react-router/build"
+
+  website:
+    name: Website builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm website:build

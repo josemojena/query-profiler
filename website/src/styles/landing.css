@@ -1,0 +1,179 @@
+/* Night, signal blue, amber only where the profiler warns. */
+:root {
+  --bg: #0d0f14;
+  --surface: #131722;
+  --surface-2: #10131a;
+  --track: #181d2a;
+  --line: #252b3a;
+  --line-strong: #2c3346;
+  --ink: #e6e9f2;
+  --muted: #9aa3b8;
+  --dim: #7f889c;
+  --blue: #7c9cff;
+  --blue-ink: #0b1330;
+  --amber: #f5b041;
+  --amber-ink: #1d1405;
+  --green: #7ee2a8;
+  --green-ink: #0f2a1b;
+  --red: #ff8a80;
+  --red-ink: #3b0d0d;
+  --violet: #c792ea;
+  --string: #9ee6a8;
+  --display: "Martian Mono", ui-monospace, monospace;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+/* The bar is built for a desktop browser: on a phone its strip runs out of room. */
+@media (max-width: 720px) {
+  query-profiler-toolbar {
+    display: none;
+  }
+  body {
+    padding-bottom: 0;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.6 var(--body);
+  padding-bottom: 48px;
+}
+a {
+  color: var(--blue);
+}
+a:hover {
+  color: #a9bdff;
+}
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+code,
+pre {
+  font-family: var(--mono);
+}
+
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
+}
+.eyebrow {
+  font: 13px var(--mono);
+  color: var(--blue);
+}
+.title {
+  margin: 10px 0 0;
+  font: 700 30px/1.25 var(--display);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.lead {
+  margin: 0;
+  font-size: 18px;
+  color: var(--muted);
+}
+.panel {
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 13px 22px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.button.primary {
+  background: var(--blue);
+  color: var(--blue-ink);
+}
+.button.primary:hover {
+  background: #a9bdff;
+  color: var(--blue-ink);
+}
+.button.ghost {
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+}
+.button.ghost:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+.install {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--ink);
+  font: 15px var(--mono);
+  cursor: pointer;
+}
+.install:hover {
+  border-color: var(--blue);
+}
+
+.badge {
+  display: inline-block;
+  font: 600 12px var(--mono);
+  border-radius: 4px;
+  padding: 2px 8px;
+  text-align: center;
+}
+.badge.amber {
+  background: var(--amber);
+  color: var(--amber-ink);
+}
+.badge.blue {
+  background: var(--blue);
+  color: var(--blue-ink);
+}
+.badge.red {
+  background: var(--red);
+  color: var(--red-ink);
+}
+.pill-ok {
+  font: 600 12px var(--mono);
+  color: var(--green-ink);
+  background: var(--green);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.k {
+  color: var(--violet);
+}
+.s {
+  color: var(--string);
+}
+.f {
+  color: var(--blue);
+}
+.c {
+  color: var(--dim);
+}

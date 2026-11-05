@@ -30,6 +30,7 @@
     "**/build/**",
     "**/.react-router/**",
     "test/prisma/fixture/generated/**",
-    "examples/*/app/generated/**"
+    "examples/*/app/generated/**",
+    "**/.astro/**"
   ]
 }

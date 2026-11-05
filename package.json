@@ -94,7 +94,9 @@
     "check": "pnpm lint && pnpm format:check && pnpm check-types",
     "db:generate": "prisma generate --config test/prisma/fixture/prisma.config.ts",
     "example:react-router": "pnpm examples:sync && pnpm --filter example-react-router dev",
-    "examples:sync": "pnpm build && pnpm install --offline"
+    "examples:sync": "pnpm build && pnpm install --offline",
+    "website:dev": "pnpm build && pnpm --filter website dev",
+    "website:build": "pnpm build && pnpm --filter website build"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

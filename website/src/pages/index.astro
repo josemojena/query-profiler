@@ -1,0 +1,25 @@
+---
+import Catches from "../components/landing/Catches.astro";
+import Cta from "../components/landing/Cta.astro";
+import FullProfile from "../components/landing/FullProfile.astro";
+import Hero from "../components/landing/Hero.astro";
+import LogLine from "../components/landing/LogLine.astro";
+import QuickStart from "../components/landing/QuickStart.astro";
+import Why from "../components/landing/Why.astro";
+import WorksWith from "../components/landing/WorksWith.astro";
+import Landing from "../layouts/Landing.astro";
+---
+
+<Landing
+  title="query-profiler · The database profiler for Prisma ORM"
+  description="Every query your Prisma app makes in development: the SQL, the line of code behind it, and N+1, slow and duplicate warnings, in a bar at the bottom of your page."
+>
+  <Hero />
+  <LogLine />
+  <Why />
+  <Catches />
+  <QuickStart />
+  <FullProfile />
+  <WorksWith />
+  <Cta />
+</Landing>

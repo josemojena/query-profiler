@@ -1,0 +1,49 @@
+/* The docs in the site's colors and type: signal blue, amber only for warnings. */
+:root {
+  --sl-font: "IBM Plex Sans", system-ui, sans-serif;
+  --sl-font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --sl-color-accent-low: #18213f;
+  --sl-color-accent: #7c9cff;
+  --sl-color-accent-high: #c9d6ff;
+  --sl-color-white: #e6e9f2;
+  --sl-color-gray-1: #c9cfdc;
+  --sl-color-gray-2: #9aa3b8;
+  --sl-color-gray-3: #7f889c;
+  --sl-color-gray-4: #3b4357;
+  --sl-color-gray-5: #252b3a;
+  --sl-color-gray-6: #131722;
+  --sl-color-black: #0d0f14;
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #dfe6ff;
+  --sl-color-accent: #2f52d6;
+  --sl-color-accent-high: #1a2f80;
+  --sl-color-white: #0d0f14;
+  --sl-color-gray-1: #252b3a;
+  --sl-color-gray-2: #3b4357;
+  --sl-color-gray-3: #5c6478;
+  --sl-color-gray-4: #9aa3b8;
+  --sl-color-gray-5: #d5dae5;
+  --sl-color-gray-6: #eef1f7;
+  --sl-color-gray-7: #f6f8fb;
+  --sl-color-black: #ffffff;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+h1#_top {
+  font-family: "Martian Mono", ui-monospace, monospace;
+  letter-spacing: -0.02em;
+}
+
+.site-title {
+  font-family: "Martian Mono", ui-monospace, monospace;
+  font-size: 1rem;
+}
+
+/* The changelog's own title repeats the page's. */
+.changelog > h1:first-child {
+  display: none;
+}

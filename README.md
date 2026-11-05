@@ -264,6 +264,7 @@ pnpm dev            # rebuilds dist/ on every change, for an app that links this
 pnpm test
 pnpm test:browser   # the bar and the page in Chromium (pnpm exec playwright install chromium)
 pnpm check          # lint, format and types
+pnpm website:dev    # the website (landing page and docs) at http://localhost:4321
 ```
 
 CI runs lint, format and types, the tests against PostgreSQL on Node 20, 22 and 24 and on the

@@ -1,0 +1,69 @@
+---
+import type { Profile } from "query-profiler";
+import demo from "../../demo/profiles.json";
+import { link } from "../../data/site";
+
+const profiles = demo.profiles as Profile[];
+const page = profiles.find((profile) => profile.request.url === "/products" && !profile.parentToken)!;
+const calls = profiles.filter((profile) => profile.parentToken === page.token);
+const family = [page, ...calls];
+const sum = (pick: (profile: Profile) => number) =>
+  family.reduce((total, profile) => total + pick(profile), 0);
+const cards = [
+  { value: sum((profile) => profile.summary.queryCount), label: "queries" },
+  { value: `${sum((profile) => profile.summary.dbTimeMs).toFixed(1)} ms`, label: "in the database" },
+  { value: sum((profile) => profile.summary.operationCount), label: "operations" },
+  { value: calls.length, label: "calls from this page" },
+];
+const others = profiles.filter((profile) => !profile.parentToken && profile !== page);
+---
+
+<section class="wrap full">
+  <div class="eyebrow">-- the full profile</div>
+  <h2 class="title">Room to read it, at /_profiler</h2>
+  <p class="lead">
+    Every recent request with its calls under it, the one you pick with its cards and tabs, and stats
+    across all of them: the slowest statements, the most repeated, time by model and by route.
+  </p>
+  <div class="panel shot">
+    <div class="side">
+      <div class="brand">Query Profiler</div>
+      <div class="item on"><b>GET {page.response?.status}</b> <code>{page.request.url}</code><span>{page.kind} · {page.summary.queryCount} query · {page.summary.dbTimeMs} ms</span></div>
+      {
+        calls.map((call) => (
+          <div class="item child">└ <code>{call.request.url}</code><span>{call.kind} · {call.summary.queryCount} queries · {call.summary.dbTimeMs} ms</span></div>
+        ))
+      }
+      {
+        others.map((other) => (
+          <div class="item"><b>GET {other.response?.status}</b> <code>{other.request.url}</code><span>{other.kind} · {other.summary.queryCount} queries{other.warnings.length ? ` · ${other.warnings.length} warning` : ""}</span></div>
+        ))
+      }
+    </div>
+    <div class="main">
+      <div class="head">GET {page.request.url} <span class="pill-ok">{page.response?.status}</span></div>
+      <div class="cards">
+        {cards.map((card) => (<div class="card"><b>{card.value}</b><span>{card.label}</span></div>))}
+      </div>
+      <a class="button ghost" href={link(`demo-profiler/${page.token}`)}>Open the live demo →</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .full { padding-block: 80px; }
+  .full .lead { margin: 12px 0 32px; max-width: 40em; }
+  .shot { display: flex; flex-wrap: wrap; overflow: hidden; }
+  .side { flex: 0 1 300px; min-width: 0; border-right: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); }
+  .brand { font-weight: 700; }
+  .item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .item span { display: block; color: var(--muted); font-size: 13px; }
+  .item.on { border-color: var(--blue); }
+  .item.child { margin-left: 16px; }
+  .main { flex: 1 1 480px; min-width: 0; padding: 24px; display: flex; flex-direction: column; gap: 18px; align-items: flex-start; }
+  .head { font: 700 20px var(--display); display: flex; gap: 12px; align-items: center; }
+  .cards { align-self: stretch; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .card b { display: block; font-size: 24px; }
+  .card span { color: var(--muted); font-size: 14px; }
+</style>

@@ -1,0 +1,20 @@
+---
+import { integrations, type Status } from "../../data/integrations";
+import { link } from "../../data/site";
+
+const labels: Record<Status, string> = { ready: "Ready", next: "Next", planned: "Planned" };
+---
+
+<table>
+  <thead><tr><th scope="col">Integration</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+    {
+      integrations.map((integration) => (
+        <tr>
+          <td>{integration.guide ? <a href={link(integration.guide)}>{integration.name}</a> : integration.name}</td>
+          <td>{labels[integration.status]}</td>
+        </tr>
+      ))
+    }
+  </tbody>
+</table>

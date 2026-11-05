@@ -1,0 +1,37 @@
+---
+const rows = [
+  { badge: "N+1", tone: "amber", name: "Queries in a loop.", text: "The same statement shape five times or more, collapsed into one row with its count.", rule: "≥ 5 same shape" },
+  { badge: "SLOW", tone: "red", name: "Slow statements.", text: "Marked in the list and on the timeline, next to the time the database was really busy.", rule: "≥ 100 ms" },
+  { badge: "DUPLICATE", tone: "amber", name: "Work done twice.", text: "The exact query, same parameters, more than once in a request.", rule: "same SQL + params" },
+  { badge: "ORIGIN", tone: "blue", name: "The line that sent it.", text: "Every operation points at your file and line, one click from your editor.", rule: "file:line" },
+  { badge: "CALLS", tone: "blue", name: "A page and its calls.", text: "Fetchers, actions and navigations hang under the page that made them.", rule: "X-Debug-Parent" },
+  { badge: "SAFE", tone: "blue", name: "Secrets stay hidden.", text: "Passwords and tokens never show, in the arguments or in the SQL parameters.", rule: "[redacted]" },
+];
+---
+
+<section class="wrap catches">
+  <div class="eyebrow">-- what it catches</div>
+  <h2 class="title">The Warnings tab, before your users find it</h2>
+  <ul class="panel list">
+    {
+      rows.map((row) => (
+        <li>
+          <span class:list={["badge", row.tone]}>{row.badge}</span>
+          <span class="text"><b>{row.name}</b> <span>{row.text}</span></span>
+          <code>{row.rule}</code>
+        </li>
+      ))
+    }
+  </ul>
+</section>
+
+<style>
+  .catches { padding-block: 56px 80px; }
+  .list { list-style: none; margin: 28px 0 0; padding: 0; overflow: hidden; }
+  li { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: baseline; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+  li:last-child { border-bottom: 0; }
+  .badge { width: 110px; }
+  .text { flex: 1 1 280px; min-width: 0; }
+  .text span { color: var(--muted); }
+  code { font-size: 13px; color: var(--dim); }
+</style>

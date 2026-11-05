@@ -1,0 +1,35 @@
+---
+import { GITHUB, NPM, link } from "../../data/site";
+---
+
+<footer class="footer">
+  <div class="wrap inner">
+    <div class="about">
+      <div class="name">query-profiler</div>
+      <p>The database profiler for Prisma ORM. MIT licensed. Not affiliated with Prisma.</p>
+    </div>
+    <nav aria-label="Docs" class="col">
+      <span>-- docs</span>
+      <a href={link("docs")}>Getting started</a>
+      <a href={link("docs/guides/react-router")}>React Router</a>
+      <a href={link("docs/concepts/how-it-works")}>How it works</a>
+    </nav>
+    <nav aria-label="Project" class="col">
+      <span>-- project</span>
+      <a href={GITHUB}>GitHub</a>
+      <a href={NPM}>npm</a>
+      <a href={link("docs/changelog")}>Changelog</a>
+    </nav>
+  </div>
+</footer>
+
+<style>
+  .footer { border-top: 1px solid var(--line); }
+  .inner { display: flex; flex-wrap: wrap; gap: 40px; padding-block: 40px; font-size: 14px; color: var(--muted); }
+  .about { flex: 1 1 260px; }
+  .about p { margin: 8px 0 0; }
+  .name { color: var(--ink); font: 700 15px var(--display); }
+  .col { display: flex; flex-direction: column; gap: 6px; }
+  .col span { font: 12px var(--mono); color: var(--dim); }
+  .col a { color: var(--muted); }
+</style>

@@ -1,0 +1,33 @@
+---
+import Logo from "../../assets/logo.svg?raw";
+import { GITHUB, NPM, link } from "../../data/site";
+---
+
+<header class="nav">
+  <nav aria-label="Main" class="wrap nav-inner">
+    <a href={link()} class="brand"><Fragment set:html={Logo} />query-profiler</a>
+    <div class="links">
+      <a href={link("docs")}>Docs</a>
+      <a href={link("docs/guides/react-router")}>Guides</a>
+      <a href={link("docs/concepts/how-it-works")}>How it works</a>
+      <a href={link("docs/changelog")}>Changelog</a>
+    </div>
+    <div class="out">
+      <a href={GITHUB}>GitHub</a>
+      <a href={NPM}>npm</a>
+    </div>
+  </nav>
+</header>
+
+<style>
+  .nav { border-bottom: 1px solid var(--line); }
+  .nav-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; padding-block: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font: 700 16px var(--display); }
+  .brand :global(svg) { width: 24px; height: 24px; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 15px; }
+  .links a { color: var(--muted); text-decoration: none; }
+  .links a:hover { color: var(--ink); }
+  .out { margin-left: auto; display: flex; gap: 10px; }
+  .out a { border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; color: var(--ink); text-decoration: none; font-size: 14px; }
+  .out a:hover { border-color: var(--line-strong); background: var(--surface); }
+</style>
