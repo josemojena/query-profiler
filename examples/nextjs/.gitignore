@@ -5,3 +5,6 @@ next-env.d.ts
 
 # Prisma
 /lib/generated/
+
+# Written by next dev
+AGENTS.md
