@@ -234,6 +234,10 @@ const app = Fastify();
 await app.register(profilerPlugin);
 ```
 
+Call your API, then open `/_profiler` on the same server: every request, its SQL, the Prisma
+operations and the line of code behind each, live. Each response's `X-Debug-Token` opens that
+request at `/_profiler/<token>`, and `onProfile` with `formatProfile()` prints one line per request.
+
 It is a regular Fastify plugin (made with `fastify-plugin`), so it sees every route of the app.
 It takes `base` and `onProfile`, like `profilerMiddleware()`. When a request comes from another
 origin, it adds `X-Debug-Token` to `Access-Control-Expose-Headers`, so a frontend there can read it.

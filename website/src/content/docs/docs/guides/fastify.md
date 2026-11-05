@@ -54,8 +54,8 @@ const app = Fastify();
 await app.register(profilerPlugin);
 ```
 
-Call your API, then open `/_profiler` on the same server. To print one line per request in the
-terminal:
+Call your API, then open `/_profiler` on the same server (see below). To print one line per request
+in the terminal:
 
 ```ts
 import { formatProfile } from "query-profiler";
@@ -69,6 +69,25 @@ await app.register(profilerPlugin, {
 | ----------- | ------------ | ------------------------------------------------------------------------- |
 | `base`      | `/_profiler` | Where the profiler's page and API live. Requests to it are not profiled.  |
 | `onProfile` | none         | Called with each profile once its response is sent, to log it or keep it. |
+
+## Seeing what your API did
+
+An API has no pages to put the bar on, so the profiler shows up in four places:
+
+- **The profiler page.** Open `http://localhost:3000/_profiler` in a browser: every request to your
+  API on the left, live; on the right, the one you pick, with its SQL, its Prisma operations and the
+  line of your code behind each, the N+1 groups and the warnings. Your Fastify serves it: there is
+  nothing to build or host. See [the profiler page](/docs/concepts/profiler-page).
+- **The token on each response.** Every response carries `X-Debug-Token`. When you call the API
+  with curl, Postman or Bruno, open `/_profiler/<token>` to land on that request.
+- **The terminal.** With `onProfile` and `formatProfile()`, one line per request:
+
+  ```
+  [query-profiler] GET /users 200 · 7 queries · 17.25 ms in db · 7 operations · 1 warning · 18.78 ms · 8de7fd
+  ```
+
+- **JSON.** `/_profiler/api/profiles` lists the requests and `/_profiler/api/profiles/<token>`
+  returns one whole, for your own scripts: see the [HTTP API](/docs/reference/http-api).
 
 ## How it fits in Fastify
 
