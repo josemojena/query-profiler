@@ -23,6 +23,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       - run: pnpm --filter example-react-router exec prisma generate
+      - run: pnpm --filter example-fastify exec prisma generate
       - run: pnpm check
 
   test:
@@ -117,3 +118,30 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm website:build
+
+  example-fastify:
+    name: Fastify example runs without the profiler
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm examples:sync
+      - run: pnpm --filter example-fastify exec prisma generate
+      - run: pnpm --filter example-fastify build
+      - name: Plain node loads none of the profiler, even with NODE_ENV=development
+        working-directory: examples/fastify
+        env:
+          NODE_ENV: development
+        run: |
+          PORT=3001 node dist/server.js &
+          PORT=3002 node --conditions=development dist/server.js &
+          curl --retry 30 --retry-connrefused --retry-delay 1 -s -o /dev/null http://localhost:3001/nope
+          curl --retry 30 --retry-connrefused --retry-delay 1 -s -o /dev/null http://localhost:3002/nope
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/_profiler)" = 404
+          ! curl -s -D - -o /dev/null http://localhost:3001/nope | grep -i x-debug-token
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3002/_profiler)" = 200
