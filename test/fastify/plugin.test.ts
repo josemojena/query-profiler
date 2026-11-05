@@ -131,6 +131,17 @@ describe("the Fastify plugin", () => {
     expect(listProfiles()).toHaveLength(0);
   });
 
+  it("answers HEAD on its own routes like GET, without a body", async () => {
+    const server = await app();
+    const page = await server.inject({ method: "HEAD", url: "/_profiler" });
+    expect(page.statusCode).toBe(200);
+    expect(page.headers["content-type"]).toMatch(/^text\/html/);
+    expect(page.body).toBe("");
+    const entry = await server.inject({ method: "HEAD", url: "/_profiler/ui.js" });
+    expect(entry.statusCode).toBe(302);
+    expect(entry.headers.location).toBe("/_profiler/ui/index.js");
+  });
+
   it("stops streaming to a browser that goes away", async () => {
     const server = await app();
     await server.listen({ port: 0, host: "127.0.0.1" });

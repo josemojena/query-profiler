@@ -36,12 +36,15 @@ export const profilerPlugin = fastifyPlugin(
     };
 
     const handle = createHandler({ base });
-    app.route({
-      method: ["GET", "DELETE"],
-      url: `${base}/*`,
-      handler: async (request, reply) => reply.send(await handle(toRequest(request))),
-    });
-    app.get(base, async (request, reply) => reply.send(await handle(toRequest(request))));
+    // Fastify's own HEAD routes measure the payload, which they cannot do for a Fetch Response.
+    const serve = async (request: FastifyRequest, reply: FastifyReply) => {
+      const response = await handle(toRequest(request));
+      if (request.method !== "HEAD") return reply.send(response);
+      await response.body?.cancel();
+      return reply.code(response.status).headers(Object.fromEntries(response.headers)).send();
+    };
+    for (const url of [base, `${base}/*`])
+      app.route({ method: ["GET", "HEAD", "DELETE"], url, exposeHeadRoute: false, handler: serve });
 
     app.addHook("onRequest", (request, _reply, done) => {
       if (request.url.startsWith(base)) return done();
@@ -96,7 +99,7 @@ function toRequest(request: FastifyRequest): Request {
   for (const [key, value] of Object.entries(request.headers))
     if (value !== undefined) headers.set(key, [value].flat().join(", "));
   return new Request(`${request.protocol}://${request.headers.host ?? "localhost"}${request.url}`, {
-    method: request.method,
+    method: request.method === "HEAD" ? "GET" : request.method,
     headers,
   });
 }
