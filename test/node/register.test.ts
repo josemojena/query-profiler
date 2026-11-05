@@ -43,10 +43,12 @@ function run(code: string, flags: string[], env: Record<string, string> = {}) {
   });
   children.push(child);
   let output = "";
+  let notices = "";
   child.stdout!.on("data", (chunk: Buffer) => (output += chunk));
+  child.stderr!.on("data", (chunk: Buffer) => (notices += chunk));
   const port = new Promise<number>((resolve) => child.once("message", (m) => resolve(m as number)));
   const exit = new Promise<number | null>((resolve) => child.once("exit", resolve));
-  return { child, output: () => output, port, exit };
+  return { child, output: () => output, notices: () => notices, port, exit };
 }
 
 const profilerUrl = (output: () => string) =>
@@ -88,16 +90,39 @@ it("prints a line per request with QUERY_PROFILER_LOG=1", async () => {
   await vi.waitFor(() => expect(app.output()).toMatch(/GET \/users .*200/));
 });
 
-it("does nothing without the development condition, or in production", async () => {
+/** Runs the app with these flags, calls it once, and lets it close. */
+async function callOnce(flags: readonly string[], env: Record<string, string> = {}) {
+  const app = run(APP, [...flags], env);
+  const response = await fetch(`http://127.0.0.1:${await app.port}/users`);
+  app.child.send("close");
+  expect(await app.exit).toBe(0);
+  return {
+    token: response.headers.get("X-Debug-Token"),
+    output: app.output(),
+    notices: app.notices(),
+  };
+}
+
+it("says how to turn it on when Node runs without the development condition", async () => {
+  const result = await callOnce(["--import", "query-profiler/register"]);
+  expect(result.token).toBeNull();
+  expect(result.output).toBe("");
+  expect(result.notices).toContain("add --conditions=development");
+});
+
+it("says why it is off when NODE_ENV is neither development nor unset", async () => {
+  const result = await callOnce(PRELOAD, { NODE_ENV: "local" });
+  expect(result.token).toBeNull();
+  expect(result.notices).toContain('Off: NODE_ENV is "local"');
+});
+
+it("stays silent in production and in test runs, where being off is the point", async () => {
   for (const [flags, env] of [
-    [["--import", "query-profiler/register"], {}],
     [PRELOAD, { NODE_ENV: "production" }],
+    [PRELOAD, { NODE_ENV: "test" }],
+    [["--import", "query-profiler/register"], { NODE_ENV: "production" }],
+    [PRELOAD, { QUERY_PROFILER_DISABLED: "1" }],
   ] as const) {
-    const app = run(APP, [...flags], env);
-    const response = await fetch(`http://127.0.0.1:${await app.port}/users`);
-    expect(response.headers.get("X-Debug-Token")).toBeNull();
-    app.child.send("close");
-    expect(await app.exit).toBe(0);
-    expect(app.output()).toBe("");
+    expect(await callOnce(flags, env)).toEqual({ token: null, output: "", notices: "" });
   }
 });

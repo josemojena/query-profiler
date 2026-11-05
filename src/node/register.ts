@@ -5,6 +5,8 @@ import { profileRequests } from "./requests.js";
 import { profilerServer } from "./server.js";
 
 const LISTENING = "tracing:net.server.listen:asyncEnd";
+// Where staying off is the point: no notice.
+const QUIET = new Set(["production", "test"]);
 
 // Loaded before the app by its development command:
 // node --conditions=development --import query-profiler/register server.js
@@ -24,4 +26,8 @@ if (enabled()) {
     own = profilerServer({ onListening: (url) => console.log(`[query-profiler] ${url}`) });
   };
   subscribe(LISTENING, onListening);
+} else if (process.env.QUERY_PROFILER_DISABLED !== "1" && !QUIET.has(process.env.NODE_ENV ?? "")) {
+  console.warn(
+    `[query-profiler] Off: NODE_ENV is "${process.env.NODE_ENV}". It runs with NODE_ENV=development, or with NODE_ENV unset.`,
+  );
 }
