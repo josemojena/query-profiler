@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `createHandler()` serves the bar and the profiler page's code itself (`/_profiler/ui.js`), so
+  `/_profiler` works on servers without Vite.
+
 ## 0.1.2
 
 - The bar and the profiler page showed nothing when `profilerMiddleware()` was called without

@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { uiAsset } from "./assets.js";
 import { DEFAULT_BASE } from "./constants.js";
 import { enabled } from "./enabled.js";
 import type { Profile, ProfileListItem } from "./profile.js";
@@ -27,6 +28,8 @@ export function createHandler(
     const path = url.pathname.slice(base.length);
     const token = /^\/api\/profiles\/([0-9a-f]+)$/.exec(path)?.[1];
     if (request.method === "GET" && isPage(path)) return page(base);
+    const asset = request.method === "GET" ? uiAsset(base, path) : undefined;
+    if (asset) return asset;
     if (request.method === "GET" && path === "/api/meta") return json({ root: projectRoot() });
     if (request.method === "GET" && path === "/api/stats") return json(stats(listProfiles()));
     if (request.method === "GET" && path === "/api/profiles") return json(list(url.searchParams));
