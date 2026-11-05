@@ -8,14 +8,14 @@ Router, and on the profiler's own port (`http://localhost:4983`) for a Node serv
 `/_profiler/:token` and `/_profiler/stats` are the [page](/docs/concepts/profiler-page); the rest is
 JSON.
 
-| Route                                         | Returns                                                                   |
-| --------------------------------------------- | ------------------------------------------------------------------------- |
-| `GET /api/profiles?url=&kind=&parent=&limit=` | Profiles, newest first, without their records (50 by default)             |
-| `GET /api/profiles/:token`                    | One profile, whole                                                        |
-| `GET /api/stream`                             | Server-sent events: one `profile` per finished request, a ping every 15 s |
-| `GET /api/stats`                              | Stats across the stored profiles                                          |
-| `GET /api/meta`                               | The project root, to show short paths and open your editor                |
-| `DELETE /api/profiles`                        | Empties the storage                                                       |
+| Route                                         | Returns                                                                                                        |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `GET /api/profiles?url=&kind=&parent=&limit=` | Profiles, newest first, without their records (50 by default)                                                  |
+| `GET /api/profiles/:token`                    | One profile, whole                                                                                             |
+| `GET /api/stream`                             | Server-sent events: one `profile` per finished request, `clear` when the storage is emptied, a ping every 15 s |
+| `GET /api/stats`                              | Stats across the stored profiles                                                                               |
+| `GET /api/meta`                               | The project root, to show short paths and open your editor                                                     |
+| `DELETE /api/profiles`                        | Empties the storage                                                                                            |
 
 `createHandler()` from `query-profiler` is a plain Fetch handler (`Request` → `Response`), so any
 framework can mount it.

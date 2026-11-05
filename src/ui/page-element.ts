@@ -2,7 +2,7 @@ import type { Profile, ProfileListItem, Stats } from "../core/index.js";
 import type { Editor } from "./format.js";
 import type { DetailTab } from "./detail.js";
 import { runnableSql } from "./format.js";
-import { getJson } from "./http.js";
+import { clearAll, getJson } from "./http.js";
 import { followProfiles, mergeProfiles } from "./live.js";
 import { renderList, renderPage, type PageState } from "./page-view.js";
 import { pageStyles } from "./styles.js";
@@ -52,10 +52,13 @@ export class ProfilerPage extends HTMLElement {
     this.#state.list = list ?? [];
     this.#stopFollowing = followProfiles(`${base}/api/stream`, {
       onProfile: (item) => this.#addToList([item]),
+      // The server's list, not a merge: what was cleared meanwhile must not come back.
       onResume: () =>
-        void getJson<ProfileListItem[]>(`${base}/api/profiles?limit=${LIMIT}`).then((items) =>
-          this.#addToList(items ?? []),
-        ),
+        void getJson<ProfileListItem[]>(`${base}/api/profiles?limit=${LIMIT}`).then((items) => {
+          this.#state.list = items ?? [];
+          this.#renderList();
+        }),
+      onClear: () => this.#emptied(),
     });
     await this.#route();
   }
@@ -63,6 +66,18 @@ export class ProfilerPage extends HTMLElement {
   #addToList(items: ProfileListItem[]) {
     this.#state.list = mergeProfiles(items, this.#state.list, LIMIT);
     this.#renderList();
+  }
+
+  /** Nothing is stored any more: no list, no profile, and an address that names none. */
+  #emptied() {
+    const state = this.#state;
+    state.list = [];
+    state.profile = undefined;
+    if (state.view === "stats") void this.#route();
+    else {
+      history.replaceState(null, "", state.base);
+      this.#render();
+    }
   }
 
   #onPopState = () => void this.#route();
@@ -105,6 +120,9 @@ export class ProfilerPage extends HTMLElement {
       case "tab":
         state.tab = target.dataset.tab as DetailTab;
         break;
+      case "clear":
+        void clearAll(state.base).then((cleared) => cleared && this.#emptied());
+        return;
       case "theme": {
         const theme = choiceOf(target);
         if (theme) {

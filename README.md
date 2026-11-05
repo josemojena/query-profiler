@@ -169,7 +169,7 @@ queries, time the database was busy and warnings. Click it to open:
   copy the runnable SQL, open the line in your editor.
 - **Operations**, **Timeline**, **Warnings** and **Request**.
 
-It updates live while its tab is visible, catches up when you come back to it, and lists recent requests. Minimize it to a pill, or open the full profile.
+It updates live while its tab is visible, catches up when you come back to it, and lists recent requests, with **Clear** to remove them all. Minimize it to a pill, or open the full profile.
 
 The bar and the profiler page are dark by default. The switch next to their name picks **Dark**,
 **Light** or **Auto** (your system's); your browser keeps the choice for both.
@@ -248,6 +248,9 @@ behind each, live. Each response's `X-Debug-Token` opens that request at `/_prof
 - **Stats** (`/_profiler/stats`): across the stored requests, the slowest and the most repeated
   statement shapes, time by model and by route.
 
+**Clear**, next to Requests and Stats, removes every stored request. Every open tab with the
+profiler or the bar empties its lists too; the bar keeps the page it is on.
+
 A custom server that runs Vite in middleware mode, as React Router's templates for Express do, gets
 the same: the plugin's middleware runs inside Vite's.
 
@@ -257,13 +260,13 @@ Under `/_profiler`, answering only `localhost`, only in development: on the dev 
 Router, and on the profiler's own port for a Node server. `/_profiler`,
 `/_profiler/:token` and `/_profiler/stats` are the page; the rest is JSON:
 
-| Route                                         | Returns                                                |
-| --------------------------------------------- | ------------------------------------------------------ |
-| `GET /api/profiles?url=&kind=&parent=&limit=` | Profiles, newest first, without their records          |
-| `GET /api/profiles/:token`                    | One profile, whole                                     |
-| `GET /api/stream`                             | Server-sent events: one `profile` per finished request |
-| `GET /api/meta`                               | Where paths are shown from                             |
-| `DELETE /api/profiles`                        | Empties the storage                                    |
+| Route                                         | Returns                                                                                         |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `GET /api/profiles?url=&kind=&parent=&limit=` | Profiles, newest first, without their records                                                   |
+| `GET /api/profiles/:token`                    | One profile, whole                                                                              |
+| `GET /api/stream`                             | Server-sent events: one `profile` per finished request, and `clear` when the storage is emptied |
+| `GET /api/meta`                               | Where paths are shown from                                                                      |
+| `DELETE /api/profiles`                        | Empties the storage                                                                             |
 
 `createHandler()` is a plain Fetch handler (`Request` → `Response`), so any framework can mount it.
 Every profiled response carries `X-Debug-Token`.

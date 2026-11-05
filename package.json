@@ -85,7 +85,7 @@
     "prepare": "npm run build",
     "check-types": "tsc --noEmit && pnpm examples:sync && pnpm --filter './examples/*' typecheck",
     "test": "pnpm build && vitest run",
-    "test:browser": "playwright test",
+    "test:browser": "pnpm build && playwright test",
     "lint": "oxlint --type-aware .",
     "lint:fix": "oxlint --type-aware --fix .",
     "format": "oxfmt .",

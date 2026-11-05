@@ -26,12 +26,16 @@ interface Options {
   script?: string;
   /** The page as the Vite plugin serves it: the token in Server-Timing, the bar from a module. */
   timing?: { script: string };
+  /** The stream says the profiler was cleared, from another tab. */
+  cleared?: boolean;
 }
 
 /** A page of the app with the bar, the profiler API answering with these profiles, and what the app's own calls carried. */
 async function open(page: Page, options: Options = {}) {
   const profiles = [...(options.profiles ?? [PROFILE]), ...(options.live ? [options.live] : [])];
   const parents: (string | null)[] = [];
+  let servePage = () => {};
+  const pageServed = new Promise<void>((resolve) => (servePage = resolve));
   await page.route(`${ORIGIN}/**`, async (route) => {
     const url = new URL(route.request().url());
     const json = (body: unknown, headers: Record<string, string> = {}) =>
@@ -60,14 +64,26 @@ async function open(page: Page, options: Options = {}) {
       const parent = url.searchParams.get("parent");
       return json(profiles.filter((p) => !parent || p.parentToken === parent).map(listItem));
     }
+    if (url.pathname === "/_profiler/api/stream" && options.cleared) {
+      // Another tab clears the server once this one has its page, and the server says so.
+      await pageServed;
+      profiles.length = 0;
+    }
     if (url.pathname === "/_profiler/api/stream")
       return route.fulfill({
         contentType: "text/event-stream",
-        body: options.live
-          ? `event: profile\ndata: ${JSON.stringify(listItem(options.live))}\n\n`
-          : ": connected\n\n",
+        body: options.cleared
+          ? "event: clear\ndata: {}\n\n"
+          : options.live
+            ? `event: profile\ndata: ${JSON.stringify(listItem(options.live))}\n\n`
+            : ": connected\n\n",
       });
+    if (route.request().method() === "DELETE" && url.pathname === "/_profiler/api/profiles") {
+      profiles.length = 0;
+      return route.fulfill({ status: 204 });
+    }
     const profile = profiles.find((p) => p.token === url.pathname.split("/").pop());
+    if (profile?.token === PROFILE.token) servePage();
     return profile ? json(profile) : route.fulfill({ status: 404, body: "{}" });
   });
   await page.goto(`${ORIGIN}/orders`);
@@ -169,6 +185,26 @@ test("starts on the theme the page sets with data-theme, until one is picked", a
   await expect.poll(() => stripColor(page)).toBe(DARK_CHROME);
 });
 
+test("clears every stored request from its Recent list, and keeps the page it is on", async ({
+  page,
+}) => {
+  await open(page);
+  const strip = bar(page).locator(".strip");
+  await strip.getByRole("button", { name: "Recent (1)" }).click();
+  await bar(page).locator(".recent").getByRole("button", { name: "Clear" }).click();
+  await expect(strip.getByRole("button", { name: "Recent (0)" })).toBeVisible();
+  await expect(bar(page).locator(".recent")).toContainText("No requests yet");
+  await expect(strip).toContainText("GET 200");
+  await expect(strip).toContainText("/orders");
+});
+
+test("empties its lists when the profiler is cleared from another tab", async ({ page }) => {
+  await open(page, { cleared: true });
+  const strip = bar(page).locator(".strip");
+  await expect(strip.getByRole("button", { name: "Recent (0)" })).toBeVisible();
+  await expect(strip).toContainText("/orders");
+});
+
 test("tags the page's calls with its token and shows them under it", async ({ page }) => {
   const { parents } = await open(page, {
     live: PROMOTIONS,
@@ -219,8 +255,8 @@ test("lists recent requests and goes back to this page", async ({ page }) => {
   await bar(page)
     .getByRole("button", { name: /Recent/ })
     .click();
-  await expect(bar(page).locator(".recent button")).toHaveCount(2);
-  await bar(page).locator(".recent button", { hasText: "/orders.data" }).click();
+  await expect(bar(page).locator(".recent > button")).toHaveCount(2);
+  await bar(page).locator(".recent > button", { hasText: "/orders.data" }).click();
   await expect(bar(page).locator(".strip")).toContainText("/orders.data");
   await bar(page).getByRole("button", { name: "Back to this page" }).click();
   await expect(bar(page).locator(".strip")).toContainText("7 queries");

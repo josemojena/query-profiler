@@ -14,7 +14,8 @@ made: requests, queries, the time the database was busy and warnings. Click it t
 - **Operations**, **Timeline**, **Warnings** and **Request**.
 
 It updates live, lists recent requests, shrinks to a pill, and links to the
-[full profile](/docs/concepts/profiler-page).
+[full profile](/docs/concepts/profiler-page). **Clear**, in its recent requests, removes every
+stored request, in every open tab; the bar keeps the page it is on.
 
 It is dark by default. The switch next to its name picks **Dark**, **Light** or **Auto**, which
 follows your system; your browser keeps the choice for the bar and the profiler page.

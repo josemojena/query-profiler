@@ -38,6 +38,10 @@
 - Compiled code run without `--enable-source-maps` (`tsc` and `node --watch dist/server.js`) shows
   each query's line in its source again: the profiler reads the app file's source map itself.
 - A troubleshooting page in the docs, for when requests or queries do not show up.
+- **Clear**, in the profiler page and in the bar's recent requests, removes every stored request.
+  The stream announces it (`event: clear`), so every open tab empties its lists; the bar keeps the
+  page it is on. A tab that was hidden meanwhile takes the server's lists when it comes back, instead
+  of merging them with its own, so cleared requests do not come back.
 - **Themes.** The bar and the profiler page are dark by default, in the website's colors, with a
   light theme and **Auto**, which follows the system. A switch in both picks it, and the browser
   keeps the choice. A page can set the starting theme with `data-theme` on the element.

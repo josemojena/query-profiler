@@ -5,7 +5,7 @@ import { DEFAULT_BASE } from "./constants.js";
 import { enabled } from "./enabled.js";
 import type { Profile, ProfileListItem } from "./profile.js";
 import { stats } from "./stats.js";
-import { clearProfiles, getProfile, listProfiles, onProfile } from "./storage.js";
+import { clearProfiles, getProfile, listProfiles, onClear, onProfile } from "./storage.js";
 
 const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
 
@@ -93,9 +93,12 @@ function stream(): Response {
       const unsubscribe = onProfile((profile) =>
         send(`event: profile\ndata: ${JSON.stringify(toListItem(profile))}\n\n`),
       );
+      // A browser drops an event that carries no data.
+      const unsubscribeClear = onClear(() => send("event: clear\ndata: {}\n\n"));
       const heartbeat = setInterval(() => send(": ping\n\n"), 15_000);
       stop = () => {
         unsubscribe();
+        unsubscribeClear();
         clearInterval(heartbeat);
       };
       send(": connected\n\n");

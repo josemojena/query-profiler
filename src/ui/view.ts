@@ -77,9 +77,10 @@ function pill(state: ViewState): string {
 }
 
 function recent(state: ViewState): string {
+  const head = `<div class="recent-head"><b>Recent requests</b>${state.recent.length ? `<button type="button" class="clear" data-action="clear" title="Remove every stored request">Clear</button>` : ""}</div>`;
   if (!state.recent.length)
-    return `<div class="recent"><div class="empty">No requests yet</div></div>`;
-  return `<div class="recent">${state.recent
+    return `<div class="recent">${head}<div class="empty">No requests yet</div></div>`;
+  return `<div class="recent">${head}${state.recent
     .map(
       (
         item,

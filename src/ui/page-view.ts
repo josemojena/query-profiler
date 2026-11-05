@@ -30,6 +30,7 @@ export function renderPage(state: PageState): string {
       <nav class="switch">
         <a href="${escape(state.base)}" data-action="go" class="${state.view === "requests" ? "on" : ""}">Requests</a>
         <a href="${escape(`${state.base}/stats`)}" data-action="go" class="${state.view === "stats" ? "on" : ""}">Stats</a>
+        <button type="button" class="clear" data-action="clear" title="Remove every stored request">Clear</button>
       </nav>
       <input class="filter" type="search" placeholder="Filter by path or status" aria-label="Filter requests" value="${escape(state.filter)}">
       <nav class="list">${renderList(state)}</nav>

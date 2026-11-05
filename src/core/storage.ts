@@ -23,6 +23,15 @@ export function onProfile(listener: (profile: Profile) => void): () => void {
   return () => listeners.delete(listener);
 }
 
+/** Empties the storage, and tells whoever listens with `onClear()`. */
 export function clearProfiles(): void {
-  state().profiles.length = 0;
+  const current = state();
+  current.profiles.length = 0;
+  for (const listener of current.clearListeners ?? []) listener();
+}
+
+export function onClear(listener: () => void): () => void {
+  const listeners = (state().clearListeners ??= new Set());
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }

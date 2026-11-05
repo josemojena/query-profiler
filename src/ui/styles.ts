@@ -129,8 +129,11 @@ dd { margin: 0; }
   position: fixed; right: 12px; bottom: ${STRIP_HEIGHT + 6}px; z-index: 2147483647; width: 380px; max-height: 50vh; overflow: auto;
   background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 6px;
 }
-.recent button { display: block; width: 100%; text-align: left; padding: 8px 10px; border-radius: 6px; }
-.recent button:hover, .recent button.on { background: var(--chrome); }
+.recent > button { display: block; width: 100%; text-align: left; padding: 8px 10px; border-radius: 6px; }
+.recent > button:hover, .recent > button.on { background: var(--chrome); }
+.recent-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 10px 6px; color: var(--ink-2); font-size: 12px; }
+.clear { color: var(--ink-2); padding: 3px 9px; border-radius: 6px; font-size: 12px; }
+.clear:hover { color: var(--bad); background: var(--bad-soft); }
 .recent .sub { margin-top: 1px; }
 
 .pill {
@@ -153,6 +156,7 @@ export const pageStyles = `${styles}
 .switch a { padding: 5px 12px; border-radius: 6px; color: var(--ink-2); }
 .switch a:hover { text-decoration: none; color: var(--ink); }
 .switch a.on { background: var(--bg); color: var(--ink); font-weight: 650; box-shadow: inset 0 0 0 1px var(--line); }
+.switch .clear { margin-left: auto; }
 .filter { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
 .list { display: flex; flex-direction: column; gap: 6px; }
 .item { display: block; color: var(--ink); }
