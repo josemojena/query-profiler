@@ -44,7 +44,8 @@ export function profilerMiddleware(
     );
     const end = (status: number) => {
       if (active.closed) return;
-      options.onProfile?.(endProfile(active, { status }));
+      const profile = endProfile(active, { status });
+      options.onProfile?.(profile);
     };
     try {
       const response = withToken(await runWithProfile(active, () => next()), active);

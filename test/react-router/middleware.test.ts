@@ -1,4 +1,10 @@
-import { beginQuery, currentScope, type Profile } from "../../src/core/index.js";
+import {
+  beginQuery,
+  clearProfiles,
+  currentScope,
+  listProfiles,
+  type Profile,
+} from "../../src/core/index.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { profilerMiddleware, TOKEN_HEADER } from "../../src/react-router/middleware.js";
 
@@ -34,6 +40,18 @@ describe("profilerMiddleware", () => {
       summary: { queryCount: 1 },
     });
     expect(response.headers.get(TOKEN_HEADER)).toBe(profiles[0]!.token);
+  });
+
+  it("stores each profile for the bar and the profiler page, with no options at all", async () => {
+    clearProfiles();
+    const response = (await profilerMiddleware()(call("http://localhost/orders"), async () => {
+      queryNow("SELECT 1");
+      return new Response("orders");
+    })) as Response;
+    await response.text();
+    const [stored] = listProfiles();
+    expect(stored).toMatchObject({ request: { url: "/orders" }, summary: { queryCount: 1 } });
+    expect(response.headers.get(TOKEN_HEADER)).toBe(stored!.token);
   });
 
   it("shows a data request as the route it loads", async () => {
