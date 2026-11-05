@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 
+- The bar and the profiler page showed nothing when `profilerMiddleware()` was called without
+  `onProfile`, as the README sets it up: the profile was never stored. Now every profile is stored,
+  with or without `onProfile`.
 - A tab in the background no longer holds a connection to the dev server: the bar and the profiler
   page stop listening for new requests while their tab is hidden, and catch up when it shows again.
   Over HTTP/1.1 browsers allow six connections per host, so many open tabs used to stall the app.
