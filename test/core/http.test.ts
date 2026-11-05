@@ -84,6 +84,15 @@ describe("the profiler API", () => {
     expect(await (await get("/_profiler/api/profiles")).json()).toEqual([]);
   });
 
+  it("tells every open stream when the storage is emptied", async () => {
+    const reader = (await get("/_profiler/api/stream")).body!.getReader();
+    const decoder = new TextDecoder();
+    await reader.read();
+    await handle(new Request("http://localhost/_profiler/api/profiles", { method: "DELETE" }));
+    expect(decoder.decode((await reader.read()).value)).toBe("event: clear\ndata: {}\n\n");
+    await reader.cancel();
+  });
+
   it("answers only local hosts, and only in development", async () => {
     record("/");
     expect((await get("/_profiler/api/profiles", "abc.ngrok.app")).status).toBe(404);

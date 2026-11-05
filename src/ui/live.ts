@@ -2,15 +2,20 @@ import type { ProfileListItem } from "../core/index.js";
 
 interface Follower {
   onProfile: (item: ProfileListItem) => void;
-  /** The stream reopened after a gap: ask for what finished meanwhile. */
+  /** The stream reopened after a gap: ask the server for its list again. */
   onResume: () => void;
+  /** The profiler was emptied, from this tab or another. */
+  onClear: () => void;
 }
 
 /**
  * Hears of each profile the server finishes, but only while the tab is visible: a hidden tab
  * gives its connection back, as browsers allow six per host over HTTP/1.1. Returns how to stop.
  */
-export function followProfiles(url: string, { onProfile, onResume }: Follower): () => void {
+export function followProfiles(
+  url: string,
+  { onProfile, onResume, onClear }: Follower,
+): () => void {
   let events: EventSource | undefined;
   let behind = false;
   const update = () => {
@@ -23,6 +28,7 @@ export function followProfiles(url: string, { onProfile, onResume }: Follower): 
       events.addEventListener("profile", (event) =>
         onProfile(JSON.parse(event.data) as ProfileListItem),
       );
+      events.addEventListener("clear", () => onClear());
       // The server listens before it answers, so from here on nothing is missed.
       events.addEventListener("open", () => {
         if (behind) onResume();

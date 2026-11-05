@@ -96,6 +96,12 @@ describe("the profiler page", () => {
     ]);
   });
 
+  it("offers to clear every stored request next to the views", () => {
+    expect(renderPage(state())).toMatch(
+      /Stats<\/a>\s*<button [^>]*data-action="clear"[^>]*>Clear</,
+    );
+  });
+
   it("puts the theme switch by its name, with the theme in use marked", () => {
     expect(renderPage(state({ theme: "system" }))).toContain(
       'data-choice="system" aria-pressed="true"',

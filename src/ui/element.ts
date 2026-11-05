@@ -1,6 +1,6 @@
 import type { Profile, ProfileListItem } from "../core/index.js";
 import { runnableSql, type Editor } from "./format.js";
-import { getJson } from "./http.js";
+import { clearAll, getJson } from "./http.js";
 import { followProfiles, mergeProfiles } from "./live.js";
 import { STRIP_HEIGHT, styles } from "./styles.js";
 import { choiceOf, chooseTheme, initialTheme } from "./theme.js";
@@ -71,6 +71,7 @@ export class ProfilerToolbar extends HTMLElement {
     this.#stopFollowing = followProfiles(`${base}/api/stream`, {
       onProfile: (item) => this.#onProfile(item),
       onResume: () => void this.#catchUp(),
+      onClear: () => this.#emptied(),
     });
     this.#tracker = installTracker(base);
     this.#tracker.listeners.add(this.#onCall);
@@ -126,7 +127,10 @@ export class ProfilerToolbar extends HTMLElement {
     this.#render();
   }
 
-  /** What finished while the tab was hidden: recent requests, and the calls of the page shown. */
+  /**
+   * The server's lists again, after the tab was hidden: recent requests, and the calls of the page
+   * shown. Not a merge, so what was cleared meanwhile does not come back.
+   */
   async #catchUp() {
     const { base, page } = this.#state;
     const [recent, calls] = await Promise.all([
@@ -134,9 +138,15 @@ export class ProfilerToolbar extends HTMLElement {
       page && getJson<ProfileListItem[]>(`${base}/api/profiles?parent=${page.token}`),
     ]);
     const state = this.#state;
-    state.recent = mergeProfiles(recent ?? [], state.recent, MAX_RECENT);
-    if (calls && page?.token === state.page?.token)
-      state.calls = mergeProfiles(calls, state.calls).reverse();
+    state.recent = recent ?? [];
+    if (calls && page?.token === state.page?.token) state.calls = calls.reverse();
+    this.#render();
+  }
+
+  /** The profiler was emptied: its lists go, and the bar keeps only the page it is on. */
+  #emptied() {
+    this.#state.recent = [];
+    this.#state.calls = [];
     this.#render();
   }
 
@@ -194,6 +204,9 @@ export class ProfilerToolbar extends HTMLElement {
       case "recent":
         state.showRecent = !state.showRecent;
         break;
+      case "clear":
+        void clearAll(state.base).then((cleared) => cleared && this.#emptied());
+        return;
       case "select":
         state.tab = "queries";
         void this.#select(target.dataset.token!);

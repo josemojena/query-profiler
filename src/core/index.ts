@@ -11,7 +11,14 @@ export {
   finishQuery,
   startProfile,
 } from "./recorder.js";
-export { clearProfiles, getProfile, listProfiles, onProfile, storeProfile } from "./storage.js";
+export {
+  clearProfiles,
+  getProfile,
+  listProfiles,
+  onClear,
+  onProfile,
+  storeProfile,
+} from "./storage.js";
 export { fingerprint, normalizeSql } from "./fingerprint.js";
 export { captureOrigin } from "./origin.js";
 export { formatProfile } from "./format.js";

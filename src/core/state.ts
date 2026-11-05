@@ -6,6 +6,8 @@ export interface State {
   als: AsyncLocalStorage<Scope>;
   profiles: Profile[];
   listeners: Set<(profile: Profile) => void>;
+  /** Optional: a state made by an older copy of the package in the same process has none. */
+  clearListeners?: Set<() => void>;
   limit: number;
 }
 

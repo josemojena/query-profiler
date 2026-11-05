@@ -200,6 +200,17 @@ describe("a page and its calls", () => {
   });
 });
 
+describe("the Recent list", () => {
+  it("offers to clear every stored request, once there is one", () => {
+    const profile = profileWith([]);
+    const clear = 'data-action="clear"';
+    expect(render(state(profile, { showRecent: true, recent: [toListItem(profile)] }))).toContain(
+      clear,
+    );
+    expect(render(state(profile, { showRecent: true, recent: [] }))).not.toContain(clear);
+  });
+});
+
 describe("the theme switch", () => {
   it("marks the theme in use", () => {
     const html = render(state(profileWith([]), { theme: "light" }));

@@ -1,4 +1,4 @@
-import type { Server } from "node:http";
+import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { expect, test } from "@playwright/test";
 import express from "express";
@@ -68,3 +68,39 @@ for (const [name, start] of Object.entries(APPS)) {
     });
   });
 }
+
+test.describe("Clear", () => {
+  let profiler: Server;
+  let app: Server;
+  let profilerUrl = "";
+  let origin = "";
+  let stop = () => {};
+
+  test.beforeAll(async () => {
+    process.env.NODE_ENV = "development";
+    profilerUrl = await new Promise<string>((resolve) => {
+      profiler = profilerServer({ port: 0, onListening: resolve });
+    });
+    stop = profileRequests({ skip: (server) => server === profiler });
+    app = createServer((_request, response) => response.end("ok"));
+    await new Promise<void>((resolve) => app.listen(0, "127.0.0.1", resolve));
+    origin = `http://localhost:${(app.address() as AddressInfo).port}`;
+  });
+  test.afterAll(async () => {
+    stop();
+    await new Promise((resolve) => app.close(resolve));
+    await new Promise((resolve) => profiler.close(resolve));
+  });
+
+  test("empties the profiler in every tab that has it open", async ({ context }) => {
+    clearProfiles();
+    await fetch(`${origin}/orders`);
+    const tabs = [await context.newPage(), await context.newPage()];
+    for (const tab of tabs) {
+      await tab.goto(profilerUrl);
+      await expect(tab.locator("query-profiler-page .item")).toHaveCount(1);
+    }
+    await tabs[0]!.locator("query-profiler-page").getByRole("button", { name: "Clear" }).click();
+    for (const tab of tabs) await expect(tab.locator("query-profiler-page .item")).toHaveCount(0);
+  });
+});

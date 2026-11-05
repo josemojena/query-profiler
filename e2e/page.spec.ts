@@ -26,8 +26,8 @@ test.beforeAll(async () => {
   bundle = result.outputFiles[0]!.text;
 });
 
-/** The profiler's page at `path`, with the API answering with `profiles`. */
-async function open(page: Page, path: string, profiles = [...PROFILES]) {
+/** The profiler's page at `path`, with the API answering with `profiles`, and its stream with `stream()`. */
+async function open(page: Page, path: string, profiles = [...PROFILES], stream = () => ": ok\n\n") {
   await page.route(`${ORIGIN}/**`, async (route) => {
     const url = new URL(route.request().url());
     const json = (body: unknown) =>
@@ -37,7 +37,11 @@ async function open(page: Page, path: string, profiles = [...PROFILES]) {
     if (url.pathname === "/_profiler/api/meta") return json({ root: "/repo" });
     if (url.pathname === "/_profiler/api/profiles") return json(profiles.map(listItem));
     if (url.pathname === "/_profiler/api/stream")
-      return route.fulfill({ contentType: "text/event-stream", body: ": ok\n\n" });
+      return route.fulfill({ contentType: "text/event-stream", body: stream() });
+    if (route.request().method() === "DELETE" && url.pathname === "/_profiler/api/profiles") {
+      profiles.length = 0;
+      return route.fulfill({ status: 204 });
+    }
     if (url.pathname === "/_profiler/api/stats")
       return json({
         profiles: 3,
@@ -126,6 +130,26 @@ test("switches tabs and filters the list", async ({ page }) => {
   await expect(app.getByLabel("Filter requests")).toBeFocused();
 });
 
+test("clears every request, and leaves an address that names none", async ({ page }) => {
+  const app = await open(page, `/_profiler/${PROMOTIONS.token}`);
+  await expect(app.locator("h1")).toContainText("GET /api/promotions");
+  await app.getByRole("button", { name: "Clear" }).click();
+  await expect(app.locator(".item")).toHaveCount(0);
+  await expect(app.locator(".main")).toContainText("No requests yet");
+  await expect(page).toHaveURL(`${ORIGIN}/_profiler`);
+});
+
+test("empties its list when the profiler is cleared from another tab", async ({ page }) => {
+  const profiles = [...PROFILES];
+  // Another tab cleared the server, which says so on the stream.
+  const app = await open(page, "/_profiler", profiles, () => {
+    profiles.length = 0;
+    return "event: clear\ndata: {}\n\n";
+  });
+  await expect(app.locator(".main")).toContainText("No requests yet");
+  await expect(app.locator(".item")).toHaveCount(0);
+});
+
 test("shows the stats", async ({ page }) => {
   const app = await open(page, "/_profiler/stats");
   await expect(app.locator("h1")).toHaveText("Stats");
@@ -150,4 +174,18 @@ test("gives its live connection back while the tab is hidden, and lists what fin
   await setVisibility(page, "visible");
   await expect(app.locator(".item", { hasText: "/invoices" })).toBeVisible();
   await expect.poll(() => openStreams(page)).toBe(1);
+});
+
+test("shows the profiler cleared when it comes back, if it was cleared while hidden", async ({
+  page,
+}) => {
+  await trackStreams(page);
+  const profiles = [...PROFILES];
+  const app = await open(page, "/_profiler", profiles);
+  await expect(app.locator(".item")).toHaveCount(3);
+  await setVisibility(page, "hidden");
+  await expect.poll(() => openStreams(page)).toBe(0);
+  profiles.length = 0;
+  await setVisibility(page, "visible");
+  await expect(app.locator(".item")).toHaveCount(0);
 });
