@@ -23,7 +23,11 @@ if (enabled()) {
   // app (a CLI run with NODE_OPTIONS) never takes it.
   const onListening = () => {
     unsubscribe(LISTENING, onListening);
-    own = profilerServer({ onListening: (url) => console.log(`[query-profiler] ${url}`) });
+    const host = process.env.QUERY_PROFILER_HOST;
+    own = profilerServer({
+      onListening: (url) =>
+        console.log(`[query-profiler] ${url}${host ? ` (listening on ${host})` : ""}`),
+    });
   };
   subscribe(LISTENING, onListening);
 } else if (process.env.QUERY_PROFILER_DISABLED !== "1" && !QUIET.has(process.env.NODE_ENV ?? "")) {

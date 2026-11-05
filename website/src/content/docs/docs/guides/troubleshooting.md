@@ -68,5 +68,36 @@ you compile (`"sourceMap": true` in `tsconfig.json`), or the lines point to `dis
 
 ## The browser cannot reach the profiler
 
-The profiler listens on `localhost` only, on the machine that runs the app. From a container or
-another machine, it cannot be reached yet.
+The profiler listens on `localhost` of the machine that runs the app.
+
+**In a container** (Docker, a dev container), set `QUERY_PROFILER_HOST=0.0.0.0` so it listens on
+every interface, and publish its port as you publish the app's:
+
+```sh
+docker run -e QUERY_PROFILER_HOST=0.0.0.0 -p 3000:3000 -p 4983:4983 my-app
+```
+
+```yaml
+# compose.yaml
+services:
+  api:
+    environment:
+      QUERY_PROFILER_HOST: 0.0.0.0
+    ports:
+      - "3000:3000"
+      - "4983:4983"
+```
+
+Then open `http://localhost:4983/_profiler` on your machine. It still answers only requests
+addressed to a local host, so the network cannot read it. Keep its port fixed: if 4983 is busy inside
+the container, the profiler takes the next one, which is not published. Set `QUERY_PROFILER_PORT` to
+the port you publish.
+
+**On another machine** (a VM, a remote dev server), forward the port over SSH, with no setting:
+
+```sh
+ssh -L 4983:localhost:4983 your-dev-machine
+```
+
+**Through an address with a name of its own**, such as a cloud editor's forwarded URL, it answers
+404: it only answers local host names.

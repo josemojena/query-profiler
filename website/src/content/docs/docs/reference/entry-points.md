@@ -20,7 +20,8 @@ builds through the Vite plugin, and plain `node` without `--conditions=developme
 `query-profiler/register` is the only one you don't import: Node loads it before your app with
 `--import`, in the dev command. Its environment variables:
 
-| Variable              | Default | What it does                                                    |
-| --------------------- | ------- | --------------------------------------------------------------- |
-| `QUERY_PROFILER_PORT` | `4983`  | The profiler's port; if it is busy, the next free one is taken. |
-| `QUERY_PROFILER_LOG`  | unset   | `1` prints one line per request in the terminal.                |
+| Variable              | Default     | What it does                                                                                        |
+| --------------------- | ----------- | --------------------------------------------------------------------------------------------------- |
+| `QUERY_PROFILER_PORT` | `4983`      | The profiler's port; if it is busy, the next free one is taken.                                     |
+| `QUERY_PROFILER_HOST` | `localhost` | Where it listens. `0.0.0.0` reaches it from outside a container; it still answers only local hosts. |
+| `QUERY_PROFILER_LOG`  | unset       | `1` prints one line per request in the terminal.                                                    |

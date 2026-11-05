@@ -1,4 +1,4 @@
-import { createServer, type Server } from "node:http";
+import { createServer, request, type Server } from "node:http";
 import { createServer as createHttp2Server } from "node:http2";
 import type { AddressInfo } from "node:net";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -30,6 +30,20 @@ async function holder(port: number) {
   servers.push(server);
   return server;
 }
+
+/** The status the profiler answers a request that names `host` in its Host header. */
+const statusFor = (port: number, host: string) =>
+  new Promise<number>((resolve, reject) =>
+    request(
+      { host: "127.0.0.1", port, path: "/_profiler", headers: { host: `${host}:${port}` } },
+      (response) => {
+        response.resume();
+        resolve(response.statusCode ?? 0);
+      },
+    )
+      .on("error", reject)
+      .end(),
+  );
 
 const start = (port?: number) =>
   new Promise<string>((resolve) => servers.push(profilerServer({ port, onListening: resolve })));
@@ -67,6 +81,21 @@ describe("the profiler on a port of its own", () => {
     setTimeout(() => previous.close(), 300);
     expect(await url).toBe(`http://localhost:${port}/_profiler`);
     expect((await fetch(await url)).status).toBe(200);
+  });
+
+  it("listens on localhost only, by default", async () => {
+    await start(0);
+    expect(["127.0.0.1", "::1"]).toContain((servers[0]!.address() as AddressInfo).address);
+  });
+
+  it("listens on QUERY_PROFILER_HOST, and still answers only requests addressed to a local host", async () => {
+    vi.stubEnv("QUERY_PROFILER_HOST", "0.0.0.0");
+    const url = await start(0);
+    const { address, port } = servers[0]!.address() as AddressInfo;
+    expect(address).toBe("0.0.0.0");
+    expect(url).toBe(`http://localhost:${port}/_profiler`);
+    expect(await statusFor(port, "localhost")).toBe(200);
+    expect(await statusFor(port, "192.168.1.20")).toBe(404);
   });
 
   it("answers HEAD like GET, without a body", async () => {

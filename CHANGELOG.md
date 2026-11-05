@@ -38,6 +38,9 @@
 - Compiled code run without `--enable-source-maps` (`tsc` and `node --watch dist/server.js`) shows
   each query's line in its source again: the profiler reads the app file's source map itself.
 - A troubleshooting page in the docs, for when requests or queries do not show up.
+- `QUERY_PROFILER_HOST` picks where the profiler listens: `0.0.0.0` reaches it from outside a
+  container with its port published. It still answers only requests addressed to a local host, so
+  the network cannot read it.
 - **Clear**, in the profiler page and in the bar's recent requests, removes every stored request.
   The stream announces it (`event: clear`), so every open tab empties its lists; the bar keeps the
   page it is on. A tab that was hidden meanwhile takes the server's lists when it comes back, instead
