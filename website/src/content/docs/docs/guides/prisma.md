@@ -17,6 +17,29 @@ export const prisma = profilePrisma(new PrismaClient(withProfiler({ adapter })))
   (`User.findMany`, `Order.create`…) with its arguments, and takes the line of your code that made
   each call when the call is made.
 
+## Development only, without a bundler
+
+When `query-profiler` is a dev dependency of a server run with plain `node`, import it only if it
+is installed, so a production install leaves it out and the client stays plain:
+
+```ts
+// src/db.ts
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "./generated/prisma/client.js";
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+// A dev dependency: a production install leaves it out, and the client stays plain.
+const profiler = await import("query-profiler/prisma").catch(() => undefined);
+
+export const prisma: Omit<PrismaClient, "$on"> = profiler
+  ? profiler.profilePrisma(new PrismaClient(profiler.withProfiler({ adapter })))
+  : new PrismaClient({ adapter });
+```
+
+Typing `prisma` as `Omit<PrismaClient, "$on">` covers both branches. With Vite or a bundled server,
+keep the plain imports above: the build gets the empty entries (see
+[installation](/docs/installation)).
+
 ## Types
 
 `profilePrisma()` applies a client extension, so the client gets its own type. Where you typed it as

@@ -253,7 +253,7 @@ or as a dependency with plain imports, as below. Node picks the real code only w
 }
 ```
 
-**2. Profile the Prisma client**, as for React Router:
+**2. Profile the Prisma client**, as for React Router (development only: import it only if installed, as in [Installation](#development-only-without-a-bundler)):
 
 ```ts
 // src/db.ts
@@ -266,7 +266,7 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 export const prisma = profilePrisma(new PrismaClient(withProfiler({ adapter })));
 ```
 
-**3. Register the plugin**, before your routes:
+**3. Register the plugin**, before your routes (development only: import it only if installed, as in [Installation](#development-only-without-a-bundler)):
 
 ```ts
 // src/server.ts
@@ -289,7 +289,7 @@ origin, it adds `X-Debug-Token` to `Access-Control-Expose-Headers`, so a fronten
 
 Express 4.18 or later, 5 included, with Prisma 7 and `@prisma/adapter-pg`. Set up as for Fastify:
 install the package, run the dev server with `--conditions=development` and profile the Prisma
-client (steps 1 and 2 above). Then add the middleware, **first**:
+client (steps 1 and 2 above). Then add the middleware, **first** (development only: import it only if installed, as in [Installation](#development-only-without-a-bundler)):
 
 ```ts
 // src/server.ts
