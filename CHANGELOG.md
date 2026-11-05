@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Secrets no longer show in SQL parameters. A parameter is hidden when it equals a value the
+  Prisma operation passed under a secret-looking key (`password`, `token`, `apiKey`…), or when the
+  SQL compares it with or writes it to a column named like one, raw SQL included.
+
 ## 0.1.0
 
 First release.
