@@ -1,5 +1,5 @@
 ---
-import { integrations, type Status } from "../../data/integrations";
+import { fullName, integrations, type Status } from "../../data/integrations";
 import { link } from "../../data/site";
 
 const labels: Record<Status, string> = { ready: "Ready", next: "Next", planned: "Planned" };
@@ -11,7 +11,7 @@ const labels: Record<Status, string> = { ready: "Ready", next: "Next", planned: 
     {
       integrations.map((integration) => (
         <tr>
-          <td>{integration.guide ? <a href={link(integration.guide)}>{integration.name}</a> : integration.name}</td>
+          <td>{integration.guide ? <a href={link(integration.guide)}>{fullName(integration)}</a> : fullName(integration)}</td>
           <td>{labels[integration.status]}</td>
         </tr>
       ))

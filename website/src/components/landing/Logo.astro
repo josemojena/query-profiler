@@ -1,0 +1,31 @@
+---
+import type { SimpleIcon } from "simple-icons";
+
+interface Props {
+  icon?: SimpleIcon;
+  name: string;
+}
+
+const { icon, name } = Astro.props;
+---
+
+{
+  icon ? (
+    <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={icon.path} />
+    </svg>
+  ) : (
+    <span class="mark" aria-hidden="true">
+      {name.slice(0, 2).toLowerCase()}
+    </span>
+  )
+}
+
+<style>
+  .logo { width: 20px; height: 20px; flex: none; fill: currentColor; color: var(--muted); }
+  .mark {
+    width: 20px; height: 20px; flex: none; display: grid; place-items: center;
+    border: 1.5px solid var(--muted); border-radius: 50%;
+    font: 600 9px var(--mono); color: var(--muted);
+  }
+</style>
