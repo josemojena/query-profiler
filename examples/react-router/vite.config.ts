@@ -4,7 +4,7 @@ import { queryProfiler } from "query-profiler/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [queryProfiler(), tailwindcss(), reactRouter()],
+  plugins: [queryProfiler({ log: true }), tailwindcss(), reactRouter()],
   resolve: {
     tsconfigPaths: true,
   },

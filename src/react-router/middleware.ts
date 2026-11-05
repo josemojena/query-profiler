@@ -1,4 +1,5 @@
 import {
+  currentScope,
   DEFAULT_BASE,
   enabled,
   PARENT_HEADER,
@@ -8,10 +9,10 @@ import {
   startProfile,
   type ActiveProfile,
   type Profile,
-  type ProfileKind,
 } from "../core/index.js";
 import type { MiddlewareFunction } from "react-router";
 import { injectBeforeBodyEnd, toolbarSnippet } from "./inject.js";
+import { isDataAnswer, kindOf, parentToken, shownUrl } from "./requests.js";
 
 export { TOKEN_HEADER };
 
@@ -32,7 +33,8 @@ export function profilerMiddleware(
   const base = options.base ?? DEFAULT_BASE;
   return async ({ request }, next) => {
     const url = new URL(request.url);
-    if (url.pathname.startsWith(base)) return next();
+    // The Vite plugin already profiles every request in development.
+    if (url.pathname.startsWith(base) || currentScope()) return next();
     const active = startProfile(
       {
         method: request.method,
@@ -63,28 +65,13 @@ export function profilerMiddleware(
   };
 }
 
-function parentOf(request: Request): string | undefined {
-  const token = request.headers.get(PARENT_HEADER);
-  return token && /^[0-9a-f]{6}$/.test(token) ? token : undefined;
-}
+const parentOf = (request: Request) => parentToken(request.headers.get(PARENT_HEADER));
 
-// A data request (`/orders.data?_routes=…`) shows as the route it loads.
-function shownUrl(url: URL): string {
-  const search = new URLSearchParams(url.search);
-  search.delete("_routes");
-  const path = url.pathname.replace(/\.data$/, "").replace(/^\/_root$/, "/");
-  return search.size ? `${path}?${search}` : path;
-}
-
-function kindOf(method: string, url: URL): ProfileKind {
-  if (method !== "GET" && method !== "HEAD") return "action";
-  return url.pathname.endsWith(".data") ? "data" : "document";
-}
-
-// React Router strips `.data` from a data request before middleware sees it; its answer still tells.
 const isDataResponse = (response: Response) =>
-  response.headers.has("X-Remix-Response") ||
-  (response.headers.get("Content-Type") ?? "").startsWith("text/x-script");
+  isDataAnswer(
+    response.headers.get("Content-Type") ?? "",
+    response.headers.has("X-Remix-Response"),
+  );
 
 const isHtml = (response: Response) =>
   !!response.body && (response.headers.get("Content-Type") ?? "").includes("text/html");

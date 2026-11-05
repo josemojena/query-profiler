@@ -34,8 +34,8 @@ export function installTracker(base: string, page?: string): Tracker {
     const response = await original(new Request(request, { headers }));
     const token = response.headers.get("X-Debug-Token");
     if (token) {
-      // `/orders.data` loads the page `/orders`, and `/_root.data` loads `/`.
-      const path = url.pathname.replace(/\.data$/, "").replace(/^\/_root$/, "/");
+      // `/orders.data` loads the page `/orders`; `/_.data` (React Router 8) and `/_root.data` load `/`.
+      const path = url.pathname.replace(/\.data$/, "").replace(/^\/(_root|_)$/, "/");
       for (const listener of tracker.listeners) listener({ token, path });
     }
     return response;

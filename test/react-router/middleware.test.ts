@@ -54,14 +54,19 @@ describe("profilerMiddleware", () => {
     expect(response.headers.get(TOKEN_HEADER)).toBe(stored!.token);
   });
 
-  it("shows a data request as the route it loads", async () => {
+  it("shows a data request as the route it loads, the root's in React Router 7 and 8", async () => {
     const ok = async () => new Response(null);
     await middleware()(
       call("http://localhost/orders/offers.data?_routes=routes%2Foffers&page=2"),
       ok,
     );
     await middleware()(call("http://localhost/_root.data?_routes=root"), ok);
-    expect(profiles.map((profile) => profile.request.url)).toEqual(["/orders/offers?page=2", "/"]);
+    await middleware()(call("http://localhost/_.data?_routes=routes%2Fhome"), ok);
+    expect(profiles.map((profile) => profile.request.url)).toEqual([
+      "/orders/offers?page=2",
+      "/",
+      "/",
+    ]);
   });
 
   it("tells data requests and actions apart", async () => {
