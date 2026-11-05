@@ -1,0 +1,34 @@
+{
+  "name": "example-nextjs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:setup": "cp -n .env.example .env; prisma db push && prisma generate && tsx --env-file=.env prisma/seed.ts",
+    "dev": "NODE_OPTIONS='--conditions=development --import query-profiler/next/register' next dev",
+    "dev:webpack": "NODE_OPTIONS='--conditions=development --import query-profiler/next/register' next dev --webpack",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "next": "16.4.2",
+    "query-profiler": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "prisma": "^7.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "dependenciesMeta": {
+    "query-profiler": {
+      "injected": true
+    }
+  }
+}

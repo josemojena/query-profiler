@@ -1,7 +1,7 @@
 export type * from "./profile.js";
 export type { Scope } from "./context.js";
 export type { ActiveProfile } from "./recorder.js";
-export { currentScope, enterScope, runInScope, runWithProfile } from "./context.js";
+export { currentScope, enterProfile, enterScope, runInScope, runWithProfile } from "./context.js";
 export {
   MAX_QUERIES,
   beginOperation,

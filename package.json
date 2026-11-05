@@ -59,6 +59,11 @@
       "development": "./dist/fastify/index.js",
       "default": "./dist/fastify/noop.js"
     },
+    "./next/register": {
+      "types": "./dist/next/register.d.ts",
+      "development": "./dist/next/register.js",
+      "default": "./dist/next/register-noop.js"
+    },
     "./react-router": {
       "types": "./dist/react-router/index.d.ts",
       "development": "./dist/react-router/index.js",
