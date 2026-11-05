@@ -59,15 +59,26 @@ export function tree(
 export function renderList(state: PageState): string {
   const groups = tree(state.list, state.filter);
   if (!groups.length) return `<div class="empty">Nothing matches.</div>`;
-  const item = (
-    entry: ProfileListItem,
-    child: boolean,
-  ) => `<a href="${escape(`${state.base}/${entry.token}`)}" data-action="go" class="item${child ? " child" : ""}${entry.token === state.profile?.token && state.view === "requests" ? " on" : ""}">
-      ${child ? `<span class="tree">└</span>` : ""}<b>${escape(entry.request.method)} ${entry.response?.status ?? "…"}</b> <span class="mono">${escape(entry.request.url)}</span>
+  const on = (entry: ProfileListItem) =>
+    entry.token === state.profile?.token && state.view === "requests" ? " on" : "";
+  const link = (entry: ProfileListItem, className: string, head: string) =>
+    `<a href="${escape(`${state.base}/${entry.token}`)}" data-action="go" class="${className}${on(entry)}">
+      ${head} <span class="mono">${escape(entry.request.url)}</span>
       <div class="sub">${entry.kind} · ${count(entry.summary.queryCount, "query", "queries")} · ${ms(entry.summary.dbTimeMs)}${entry.warningCount ? ` · <i class="dot"></i>${count(entry.warningCount, "warning")}` : ""}</div>
     </a>`;
+  const page = (entry: ProfileListItem) =>
+    link(entry, "item", `<b>${escape(entry.request.method)} ${entry.response?.status ?? "…"}</b>`);
+  const call = (entry: ProfileListItem) =>
+    link(
+      entry,
+      "item child",
+      `<b>${escape(entry.request.method)}</b> <b class="code-${statusTone(entry.response?.status)}">${entry.response?.status ?? "…"}</b>`,
+    );
   return groups
-    .map(([root, calls]) => [item(root, false), ...calls.map((call) => item(call, true))].join(""))
+    .map(
+      ([root, calls]) =>
+        `<div class="group">${page(root)}${calls.length ? `<div class="branches">${calls.map(call).join("")}</div>` : ""}</div>`,
+    )
     .join("");
 }
 

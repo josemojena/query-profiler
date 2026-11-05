@@ -1,6 +1,6 @@
 import { toListItem, type Profile, type ProfileListItem } from "../../src/core/index.js";
 import { describe, expect, it } from "vitest";
-import { renderPage, tree, type PageState } from "../../src/ui/page-view.js";
+import { renderList, renderPage, tree, type PageState } from "../../src/ui/page-view.js";
 
 const item = (token: string, url: string, parentToken?: string, status = 200): ProfileListItem => ({
   schemaVersion: 1,
@@ -60,6 +60,14 @@ describe("the request list", () => {
 });
 
 describe("the profiler page", () => {
+  it("boxes each page and hangs its calls under it, status as text", () => {
+    const html = renderList(state());
+    expect(html).toMatch(
+      /<div class="group"><a [^>]*class="item on"[\s\S]*?<div class="branches"><a [^>]*class="item child"/,
+    );
+    expect(html).toMatch(/<b>GET<\/b> <b class="code-ok">200<\/b>/);
+  });
+
   it("shows the request picked, its cards and the calls it made", () => {
     const html = renderPage(state());
     expect(html).toContain("<h1>GET /products");

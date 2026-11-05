@@ -183,10 +183,17 @@ describe("a page and its calls", () => {
       /<tr class="(main|child)[^"]*" data-action="select" data-token="([0-9a-f]+)"/g,
     );
     expect(rows).toEqual([
-      '<tr class="main on" data-action="select" data-token="a1b2c3"',
-      '<tr class="child" data-action="select" data-token="c0ffee"',
-      '<tr class="child" data-action="select" data-token="d00d1e"',
+      '<tr class="main parent on" data-action="select" data-token="a1b2c3"',
+      '<tr class="child call" data-action="select" data-token="c0ffee"',
+      '<tr class="child last" data-action="select" data-token="d00d1e"',
     ]);
     expect(html).toContain("/api/promotions");
+  });
+
+  it("box only the page's status: a call says its method and status as text", () => {
+    const html = render(state(page, { calls, open: true, tab: "requests" }));
+    const table = html.slice(html.indexOf('<table class="requests">'), html.indexOf("</table>"));
+    expect(table.match(/<span class="status tone-/g)).toHaveLength(1);
+    expect(html).toMatch(/<b>GET<\/b> <b class="code-ok">200<\/b>/);
   });
 });

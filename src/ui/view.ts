@@ -123,10 +123,21 @@ function panel(state: ViewState): string {
   </div>`;
 }
 
-function requestRow(state: ViewState, item: ProfileListItem, child: boolean): string {
-  const on = item.token === state.profile?.token;
-  return `<tr class="${child ? "child" : "main"}${on ? " on" : ""}" data-action="select" data-token="${escape(item.token)}">
-    <td>${child ? `<span class="tree">└</span>` : ""}<span class="status tone-${statusTone(item.response?.status)}">${escape(item.request.method)} ${item.response?.status ?? "…"}</span></td>
+function requestRow(
+  state: ViewState,
+  item: ProfileListItem,
+  row: "page" | "parent" | "call" | "last",
+): string {
+  const on = item.token === state.profile?.token ? " on" : "";
+  const status = item.response?.status ?? "…";
+  const tone = statusTone(item.response?.status);
+  const head =
+    row === "page" || row === "parent"
+      ? `<span class="status tone-${tone}">${escape(item.request.method)} ${status}</span>`
+      : `<b>${escape(item.request.method)}</b> <b class="code-${tone}">${status}</b>`;
+  const kind = row === "page" || row === "parent" ? "main" : "child";
+  return `<tr class="${kind} ${row}${on}" data-action="select" data-token="${escape(item.token)}">
+    <td class="branch">${head}</td>
     <td><span class="mono">${escape(item.request.url)}</span><div class="sub">${item.kind}${item.warningCount ? ` · <i class="dot"></i>${count(item.warningCount, "warning")}` : ""}</div></td>
     <td>${count(item.summary.queryCount, "query", "queries")}</td>
     <td class="dur">${ms(item.summary.dbTimeMs)}<div class="sub">${ms(item.durationMs)} total</div></td>
@@ -136,8 +147,10 @@ function requestRow(state: ViewState, item: ProfileListItem, child: boolean): st
 function requestsTab(state: ViewState): string {
   if (!state.page) return `<div class="empty">No profile for this page yet.</div>`;
   const rows = [
-    requestRow(state, state.page, false),
-    ...state.calls.map((call) => requestRow(state, call, true)),
+    requestRow(state, state.page, state.calls.length ? "parent" : "page"),
+    ...state.calls.map((call, i) =>
+      requestRow(state, call, i === state.calls.length - 1 ? "last" : "call"),
+    ),
   ];
   return `<table class="requests"><thead><tr><th>Request</th><th>URL</th><th>Queries</th><th>In DB</th></tr></thead><tbody>${rows.join("")}</tbody></table>
     <div class="hint">The page and the calls it made. Pick one to see its queries.</div>`;

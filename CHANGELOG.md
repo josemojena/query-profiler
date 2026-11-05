@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- A page's calls hang from it as a tree, in the bar's Requests tab and in the `/_profiler` list:
+  only the page keeps its box, and each call shows its method and status as text, joined to the
+  page by a thin line.
 - In React Router 8, a client navigation home now becomes the new page in the bar: React Router 8
   loads `/` from `/_.data`, which the bar and the profiles took for a path of its own (`/_`).
 - An app run with tsx gets the right line of code for each query again; the line was mapped twice
