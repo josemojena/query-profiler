@@ -6,6 +6,7 @@
     "database",
     "debugbar",
     "devtools",
+    "fastify",
     "n+1",
     "orm",
     "pg",
@@ -53,6 +54,11 @@
       "development": "./dist/prisma/index.js",
       "default": "./dist/prisma/noop.js"
     },
+    "./fastify": {
+      "types": "./dist/fastify/index.d.ts",
+      "development": "./dist/fastify/index.js",
+      "default": "./dist/fastify/noop.js"
+    },
     "./react-router": {
       "types": "./dist/react-router/index.d.ts",
       "development": "./dist/react-router/index.js",
@@ -98,6 +104,9 @@
     "website:dev": "pnpm build && pnpm --filter website dev",
     "website:build": "pnpm build && pnpm --filter website build"
   },
+  "dependencies": {
+    "fastify-plugin": "^6.0.1"
+  },
   "devDependencies": {
     "@playwright/test": "1.64.0",
     "@prisma/adapter-pg": "^7.7.0",
@@ -107,6 +116,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "esbuild": "^0.27.7",
+    "fastify": "^5.12.7",
     "oxfmt": "0.72.0",
     "oxlint": "1.87.0",
     "oxlint-tsgolint": "7.0.2004",
@@ -121,6 +131,7 @@
   },
   "peerDependencies": {
     "@prisma/client": ">=7.1.0",
+    "fastify": ">=5.0.0",
     "pg": "^8.11.0",
     "react": ">=18.0.0",
     "react-router": ">=7.9.0",
@@ -128,6 +139,9 @@
   },
   "peerDependenciesMeta": {
     "@prisma/client": {
+      "optional": true
+    },
+    "fastify": {
       "optional": true
     },
     "pg": {
