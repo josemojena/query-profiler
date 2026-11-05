@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fastify 4.26 and later: `app.register(profilerPlugin)` from `query-profiler/fastify` profiles
+  each request, tags each response with `X-Debug-Token` (exposed to CORS) and serves `/_profiler`.
 - `createHandler()` serves the bar and the profiler page's code itself (`/_profiler/ui.js`), so
   `/_profiler` works on servers without Vite.
 
