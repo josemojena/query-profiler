@@ -1,74 +1,88 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
-- **Breaking: Node 22.19+ or 24.5+.** The preload gives the app's own imports of the profiler its real
-  code through Node's synchronous module hooks, so `--import query-profiler/register` is the only flag
-  a dev command needs; they cover `require()` too. Before 22.19 and 24.5, Node ignores the conditions
-  such a hook adds on `import` and throws on them in `require()`: there the preload says so and stays
-  off. Node 20, out of support since April 2026, is no longer supported.
-- **React Router: the Vite plugin alone.** `queryProfiler()` in `vite.config.ts` now profiles every
-  request in the dev server, puts the bar on every page and serves `/_profiler`; nothing goes in
-  your routes, and React Router 7 no longer needs `future.v8_middleware`. The bar learns its page's
-  token from the page's `Server-Timing` header. `log: true` prints one line per request.
-  **Breaking:** `query-profiler/react-router`, `/react-router/route` and `/react-router/toolbar`
-  are gone, with `profilerMiddleware()` and `<ProfilerToolbar />`: remove them from your app.
-- In React Router 8, a client navigation home now becomes the new page in the bar: React Router 8
-  loads `/` from `/_.data`, which the bar and the profiles took for a path of its own (`/_`).
-- An app run with tsx gets the right line of code for each query again; the line was mapped twice
-  through the same source map.
+One way for each kind of app, with no profiler code in your server: the Vite plugin for React
+Router, a preload for any other Node server. Also MySQL, MariaDB and SQLite, one profiler for
+several processes, SQL laid out over lines, themes, and Clear.
+
+### Breaking changes, and how to upgrade from 0.2
+
+- **Node 22.19+ or 24.5+.** The preload gives your app's imports of the profiler its real code
+  through Node's synchronous module hooks, which cover `require()` too. Before 22.19 and 24.5, Node
+  ignores what such a hook adds on `import` and throws on it in `require()`, so there the preload
+  says so and stays off. Node 20, out of support since April 2026, is no longer supported.
+- **React Router: the Vite plugin alone.** `queryProfiler()` in `vite.config.ts` now profiles each
+  request, puts the bar on every page and serves `/_profiler`. Remove `profilerMiddleware()` from
+  your root route (and the `.server` module that created it), and `<ProfilerToolbar />` if you used
+  it; React Router 7 no longer needs `future.v8_middleware` for the profiler.
+  `query-profiler/react-router`, `/react-router/route` and `/react-router/toolbar` are gone.
+- **Fastify, and any Node server: the preload.** Remove `app.register(profilerPlugin)` and its import
+  from `query-profiler/fastify`, and add `--import query-profiler/register` to your dev command. The
+  profiler moves to a port of its own: `http://localhost:4983/_profiler`. `query-profiler/fastify`
+  is gone, and the package no longer depends on `fastify-plugin`.
+- **No `--conditions=development` in a dev command any more**: the preload adds it. Leaving it does
+  no harm.
+
+### New
+
 - **Any Node server, with no code in it: Express, Fastify, Koa, Hapi, NestJS, Hono.** Add
-  `--import query-profiler/register` to the dev command (`node --watch`,
-  `tsx watch`, nodemon, the Nest CLI, or `NODE_OPTIONS`). The preload profiles each request from
-  Node's `http.server.request.start` diagnostics channel, tags each response with `X-Debug-Token`
-  (exposed to CORS), and serves the profiler on a port of its own: 4983, or `QUERY_PROFILER_PORT`.
-  It opens that port once the app listens, waits a moment for a restarting app to let go of it,
-  then takes the next free one. `QUERY_PROFILER_LOG=1` prints one line per request.
-  **Breaking:** `query-profiler/fastify` and its `profilerPlugin` are gone: remove them from your
-  server, and add the preload to its dev command. The package no longer depends on `fastify-plugin`.
-- The profiler's API answers `HEAD` like `GET`, with no body.
-- **Development only, without a bundler**: the docs show how to keep `query-profiler` a dev
-  dependency for a server run with plain `node` (the Prisma client imports it only if it is
-  installed), or bundled with tsup, esbuild, Rollup or webpack; the Express and Fastify examples
-  are set up that way, and CI checks that the examples run with the package not installed.
-- A server bundled with the profiler in development serves `/_profiler`: the core finds its UI files
-  from the app too, as a bundler moves it out of its package.
-- The line of code behind each query is found through the bundle's source maps when Node runs with
-  `--enable-source-maps`, even if a framework formats stack traces itself.
-- The preload says why it is off instead of staying silent: a `NODE_ENV` other than `development`.
-  Production, test runs and `QUERY_PROFILER_DISABLED=1` stay silent.
-- HTTP/2 servers (Fastify with `http2: true`, Hono on an HTTP/2 server) are profiled too, on Node
-  22.17+ and 24.2+. Their responses carry no `X-Debug-Token`.
-- Compiled code run without `--enable-source-maps` (`tsc` and `node --watch dist/server.js`) shows
-  each query's line in its source again: the profiler reads the app file's source map itself.
-- A troubleshooting page in the docs, for when requests or queries do not show up.
+  `--import query-profiler/register` to the dev command (`node --watch`, `tsx watch`, nodemon, the
+  Nest CLI, or `NODE_OPTIONS`). The preload profiles each request from Node's
+  `http.server.request.start` diagnostics channel, tags each response with `X-Debug-Token` (exposed
+  to CORS), and serves the profiler on a port of its own: 4983, or `QUERY_PROFILER_PORT`. It opens
+  that port once the app listens, waits a moment for a restarting app to let go of it, then takes the
+  next free one. `QUERY_PROFILER_LOG=1` prints one line per request.
+- **One profiler for several processes**: Node's `cluster`, PM2 in cluster mode, or two apps at once.
+  The first process serves it and the others send it their profiles (`POST /_profiler/api/profiles`,
+  JSON only and never from a browser page); when it stops, another one takes the port over.
+- **`QUERY_PROFILER_HOST`** picks where the profiler listens: `0.0.0.0` reaches it from outside a
+  container with its port published. It still answers only requests addressed to a local host, so the
+  network cannot read it.
 - **MySQL, MariaDB and SQLite**, through Prisma's own adapters (`@prisma/adapter-mariadb` and
-  `@prisma/adapter-better-sqlite3`), tested in CI on MySQL 8.4, MariaDB 11.4 and SQLite with the
-  same checks as PostgreSQL. Secrets are hidden in their `?` parameters and backtick-quoted columns
-  too, and "Copy runnable SQL" fills the `?` in order. Raw SQL is recorded through Prisma's
-  `$queryRaw`; through your own MySQL or SQLite driver it is not.
+  `@prisma/adapter-better-sqlite3`), tested in CI on MySQL 8.4, MariaDB 11.4 and SQLite with the same
+  checks as PostgreSQL. Secrets are hidden in their `?` parameters and backtick-quoted columns too,
+  and "Copy runnable SQL" fills the `?` in order. Raw SQL is recorded through Prisma's `$queryRaw`;
+  through your own MySQL or SQLite driver it is not.
 - **SQL laid out over lines.** Opening a query shows its SQL as it would be written by hand: one
   clause per line, a long list one item per line, a long condition one `AND` per line, subqueries
   indented, with keywords, strings and parameters in colour. "Copy runnable SQL" copies it that way.
   Only whitespace moves, never inside strings or quoted names; SQL with a line comment or a
   dollar-quoted body stays as written.
-- **One profiler for several processes**: Node's `cluster`, PM2 in cluster mode, or two apps at
-  once. The first process serves it and the others send it their profiles
-  (`POST /_profiler/api/profiles`, JSON only and never from a browser page); when it stops, another
-  one takes the port over. Before, a cluster's primary opened an empty profiler and its workers
-  shared another one, half of the requests at a time.
-- `QUERY_PROFILER_HOST` picks where the profiler listens: `0.0.0.0` reaches it from outside a
-  container with its port published. It still answers only requests addressed to a local host, so
-  the network cannot read it.
-- **Clear**, in the profiler page and in the bar's recent requests, removes every stored request.
-  The stream announces it (`event: clear`), so every open tab empties its lists; the bar keeps the
-  page it is on. A tab that was hidden meanwhile takes the server's lists when it comes back, instead
-  of merging them with its own, so cleared requests do not come back.
-- **Themes.** The bar and the profiler page are dark by default, in the website's colors, with a
+- **Themes.** The bar and the profiler page are dark by default, in the website's colours, with a
   light theme and **Auto**, which follows the system. A switch in both picks it, and the browser
   keeps the choice. A page can set the starting theme with `data-theme` on the element.
-- A page's calls hang from it on one line, a branch and a dot each, in the bar and in the profiler
-  page's list, instead of a box each.
+- **Clear**, in the profiler page and in the bar's recent requests, removes every stored request. The
+  stream announces it (`event: clear`), so every open tab empties its lists; the bar keeps the page it
+  is on.
+- **A page's calls hang from it** on one line, a branch and a dot each, in the bar and in the
+  profiler page's list, instead of a box each.
+- **HTTP/2 servers** (Fastify with `http2: true`, Hono on an HTTP/2 server) are profiled too, on Node
+  22.17+ and 24.2+. Their responses carry no `X-Debug-Token`.
+- **The preload says why it is off** instead of staying silent: a `NODE_ENV` other than
+  `development`, or a Node older than 22.19 or 24.5. Production, test runs and
+  `QUERY_PROFILER_DISABLED=1` stay silent.
+- **Development only, without a bundler**: the docs show how to keep `query-profiler` a dev
+  dependency for a server run with plain `node`, or bundled with tsup, esbuild, Rollup or webpack.
+  CI checks that the examples run with the package not installed.
+- A **troubleshooting page** in the docs, for when requests or queries do not show up.
+- The profiler's API answers `HEAD` like `GET`, with no body.
+
+### Fixed
+
+- Compiled code run without `--enable-source-maps` (`tsc` and `node --watch dist/server.js`) shows
+  each query's line in its source: the profiler reads the app file's source map itself.
+- The line of code behind each query is found through a bundle's source maps when Node runs with
+  `--enable-source-maps`, even if a framework formats stack traces itself.
+- An app run with tsx gets the right line of code for each query again; the line was mapped twice
+  through the same source map.
+- A server bundled with the profiler in development serves `/_profiler`: the core finds its UI files
+  from the app too, as a bundler moves it out of its package.
+- In React Router 8, a client navigation home becomes the new page in the bar: React Router 8 loads
+  `/` from `/_.data`, which the bar and the profiles took for a path of its own (`/_`).
+- A tab that was hidden while the profiler was cleared, or while the dev server restarted, takes the
+  server's lists when it comes back instead of merging them with its own, so gone requests do not
+  come back.
 
 ## 0.2.1
 
