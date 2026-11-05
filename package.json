@@ -140,7 +140,7 @@
   },
   "peerDependencies": {
     "@prisma/client": ">=7.1.0",
-    "express": ">=4.0.0",
+    "express": ">=4.18.0",
     "fastify": ">=4.26.0",
     "pg": "^8.11.0",
     "react": ">=18.0.0",
