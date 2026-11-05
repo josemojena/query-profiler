@@ -11,6 +11,11 @@ const NEXT_PORTS = 10;
 export interface ProfilerServerOptions {
   /** The port to try first: QUERY_PROFILER_PORT, else 4983. 0 takes any free one. */
   port?: number;
+  /**
+   * Where to listen: QUERY_PROFILER_HOST, else localhost. `0.0.0.0` lets a browser outside a
+   * container reach it; it still answers only requests addressed to a local host.
+   */
+  host?: string;
   /** Called with the profiler's address once it listens. */
   onListening?: (url: string) => void;
 }
@@ -18,6 +23,7 @@ export interface ProfilerServerOptions {
 /** Serves the profiler's page and API on a port of their own, next to the app's. */
 export function profilerServer(options: ProfilerServerOptions = {}): Server {
   const first = options.port ?? portFromEnvironment();
+  const host = options.host ?? (process.env.QUERY_PROFILER_HOST || "localhost");
   const handle = createHandler();
   const server = createServer((request, response) => {
     handle(toFetchRequest(request)).then(
@@ -27,7 +33,7 @@ export function profilerServer(options: ProfilerServerOptions = {}): Server {
   });
   let port = first;
   let waits = 0;
-  const listen = () => server.listen(port, "localhost");
+  const listen = () => server.listen(port, host);
   server.on("error", (error: NodeJS.ErrnoException) => {
     const busy = error.code === "EADDRINUSE" && port !== 0 && port < first + NEXT_PORTS;
     if (!busy) {

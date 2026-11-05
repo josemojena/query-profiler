@@ -70,6 +70,13 @@ it("profiles the app's requests and serves the profiler on its own port, once th
   expect(app.output()).not.toContain("GET /users");
 });
 
+it("says where it listens when QUERY_PROFILER_HOST is set", async () => {
+  const app = run(APP, PRELOAD, { QUERY_PROFILER_HOST: "0.0.0.0" });
+  await app.port;
+  await profilerUrl(app.output);
+  expect(app.output()).toMatch(/\/_profiler \(listening on 0\.0\.0\.0\)/);
+});
+
 it("lets the app's process end once the app closes its server", async () => {
   const app = run(APP, PRELOAD);
   await app.port;
