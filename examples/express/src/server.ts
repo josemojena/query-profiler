@@ -1,11 +1,17 @@
 import express from "express";
-import { formatProfile } from "query-profiler";
-import { profilerMiddleware } from "query-profiler/express";
 import { prisma } from "./db.js";
 
 const app = express();
 
-app.use(profilerMiddleware({ onProfile: (profile) => console.log(formatProfile(profile)) }));
+// query-profiler is a dev dependency: a production install leaves it out, and the app runs without it.
+const profiler = await Promise.all([
+  import("query-profiler"),
+  import("query-profiler/express"),
+]).catch(() => undefined);
+if (profiler) {
+  const [{ formatProfile }, { profilerMiddleware }] = profiler;
+  app.use(profilerMiddleware({ onProfile: (profile) => console.log(formatProfile(profile)) }));
+}
 app.use(express.json());
 
 // One query per user, on purpose: the profiler flags it as an N+1.

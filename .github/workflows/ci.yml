@@ -87,7 +87,7 @@ jobs:
       - run: pnpm test:browser
 
   example:
-    name: React Router example builds
+    name: React Router example builds and runs without the profiler
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -102,6 +102,15 @@ jobs:
       - run: pnpm --filter example-react-router build
       - name: The build has none of the profiler
         run: "! grep -rlE 'query-profiler-toolbar|X-Debug-Token|async_hooks' examples/react-router/build"
+      - name: The build runs without the package installed, as with npm ci --omit=dev
+        working-directory: examples/react-router
+        run: |
+          rm -rf node_modules/query-profiler
+          PORT=3003 pnpm exec react-router-serve ./build/server/index.js &
+          curl --retry 30 --retry-connrefused --retry-delay 1 -s -o /dev/null http://localhost:3003/favicon.ico
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3003/nope)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3003/_profiler)" = 404
+          ! curl -s -D - -o /dev/null http://localhost:3003/nope | grep -i x-debug-token
 
   website:
     name: Website builds
@@ -146,3 +155,11 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/_profiler)" = 404
           ! curl -s -D - -o /dev/null http://localhost:3001/nope | grep -i x-debug-token
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3002/_profiler)" = 200
+      - name: As a dev dependency, the build runs without the package installed
+        working-directory: examples/${{ matrix.example }}
+        run: |
+          rm -rf node_modules/query-profiler
+          PORT=3004 node dist/server.js &
+          curl --retry 30 --retry-connrefused --retry-delay 1 -s -o /dev/null http://localhost:3004/nope
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3004/_profiler)" = 404
+          ! curl -s -D - -o /dev/null http://localhost:3004/nope | grep -i x-debug-token
