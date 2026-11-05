@@ -1,17 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
-- `withProfiler()`, `profilePrisma()`, `profilePool()` and `profileAdapter()` return what they are
-  given, untouched, outside development, like the middleware and the plugin: even if the real code
-  were loaded in production, Prisma's SQL would carry no stamp and nothing would be wrapped.
+- **Fastify 4.26 and later.** `app.register(profilerPlugin)` from `query-profiler/fastify` profiles
+  each request, tags each response with `X-Debug-Token` (exposed to CORS) and serves `/_profiler`.
+  Without a bundler, install the package as a dependency and run the dev server with
+  `--conditions=development`; plain `node` loads the entry that does nothing.
+- `createHandler()` serves the bar and the profiler page's code itself (`/_profiler/ui.js`), so
+  `/_profiler` works on servers without Vite.
 - The profiler also runs when `NODE_ENV` is not set, as servers without a bundler leave it, so
   `--conditions=development` alone turns it on there. `NODE_ENV=production` or `test` still keep it
   off.
-- Fastify 4.26 and later: `app.register(profilerPlugin)` from `query-profiler/fastify` profiles
-  each request, tags each response with `X-Debug-Token` (exposed to CORS) and serves `/_profiler`.
-- `createHandler()` serves the bar and the profiler page's code itself (`/_profiler/ui.js`), so
-  `/_profiler` works on servers without Vite.
+- `withProfiler()`, `profilePrisma()`, `profilePool()` and `profileAdapter()` return what they are
+  given, untouched, outside development, like the middleware and the plugin: even if the real code
+  were loaded in production, Prisma's SQL would carry no stamp and nothing would be wrapped.
+- The terminal line from `formatProfile()` says `1 query`, `1 operation` and `1 warning` in the
+  singular.
 
 ## 0.1.2
 
