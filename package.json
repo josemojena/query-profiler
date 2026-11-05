@@ -65,21 +65,6 @@
       "development": "./dist/fastify/index.js",
       "default": "./dist/fastify/noop.js"
     },
-    "./react-router": {
-      "types": "./dist/react-router/index.d.ts",
-      "development": "./dist/react-router/index.js",
-      "default": "./dist/react-router/noop.js"
-    },
-    "./react-router/toolbar": {
-      "types": "./dist/react-router/toolbar.d.ts",
-      "development": "./dist/react-router/toolbar.js",
-      "default": "./dist/react-router/toolbar-noop.js"
-    },
-    "./react-router/route": {
-      "types": "./dist/react-router/route.d.ts",
-      "development": "./dist/react-router/route.js",
-      "default": "./dist/react-router/route-noop.js"
-    },
     "./vite": {
       "types": "./dist/vite/index.d.ts",
       "default": "./dist/vite/index.js"
@@ -145,8 +130,6 @@
     "express": ">=4.18.0",
     "fastify": ">=4.26.0",
     "pg": "^8.11.0",
-    "react": ">=18.0.0",
-    "react-router": ">=7.9.0",
     "vite": ">=6.0.0"
   },
   "peerDependenciesMeta": {
@@ -160,12 +143,6 @@
       "optional": true
     },
     "pg": {
-      "optional": true
-    },
-    "react": {
-      "optional": true
-    },
-    "react-router": {
       "optional": true
     },
     "vite": {
