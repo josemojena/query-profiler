@@ -30,6 +30,7 @@ and leaves nothing in production builds.
 | Raw SQL    | `pg` (node-postgres), optional                                       |
 | Framework  | React Router 7.9+ and 8 in framework mode (also Remix), with Vite 6+ |
 | Framework  | Fastify 4.26+ and 5                                                  |
+| Framework  | Express 4.18+ and 5                                                  |
 
 Prisma 6 is not supported: it has no SQL comments, and its query engine runs the driver adapter
 outside the request's async context. Next.js, NestJS and other HTTP APIs (Express, Hono) are
@@ -43,14 +44,15 @@ One package, one entry per integration. Import only the ones you use: the framew
 are optional peer dependencies, so installing `query-profiler` never pulls in Next.js, React or Vite, and
 an entry you don't import is never loaded.
 
-| Import                        | What it does                                                                                     | Needs                       |
-| ----------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------- |
-| `query-profiler`              | The `Profile` format, the per-request context, storage, analysis and the HTTP handler.           | nothing                     |
-| `query-profiler/prisma`       | The Prisma ORM integration: every operation, its SQL and the line of code behind it.             | `@prisma/client` 7.1+, `pg` |
-| `query-profiler/react-router` | Opens a profile per request in React Router 7.9+ and 8 (framework mode, also Remix).             | `react-router` 7.9+         |
-| `query-profiler/fastify`      | A Fastify plugin: a profile per request, and the profiler's page and API under `/_profiler`.     | `fastify` 4.26+             |
-| `query-profiler/vite`         | Serves the profiler's API and UI from the Vite dev server, and keeps the profiler out of builds. | `vite` 6+                   |
-| `query-profiler/ui`           | The bar and the profiler page, as web components with their styles inside. No framework.         | a browser                   |
+| Import                        | What it does                                                                                      | Needs                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------- |
+| `query-profiler`              | The `Profile` format, the per-request context, storage, analysis and the HTTP handler.            | nothing                     |
+| `query-profiler/prisma`       | The Prisma ORM integration: every operation, its SQL and the line of code behind it.              | `@prisma/client` 7.1+, `pg` |
+| `query-profiler/react-router` | Opens a profile per request in React Router 7.9+ and 8 (framework mode, also Remix).              | `react-router` 7.9+         |
+| `query-profiler/express`      | An Express middleware: a profile per request, and the profiler's page and API under `/_profiler`. | `express` 4.18+             |
+| `query-profiler/fastify`      | A Fastify plugin: a profile per request, and the profiler's page and API under `/_profiler`.      | `fastify` 4.26+             |
+| `query-profiler/vite`         | Serves the profiler's API and UI from the Vite dev server, and keeps the profiler out of builds.  | `vite` 6+                   |
+| `query-profiler/ui`           | The bar and the profiler page, as web components with their styles inside. No framework.          | a browser                   |
 
 ## How it works
 
@@ -76,7 +78,7 @@ npm i -D query-profiler
 With Vite it is a dev dependency. Each entry that runs inside your app has a `development` build
 with the real code and a `default` one that does nothing: dev servers use the first, production
 builds get the second, inlined by the Vite plugin, so a deploy with `npm ci --omit=dev` never needs
-it. Without a bundler, as with Fastify, install it as a dependency instead (`npm i query-profiler`):
+it. Without a bundler, as with Fastify or Express, install it as a dependency instead (`npm i query-profiler`):
 Node loads the real code only when started with `--conditions=development`.
 
 ## Usage with React Router
@@ -202,9 +204,12 @@ deploying.
 picks the real code only with that flag; plain `node`, as in production, gets the entry that does
 nothing.
 
+```sh
+npm i query-profiler
+```
+
 ```json
 {
-  "dependencies": { "query-profiler": "^0.2.0" },
   "scripts": {
     "dev": "tsx watch --conditions=development src/server.ts",
     "start": "node dist/server.js"
@@ -244,6 +249,29 @@ It is a regular Fastify plugin (made with `fastify-plugin`), so it sees every ro
 It takes `base` and `onProfile`, like `profilerMiddleware()`. When a request comes from another
 origin, it adds `X-Debug-Token` to `Access-Control-Expose-Headers`, so a frontend there can read it.
 
+## Usage with Express
+
+Express 4.18 or later, 5 included, with Prisma 7 and `@prisma/adapter-pg`. Set up as for Fastify:
+install the package as a dependency, run the dev server with `--conditions=development` and
+profile the Prisma client (steps 1 and 2 above). Then add the middleware, **first**:
+
+```ts
+// src/server.ts
+import express from "express";
+import { profilerMiddleware } from "query-profiler/express";
+
+const app = express();
+app.use(profilerMiddleware());
+app.use(express.json());
+```
+
+It runs the rest of each request, body parsing and routes included, inside the request's profile,
+and serves `/_profiler`. It takes `base` and `onProfile`. When a request comes from another
+origin, it adds `X-Debug-Token` to `Access-Control-Expose-Headers`; if you use `cors` with its own
+`exposedHeaders`, add the middleware after it, or list `X-Debug-Token` there too. Before 4.18,
+Express's body parser drops the request's async context, so a route that reads a body loses its
+queries.
+
 ## The profiler page
 
 `/_profiler` is the full view, the same data with room to read it:
@@ -277,7 +305,7 @@ Every profiled response carries `X-Debug-Token`.
 ## Turning it off
 
 It only runs in development: with `NODE_ENV=development`, or with `NODE_ENV` unset, as servers
-without a bundler (Fastify) leave it. `NODE_ENV=production` or `test` keep it off, so your app's own
+without a bundler (Fastify, Express) leave it. `NODE_ENV=production` or `test` keep it off, so your app's own
 test runs are never profiled. `QUERY_PROFILER_DISABLED=1` turns it off in development too
 (end-to-end suites, for one): the middleware passes through, the API answers 404 and the bar shows
 nothing. Production builds resolve every package to its no-op entry, and plain `node` without
@@ -316,8 +344,9 @@ One app per supported framework, each wired as this README describes, in [exampl
 | ----------------------------------------------- | ------------------------------------------ |
 | [react-router](examples/react-router/README.md) | React Router 8, Vite, Prisma 7, PostgreSQL |
 | [fastify](examples/fastify/README.md)           | Fastify 5, Prisma 7, PostgreSQL            |
+| [express](examples/express/README.md)           | Express 5, Prisma 7, PostgreSQL            |
 
-From the root: `pnpm example:react-router` or `pnpm example:fastify`. Each example's README says how to set it up.
+From the root: `pnpm example:react-router`, `pnpm example:fastify` or `pnpm example:express`. Each example's README says how to set it up.
 
 ## Development
 

@@ -33,6 +33,7 @@ export default defineConfig({
           items: [
             "docs/guides/react-router",
             "docs/guides/fastify",
+            "docs/guides/express",
             "docs/guides/prisma",
             "docs/guides/turning-it-off",
           ],

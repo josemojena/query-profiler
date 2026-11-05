@@ -13,6 +13,7 @@ description: Requirements and installing query-profiler.
 | Raw SQL    | `pg` (node-postgres), optional                                       |
 | Framework  | React Router 7.9+ and 8 in framework mode (also Remix), with Vite 6+ |
 | Framework  | Fastify 4.26+ and 5                                                  |
+| Framework  | Express 4.18+ and 5                                                  |
 
 See [compatibility](/docs/reference/compatibility) for what is coming.
 
@@ -22,10 +23,10 @@ See [compatibility](/docs/reference/compatibility) for what is coming.
 npm i -D query-profiler
 ```
 
-With Vite (React Router) it is a **dev dependency**. Without a bundler (Fastify), install it as a
+With Vite (React Router) it is a **dev dependency**. Without a bundler (Fastify, Express), install it as a
 regular dependency, `npm i query-profiler`: see [Fastify](/docs/guides/fastify). Frameworks and
 drivers are optional peer dependencies, so installing it never pulls in Next.js, React, Vite or
-Fastify: it uses the ones your app already has.
+Fastify or Express: it uses the ones your app already has.
 
 ## Development only, by construction
 
@@ -34,4 +35,4 @@ Each entry that runs inside your app has two builds: a `development` one with th
 the second, inlined by the Vite plugin. Without a bundler, Node picks the real one only when started
 with `--conditions=development`. Either way, there is no `if (import.meta.env.DEV)` to write.
 
-Next: set it up in [React Router](/docs/guides/react-router) or [Fastify](/docs/guides/fastify).
+Next: set it up in [React Router](/docs/guides/react-router), [Fastify](/docs/guides/fastify) or [Express](/docs/guides/express).
