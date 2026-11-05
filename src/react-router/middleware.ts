@@ -68,11 +68,11 @@ function parentOf(request: Request): string | undefined {
   return token && /^[0-9a-f]{6}$/.test(token) ? token : undefined;
 }
 
-// A data request (`/orders.data?_routes=…`) shows as the route it loads.
+// A data request (`/orders.data?_routes=…`, or `/_.data` for `/`) shows as the route it loads.
 function shownUrl(url: URL): string {
   const search = new URLSearchParams(url.search);
   search.delete("_routes");
-  const path = url.pathname.replace(/\.data$/, "").replace(/^\/_root$/, "/");
+  const path = url.pathname.replace(/\.data$/, "").replace(/^\/(_root|_)$/, "/");
   return search.size ? `${path}?${search}` : path;
 }
 

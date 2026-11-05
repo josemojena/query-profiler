@@ -165,6 +165,16 @@ test("starts a new page when the app navigates, without faking a popstate", asyn
   expect(await page.evaluate(() => (window as unknown as { popstates: number }).popstates)).toBe(0);
 });
 
+test("starts a new page when the app navigates home, which React Router 8 loads from /_.data", async ({
+  page,
+}) => {
+  await open(page, {
+    profiles: [PROFILE, NEXT_PAGE],
+    script: `setTimeout(async () => { await fetch("/_.data"); history.pushState({}, "", "/"); }, 300);`,
+  });
+  await expect(bar(page).locator(".strip")).toContainText("/orders/7.data");
+});
+
 test("lists recent requests and goes back to this page", async ({ page }) => {
   await open(page, { profiles: [PROFILE, DATA_REQUEST] });
   await bar(page)
