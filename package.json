@@ -45,7 +45,6 @@
   "type": "module",
   "sideEffects": [
     "./dist/node/register.js",
-    "./dist/node/register-noop.js",
     "./dist/ui/index.js"
   ],
   "exports": {
@@ -59,8 +58,7 @@
     },
     "./register": {
       "types": "./dist/node/register.d.ts",
-      "development": "./dist/node/register.js",
-      "default": "./dist/node/register-noop.js"
+      "default": "./dist/node/register.js"
     },
     "./prisma": {
       "types": "./dist/prisma/index.d.ts",
@@ -153,7 +151,7 @@
     }
   },
   "engines": {
-    "node": ">=20.19"
+    "node": "^22.19.0 || >=24.5.0"
   },
   "packageManager": "pnpm@10.23.0",
   "pnpm": {
