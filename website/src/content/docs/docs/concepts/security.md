@@ -5,8 +5,9 @@ description: What query-profiler keeps, where, who can see it, and what it does 
 
 ## Security and privacy
 
-- **Development only.** Nothing runs unless `NODE_ENV=development`, and production builds get the
-  no-op entries.
+- **Development only.** Production gets the no-op entries: builds through the Vite plugin, and
+  plain `node` without `--conditions=development`. Even the real code does nothing with `NODE_ENV`
+  set to anything but `development` (`production`, `test`…).
 - **Local only.** The API answers `localhost`, `127.0.0.1` and `[::1]`, even when the dev server
   listens on the network.
 - **In memory only.** The last 100 profiles, at most 1000 queries each, in the dev server's memory.

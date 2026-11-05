@@ -23,19 +23,28 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       - run: pnpm --filter example-react-router exec prisma generate
+      - run: pnpm --filter example-fastify exec prisma generate
       - run: pnpm check
 
   test:
-    name: Tests (Node ${{ matrix.node }}, Prisma ${{ matrix.prisma }})
+    name: Tests (Node ${{ matrix.node }}, Prisma ${{ matrix.prisma }}, Fastify ${{ matrix.fastify }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         node: [20, 22, 24]
         prisma: [locked]
+        fastify: [locked]
         include:
           - node: 24
             prisma: 7.1.0
+            fastify: locked
+          - node: 20
+            prisma: locked
+            fastify: 4.26.0
+          - node: 24
+            prisma: locked
+            fastify: 5.0.0
     services:
       postgres:
         image: postgres:18-alpine
@@ -61,6 +70,9 @@ jobs:
       - name: Use the oldest supported Prisma
         if: matrix.prisma != 'locked'
         run: pnpm add -D -w prisma@${{ matrix.prisma }} @prisma/client@${{ matrix.prisma }} @prisma/adapter-pg@${{ matrix.prisma }}
+      - name: Use another supported Fastify
+        if: matrix.fastify != 'locked'
+        run: pnpm add -D -w fastify@${{ matrix.fastify }}
       - run: pnpm test
 
   browser:
@@ -106,3 +118,30 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm website:build
+
+  example-fastify:
+    name: Fastify example runs without the profiler
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm examples:sync
+      - run: pnpm --filter example-fastify exec prisma generate
+      - run: pnpm --filter example-fastify build
+      - name: Plain node loads none of the profiler, even with NODE_ENV=development; the condition alone turns it on
+        working-directory: examples/fastify
+        env:
+          NODE_ENV: development
+        run: |
+          PORT=3001 node dist/server.js &
+          PORT=3002 env -u NODE_ENV node --conditions=development dist/server.js &
+          curl --retry 30 --retry-connrefused --retry-delay 1 -s -o /dev/null http://localhost:3001/nope
+          curl --retry 30 --retry-connrefused --retry-delay 1 -s -o /dev/null http://localhost:3002/nope
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/_profiler)" = 404
+          ! curl -s -D - -o /dev/null http://localhost:3001/nope | grep -i x-debug-token
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3002/_profiler)" = 200

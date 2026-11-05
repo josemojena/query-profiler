@@ -14,6 +14,12 @@ import Integrations from "../../../../components/docs/Integrations.astro";
   the request's async context, so statements cannot be tied to their request.
 - **Prisma 8** needs its own integration, built on its new middleware, once it is stable.
 
+## Fastify versions
+
+- **Fastify 4.26 and later**, 5 included, tested in CI on 4.26.0, 5.0.0 and the newest.
+- Before 4.26, `reply.send()` takes no Fetch `Response`, so `/_profiler` cannot be served; before
+  4.20, the request's async context does not reach the handler.
+
 ## Node
 
 Node 20.19 or later, tested on 20, 22 and 24.

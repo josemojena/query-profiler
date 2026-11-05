@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- The profiler also runs when `NODE_ENV` is not set, as servers without a bundler leave it, so
+  `--conditions=development` alone turns it on there. `NODE_ENV=production` or `test` still keep it
+  off.
+- Fastify 4.26 and later: `app.register(profilerPlugin)` from `query-profiler/fastify` profiles
+  each request, tags each response with `X-Debug-Token` (exposed to CORS) and serves `/_profiler`.
+- `createHandler()` serves the bar and the profiler page's code itself (`/_profiler/ui.js`), so
+  `/_profiler` works on servers without Vite.
+
 ## 0.1.2
 
 - The bar and the profiler page showed nothing when `profilerMiddleware()` was called without

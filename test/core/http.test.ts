@@ -102,6 +102,18 @@ describe("the profiler API", () => {
     expect((await get("/_profiler/nope")).status).toBe(404);
   });
 
+  it("serves the bar and the page's code itself, for servers without Vite", async () => {
+    const entry = await get("/_profiler/ui.js");
+    expect(entry.status).toBe(302);
+    expect(entry.headers.get("Location")).toBe("/_profiler/ui/index.js");
+    const index = await get("/_profiler/ui/index.js");
+    expect(index.headers.get("Content-Type")).toMatch(/^text\/javascript/);
+    expect(await index.text()).toContain("query-profiler-toolbar");
+    expect(await (await get("/_profiler/ui/element.js")).text()).toContain("ProfilerToolbar");
+    expect((await get("/_profiler/ui/missing.js")).status).toBe(404);
+    expect((await get("/_profiler/ui/index.d.ts")).status).toBe(404);
+  });
+
   it("adds the stored profiles up", async () => {
     record("/");
     expect(await (await get("/_profiler/api/stats")).json()).toMatchObject({

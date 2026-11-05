@@ -1,0 +1,29 @@
+{
+  "name": "example-fastify",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:setup": "cp -n .env.example .env; prisma db push && prisma generate && tsx --env-file=.env prisma/seed.ts",
+    "dev": "tsx watch --conditions=development --env-file=.env src/server.ts",
+    "build": "tsc",
+    "start": "node --env-file=.env dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "fastify": "^5.12.7",
+    "query-profiler": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "prisma": "^7.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "dependenciesMeta": {
+    "query-profiler": {
+      "injected": true
+    }
+  }
+}

@@ -27,10 +27,11 @@ and leaves nothing in production builds.
 | Node       | 20.19 or later                                                       |
 | Raw SQL    | `pg` (node-postgres), optional                                       |
 | Framework  | React Router 7.9+ and 8 in framework mode (also Remix), with Vite 6+ |
+| Framework  | Fastify 4.26+ and 5                                                  |
 
 Prisma 6 is not supported: it has no SQL comments, and its query engine runs the driver adapter
-outside the request's async context. Next.js, NestJS and plain HTTP APIs (Express, Fastify, Hono)
-are planned: an adapter only opens and closes a profile per request; capture and the UI are shared.
+outside the request's async context. Next.js, NestJS and other HTTP APIs (Express, Hono) are
+planned: an adapter only opens and closes a profile per request; capture and the UI are shared.
 
 query-profiler is an independent project, not affiliated with Prisma or React Router.
 
@@ -45,6 +46,7 @@ an entry you don't import is never loaded.
 | `query-profiler`              | The `Profile` format, the per-request context, storage, analysis and the HTTP handler.           | nothing                     |
 | `query-profiler/prisma`       | The Prisma ORM integration: every operation, its SQL and the line of code behind it.             | `@prisma/client` 7.1+, `pg` |
 | `query-profiler/react-router` | Opens a profile per request in React Router 7.9+ and 8 (framework mode, also Remix).             | `react-router` 7.9+         |
+| `query-profiler/fastify`      | A Fastify plugin: a profile per request, and the profiler's page and API under `/_profiler`.     | `fastify` 4.26+             |
 | `query-profiler/vite`         | Serves the profiler's API and UI from the Vite dev server, and keeps the profiler out of builds. | `vite` 6+                   |
 | `query-profiler/ui`           | The bar and the profiler page, as web components with their styles inside. No framework.         | a browser                   |
 
@@ -69,9 +71,11 @@ an entry you don't import is never loaded.
 npm i -D query-profiler
 ```
 
-It is a dev dependency. Each entry that runs inside your app has a `development` build with the
-real code and a `default` one that does nothing: dev servers use the first, production builds get
-the second, inlined by the Vite plugin, so a deploy with `npm ci --omit=dev` never needs it.
+With Vite it is a dev dependency. Each entry that runs inside your app has a `development` build
+with the real code and a `default` one that does nothing: dev servers use the first, production
+builds get the second, inlined by the Vite plugin, so a deploy with `npm ci --omit=dev` never needs
+it. Without a bundler, as with Fastify, install it as a dependency instead (`npm i query-profiler`):
+Node loads the real code only when started with `--conditions=development`.
 
 ## Usage with React Router
 
@@ -186,6 +190,58 @@ queries, time the database was busy and warnings. Click it to open:
 
 It updates live while its tab is visible, catches up when you come back to it, and lists recent requests. Minimize it to a pill, or open the full profile.
 
+## Usage with Fastify
+
+Fastify 4.26 or later, Prisma 7 with `@prisma/adapter-pg`. For APIs: each response carries
+`X-Debug-Token`, and `/_profiler` shows every request. Three steps; nothing to remove before
+deploying.
+
+**1. Install it as a dependency, and run the dev server with the `development` condition.** Node
+picks the real code only with that flag; plain `node`, as in production, gets the entry that does
+nothing.
+
+```json
+{
+  "dependencies": { "query-profiler": "^0.2.0" },
+  "scripts": {
+    "dev": "tsx watch --conditions=development src/server.ts",
+    "start": "node dist/server.js"
+  }
+}
+```
+
+**2. Profile the Prisma client**, as for React Router:
+
+```ts
+// src/db.ts
+import { PrismaPg } from "@prisma/adapter-pg";
+import { profilePrisma, withProfiler } from "query-profiler/prisma";
+import { PrismaClient } from "./generated/prisma/client.js";
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+
+export const prisma = profilePrisma(new PrismaClient(withProfiler({ adapter })));
+```
+
+**3. Register the plugin**, before your routes:
+
+```ts
+// src/server.ts
+import Fastify from "fastify";
+import { profilerPlugin } from "query-profiler/fastify";
+
+const app = Fastify();
+await app.register(profilerPlugin);
+```
+
+Call your API, then open `/_profiler` on the same server: every request, its SQL, the Prisma
+operations and the line of code behind each, live. Each response's `X-Debug-Token` opens that
+request at `/_profiler/<token>`, and `onProfile` with `formatProfile()` prints one line per request.
+
+It is a regular Fastify plugin (made with `fastify-plugin`), so it sees every route of the app.
+It takes `base` and `onProfile`, like `profilerMiddleware()`. When a request comes from another
+origin, it adds `X-Debug-Token` to `Access-Control-Expose-Headers`, so a frontend there can read it.
+
 ## The profiler page
 
 `/_profiler` is the full view, the same data with room to read it:
@@ -218,14 +274,18 @@ Every profiled response carries `X-Debug-Token`.
 
 ## Turning it off
 
-It only runs with `NODE_ENV=development`. `QUERY_PROFILER_DISABLED=1` turns it off there too (end-to-end
-suites, for one): the middleware passes through, the API answers 404 and the bar shows nothing.
-Production builds resolve every package to its no-op entry.
+It only runs in development: with `NODE_ENV=development`, or with `NODE_ENV` unset, as servers
+without a bundler (Fastify) leave it. `NODE_ENV=production` or `test` keep it off, so your app's own
+test runs are never profiled. `QUERY_PROFILER_DISABLED=1` turns it off in development too
+(end-to-end suites, for one): the middleware passes through, the API answers 404 and the bar shows
+nothing. Production builds resolve every package to its no-op entry, and plain `node` without
+`--conditions=development` does too.
 
 ## Security and privacy
 
-- **Development only.** Nothing runs unless `NODE_ENV=development`, and production builds get the
-  no-op entries.
+- **Development only.** Production gets the no-op entries: builds through the Vite plugin, and
+  plain `node` without `--conditions=development`. Even the real code does nothing with `NODE_ENV`
+  set to anything but `development` (`production`, `test`…).
 - **Local only.** The API answers `localhost`, `127.0.0.1` and `[::1]`, even when the dev server
   listens on the network.
 - **In memory only.** Profiles live in the dev server's memory: the last 100, at most 1000 queries
@@ -253,8 +313,9 @@ One app per supported framework, each wired as this README describes, in [exampl
 | Example                                         | Stack                                      |
 | ----------------------------------------------- | ------------------------------------------ |
 | [react-router](examples/react-router/README.md) | React Router 8, Vite, Prisma 7, PostgreSQL |
+| [fastify](examples/fastify/README.md)           | Fastify 5, Prisma 7, PostgreSQL            |
 
-From the root: `pnpm example:react-router`. Each example's README says how to set it up.
+From the root: `pnpm example:react-router` or `pnpm example:fastify`. Each example's README says how to set it up.
 
 ## Development
 
