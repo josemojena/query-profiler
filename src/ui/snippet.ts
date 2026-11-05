@@ -10,5 +10,5 @@ import { installTracker } from "./tracker.js";
  */
 export function toolbarScript(base: string, token?: string): string {
   const options = JSON.stringify({ base, token, timing: TIMING_NAME });
-  return `(function(o){var n=performance.getEntriesByType("navigation")[0],e=n&&n.serverTiming&&n.serverTiming.find(function(x){return x.name===o.timing}),t=o.token||(e&&e.description)||undefined;(${String(installTracker)})(o.base,t);var add=function(){setTimeout(function(){import(o.base+"/ui.js").then(function(){var bar=document.createElement("query-profiler-toolbar");bar.dataset.base=o.base;if(t)bar.dataset.token=t;document.body.appendChild(bar)})},0)};if(document.readyState==="complete")add();else addEventListener("load",add)})(${options})`;
+  return `(function(o){var n=performance.getEntriesByType("navigation")[0],e=n&&n.serverTiming&&n.serverTiming.find(function(x){return x.name===o.timing}),t=o.token||(e&&e.description)||undefined;(${String(installTracker)})(o.base,t);var add=function(){setTimeout(function(){import(/* @vite-ignore */o.base+"/ui.js").then(function(){var bar=document.createElement("query-profiler-toolbar");bar.dataset.base=o.base;if(t)bar.dataset.token=t;document.body.appendChild(bar)})},0)};if(document.readyState==="complete")add();else addEventListener("load",add)})(${options})`;
 }

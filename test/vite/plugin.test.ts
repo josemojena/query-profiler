@@ -119,6 +119,14 @@ describe("the Vite plugin", () => {
       ]);
     });
 
+    it("compiles the bar's module without warnings", async () => {
+      const environment = vite.environments.client;
+      const warn = vi.spyOn(environment.logger, "warn");
+      await environment.transformRequest("virtual:query-profiler/bar");
+      expect(warn.mock.calls.map(([message]) => String(message))).toEqual([]);
+      warn.mockRestore();
+    });
+
     it("leaves Vite's own requests alone", async () => {
       const client = await fetch(`${origin}/@vite/client`);
       expect(client.headers.get("X-Debug-Token")).toBeNull();
