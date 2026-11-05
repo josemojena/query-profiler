@@ -14,6 +14,17 @@ import Integrations from "../../../../components/docs/Integrations.astro";
   the request's async context, so statements cannot be tied to their request.
 - **Prisma 8** needs its own integration, built on its new middleware, once it is stable.
 
+## Databases
+
+Through Prisma's own driver adapters, tested in CI with the same checks on each: operations and
+their lines, SQL and parameters, batch and interactive transactions, errors, hidden secrets and the
+N+1 warning.
+
+- **PostgreSQL**, with `@prisma/adapter-pg`, tested on 18. Raw SQL sent with `pg` is recorded too,
+  through `profilePool()`.
+- **MySQL** and **MariaDB**, with `@prisma/adapter-mariadb`, tested on MySQL 8.4 and MariaDB 11.4.
+- **SQLite**, with `@prisma/adapter-better-sqlite3`.
+
 ## Node servers
 
 The [preload](/docs/guides/node) works with any framework that serves through Node's `http` module.

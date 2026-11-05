@@ -42,6 +42,11 @@
 - Compiled code run without `--enable-source-maps` (`tsc` and `node --watch dist/server.js`) shows
   each query's line in its source again: the profiler reads the app file's source map itself.
 - A troubleshooting page in the docs, for when requests or queries do not show up.
+- **MySQL, MariaDB and SQLite**, through Prisma's own adapters (`@prisma/adapter-mariadb` and
+  `@prisma/adapter-better-sqlite3`), tested in CI on MySQL 8.4, MariaDB 11.4 and SQLite with the
+  same checks as PostgreSQL. Secrets are hidden in their `?` parameters and backtick-quoted columns
+  too, and "Copy runnable SQL" fills the `?` in order. Raw SQL is recorded through Prisma's
+  `$queryRaw`; through your own MySQL or SQLite driver it is not.
 - **SQL laid out over lines.** Opening a query shows its SQL as it would be written by hand: one
   clause per line, a long list one item per line, a long condition one `AND` per line, subqueries
   indented, with keywords, strings and parameters in colour. "Copy runnable SQL" copies it that way.

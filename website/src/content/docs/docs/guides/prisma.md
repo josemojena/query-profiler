@@ -17,6 +17,30 @@ export const prisma = profilePrisma(new PrismaClient(withProfiler({ adapter })))
   (`User.findMany`, `Order.create`…) with its arguments, and takes the line of your code that made
   each call when the call is made.
 
+## Databases
+
+Prisma 7 talks to the database through a driver adapter, and `withProfiler()` wraps whichever you
+pass. Each of these is tested with the same checks:
+
+| Database          | Adapter                          | Tested on               |
+| ----------------- | -------------------------------- | ----------------------- |
+| PostgreSQL        | `@prisma/adapter-pg`             | 18                      |
+| MySQL and MariaDB | `@prisma/adapter-mariadb`        | MySQL 8.4, MariaDB 11.4 |
+| SQLite            | `@prisma/adapter-better-sqlite3` | the bundled SQLite      |
+
+```ts
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+// or: import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+
+const adapter = new PrismaMariaDb(process.env.DATABASE_URL);
+// or: const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL });
+
+export const prisma = profilePrisma(new PrismaClient(withProfiler({ adapter })));
+```
+
+MySQL, MariaDB and SQLite bind parameters with `?` instead of `$1`: secrets are hidden the same way,
+and "Copy runnable SQL" fills them in order.
+
 ## Development only, without a bundler
 
 When `query-profiler` is a dev dependency of a server run with plain `node`, import it only if it
@@ -54,10 +78,13 @@ Add them before `profilePrisma()`:
 export const prisma = profilePrisma(new PrismaClient(withProfiler({ adapter })).$extends(yours));
 ```
 
-## Raw SQL with `pg`
+## Raw SQL
+
+`$queryRaw` and `$executeRaw` go through Prisma's adapter, so they are recorded on every database.
 
 If you also send raw SQL with `pg`, share one pool and wrap it with `profilePool()`. A statement is
-never recorded twice, even though Prisma's adapter uses the same pool.
+never recorded twice, even though Prisma's adapter uses the same pool. SQL you send with your own
+MySQL or SQLite driver (`mysql2`, `better-sqlite3` used directly) is not recorded.
 
 ```ts
 import pg from "pg";

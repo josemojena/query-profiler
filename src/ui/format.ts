@@ -28,10 +28,18 @@ export function editorLink(frame: StackFrame, editor: Editor): string | undefine
 
 /** The statement with its parameters in place, to paste into a SQL console. */
 export function runnableSql(query: Pick<QueryRecord, "sql" | "params">): string {
-  return query.sql.replace(/\$(\d+)/g, (placeholder, index: string) => {
-    const index0 = Number(index) - 1;
-    return index0 < query.params.length ? literal(query.params[index0]) : placeholder;
-  });
+  if (/\$\d+/.test(query.sql))
+    return query.sql.replace(/\$(\d+)/g, (placeholder, index: string) => {
+      const index0 = Number(index) - 1;
+      return index0 < query.params.length ? literal(query.params[index0]) : placeholder;
+    });
+  // MySQL and SQLite bind with ?, in order; a ? inside a string is not one.
+  let next = 0;
+  return query.sql.replace(
+    /('(?:[^']|'')*')|\?/g,
+    (placeholder, quoted?: string) =>
+      quoted ?? (next < query.params.length ? literal(query.params[next++]) : placeholder),
+  );
 }
 
 function literal(value: unknown): string {

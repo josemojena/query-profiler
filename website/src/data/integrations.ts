@@ -4,7 +4,9 @@ import {
   siHono,
   siKoa,
   siNestjs,
+  siMysql,
   siPostgresql,
+  siSqlite,
   siPrisma,
   siReactrouter,
   siVite,
@@ -33,7 +35,19 @@ export const integrations: Integration[] = [
     status: "ready",
     guide: "docs/guides/prisma",
   },
-  { name: "PostgreSQL", logo: siPostgresql, status: "ready", guide: "docs/installation" },
+  {
+    name: "PostgreSQL",
+    logo: siPostgresql,
+    status: "ready",
+    guide: "docs/guides/prisma#databases",
+  },
+  {
+    name: "MySQL · MariaDB",
+    logo: siMysql,
+    status: "ready",
+    guide: "docs/guides/prisma#databases",
+  },
+  { name: "SQLite", logo: siSqlite, status: "ready", guide: "docs/guides/prisma#databases" },
   {
     name: "React Router",
     versions: "7.9+ · 8 · Remix",
@@ -67,7 +81,6 @@ export const integrations: Integration[] = [
   { name: "Hapi", versions: "21", status: "ready", guide: "docs/guides/node" },
   { name: "Hono", versions: "4 on Node", logo: siHono, status: "ready", guide: "docs/guides/node" },
   { name: "Next.js", status: "planned" },
-  { name: "MySQL", status: "planned" },
   { name: "Prisma ORM", versions: "8", status: "planned" },
 ];
 

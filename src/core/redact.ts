@@ -2,7 +2,9 @@
 export const SECRET = /pass(word)?|secret|token|api[-_]?key|authorization|cookie/i;
 export const REDACTED = "[redacted]";
 
-const COMPARED = /"?([A-Za-z_]\w*)"?\s*=\s*\$(\d+)/g;
+const COMPARED = /["`]?([A-Za-z_]\w*)["`]?\s*=\s*\$(\d+)/g;
+// A '…' string, or a ? placeholder outside one.
+const PLACEHOLDER = /('(?:[^']|'')*')|\?/g;
 const INSERT = /\binsert\s+into\s+[^(]+\(([^)]*)\)\s*values\s*/i;
 const TUPLE = /\(([^()]*)\)/g;
 
@@ -20,7 +22,7 @@ export function secretValues(value: unknown, found = new Set<string>(), key = ""
  * secret-looking key, and those the SQL compares with or writes to a column named like one.
  */
 export function redactParams(sql: string, params: unknown[], secrets: Set<string>): unknown[] {
-  const hidden = secretPositions(sql);
+  const hidden = secretPositions(numbered(sql));
   return params.map((param, index) =>
     hidden.has(index + 1) || (typeof param === "string" && secrets.has(param)) ? REDACTED : param,
   );
@@ -33,7 +35,7 @@ function secretPositions(sql: string): Set<number> {
     if (SECRET.test(column!)) positions.add(Number(position));
   const insert = INSERT.exec(sql);
   if (insert) {
-    const columns = insert[1]!.split(",").map((column) => column.trim().replace(/"/g, ""));
+    const columns = insert[1]!.split(",").map((column) => column.trim().replace(/["`]/g, ""));
     for (const [, tuple] of sql.slice(insert.index + insert[0].length).matchAll(TUPLE))
       tuple!.split(",").forEach((value, index) => {
         const position = /^\s*\$(\d+)\s*$/.exec(value)?.[1];
@@ -41,4 +43,11 @@ function secretPositions(sql: string): Set<number> {
       });
   }
   return positions;
+}
+
+/** MySQL and SQLite bind with ?, not $1: numbered, both read the same. */
+function numbered(sql: string): string {
+  if (/\$\d+/.test(sql)) return sql;
+  let position = 0;
+  return sql.replace(PLACEHOLDER, (placeholder, quoted?: string) => quoted ?? `$${++position}`);
 }

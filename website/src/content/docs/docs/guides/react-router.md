@@ -3,7 +3,7 @@ title: React Router
 description: Set up query-profiler in a React Router 7.9+ or 8 app (also Remix).
 ---
 
-React Router 7.9+ or 8 in framework mode, with Prisma 7 and `@prisma/adapter-pg`. Two files, nothing
+React Router 7.9+ or 8 in framework mode, with Prisma 7 and a driver adapter. Two files, nothing
 in your routes, and nothing to remove before deploying. A complete app is in
 [`examples/react-router`](https://github.com/josemojena/query-profiler/tree/main/examples/react-router).
 

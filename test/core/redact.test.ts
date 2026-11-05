@@ -27,6 +27,26 @@ describe("redactParams", () => {
     ).toEqual(["a@example.test", "[redacted]", "b@example.test", "[redacted]"]);
   });
 
+  it("reads MySQL and SQLite statements, which bind with ? and quote with backticks", () => {
+    expect(
+      redactParams(
+        "INSERT INTO `User` (`email`,`password`) VALUES (?,?)",
+        ["a@example.test", "hunter2"],
+        none,
+      ),
+    ).toEqual(["a@example.test", "[redacted]"]);
+    expect(
+      redactParams(
+        "SELECT `User`.`id` FROM `User` WHERE `User`.`email` LIKE CONCAT('%', ?, '%') AND `User`.`token` = ? LIMIT ?",
+        ["x", "t0ken", "5"],
+        none,
+      ),
+    ).toEqual(["x", "[redacted]", "5"]);
+    expect(
+      redactParams("SELECT 1 FROM t WHERE note = 'what?' AND secret = ?", ["s3cret"], none),
+    ).toEqual(["[redacted]"]);
+  });
+
   it("hides the values the operation passed under a secret-looking key", () => {
     expect(redactParams("SELECT $1, $2", ["visible", "s3cret"], new Set(["s3cret"]))).toEqual([
       "visible",

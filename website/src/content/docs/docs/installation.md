@@ -7,10 +7,10 @@ description: Requirements and installing query-profiler.
 
 | What       | Supported                                                            |
 | ---------- | -------------------------------------------------------------------- |
-| Prisma ORM | **7.1 or later**, with `@prisma/adapter-pg`. Not 6; 8 is planned     |
-| Database   | PostgreSQL (MySQL is planned)                                        |
+| Prisma ORM | **7.1 or later**, with a driver adapter. Not 6; 8 is planned         |
+| Database   | PostgreSQL, MySQL, MariaDB and SQLite, through Prisma's own adapters |
 | Node       | 22.19+ or 24.5+                                                      |
-| Raw SQL    | `pg` (node-postgres), optional                                       |
+| Raw SQL    | Prisma's `$queryRaw` on any of them; `pg` (node-postgres), optional  |
 | Framework  | React Router 7.9+ and 8 in framework mode (also Remix), with Vite 6+ |
 | Framework  | Any Node server: Express, Fastify, Koa, Hapi, NestJS, Hono           |
 
