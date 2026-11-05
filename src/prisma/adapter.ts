@@ -1,3 +1,4 @@
+import { enabled } from "../core/index.js";
 import { recordStatement, newTransactionId } from "./statement.js";
 
 interface SqlQuery {
@@ -24,8 +25,9 @@ export interface AdapterFactory {
   connect(): Promise<Adapter>;
 }
 
-/** Wraps a Prisma 7 driver adapter factory so every statement Prisma sends is recorded. */
+/** Wraps a Prisma 7 driver adapter factory so every statement Prisma sends is recorded; returns it untouched outside development. */
 export function profileAdapter<T extends AdapterFactory>(factory: T): T {
+  if (!enabled()) return factory;
   const connected = (adapter: Adapter) => profileConnection(adapter);
   return overriding(factory, {
     connect: async () => connected(await factory.connect()),

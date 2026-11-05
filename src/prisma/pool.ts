@@ -1,4 +1,4 @@
-import { captureOrigin, currentScope, runInScope } from "../core/index.js";
+import { captureOrigin, currentScope, enabled, runInScope } from "../core/index.js";
 import type { Pool, PoolClient } from "pg";
 import { beginStatement } from "./statement.js";
 
@@ -8,8 +8,12 @@ type Client = PoolClient & { [PATCHED]?: true; [TX]?: string };
 const PATCHED = Symbol.for("query-profiler.patched");
 const TX = Symbol.for("query-profiler.tx");
 
-/** Records raw SQL sent through a `pg` pool. Statements Prisma sends through `profileAdapter` are not counted twice. */
+/**
+ * Records raw SQL sent through a `pg` pool; returns it untouched outside development. Statements
+ * Prisma sends through `profileAdapter` are not counted twice.
+ */
 export function profilePool<T extends Pool>(pool: T): T {
+  if (!enabled()) return pool;
   const marked = pool as T & { [PATCHED]?: true };
   if (marked[PATCHED]) return pool;
   marked[PATCHED] = true;

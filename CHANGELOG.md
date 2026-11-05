@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `withProfiler()`, `profilePrisma()`, `profilePool()` and `profileAdapter()` return what they are
+  given, untouched, outside development, like the middleware and the plugin: even if the real code
+  were loaded in production, Prisma's SQL would carry no stamp and nothing would be wrapped.
 - The profiler also runs when `NODE_ENV` is not set, as servers without a bundler leave it, so
   `--conditions=development` alone turns it on there. `NODE_ENV=production` or `test` still keep it
   off.
