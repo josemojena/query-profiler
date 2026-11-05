@@ -135,6 +135,21 @@ describe("capturing a request's database work", () => {
     ]);
   });
 
+  it("hides secrets in the SQL parameters, from Prisma and from raw SQL", async () => {
+    const profile = await profiled(async () => {
+      await prisma.user.update({ where: { id: userId }, data: { password: "hunter2-prisma" } });
+      await pool.query('SELECT id FROM "User" WHERE "password" = $1 AND id = $2', [
+        "hunter2-raw",
+        userId,
+      ]);
+    });
+    const shown = JSON.stringify(profile);
+    expect(shown).not.toContain("hunter2-prisma");
+    expect(shown).not.toContain("hunter2-raw");
+    expect(profile.operations[0]!.args).toMatchObject({ data: { password: "[redacted]" } });
+    expect(profile.queries.at(-1)!.params).toEqual(["[redacted]", userId]);
+  });
+
   it("keeps the error of a failed operation and of its statement", async () => {
     const profile = await profiled(() => prisma.user.create({ data: { email: "a@example.test" } }));
     expect(profile.operations[0]!.error?.message).toMatch(/Unique constraint/);

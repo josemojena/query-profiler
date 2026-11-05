@@ -232,9 +232,10 @@ Production builds resolve every package to its no-op entry.
   each. Nothing is written to disk, to a database or to cookies; the browser keeps only how you
   left the bar.
 - **Secrets.** Prisma arguments whose key looks like a secret (`password`, `token`, `apiKey`,
-  `authorization`, `cookie`…) are shown as `[redacted]`, and long strings are cut. SQL
-  parameters have no names, so a secret you write through Prisma can still appear among the
-  parameters of its statement.
+  `authorization`, `cookie`…) are shown as `[redacted]`, and so are the SQL parameters that carry
+  them: those equal to such an argument, and those the SQL compares with or writes to a column named
+  like one (`"password" = $1`, `INSERT INTO … ("password") VALUES ($2)`), raw SQL included. A secret
+  bound some other way in raw SQL (inside a function call, say) still shows. Long strings are cut.
 
 ## Known limitations
 

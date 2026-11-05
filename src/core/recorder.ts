@@ -11,6 +11,7 @@ import type {
   ResponseMeta,
   StackFrame,
 } from "./profile.js";
+import { redactParams, secretValues } from "./redact.js";
 import { sanitize } from "./sanitize.js";
 import { storeProfile } from "./storage.js";
 
@@ -22,6 +23,8 @@ export interface ActiveProfile {
   closed: boolean;
   truncated: boolean;
   nextId: number;
+  /** Values each operation passed under a secret-looking key, to hide them in its SQL. Never stored. */
+  secrets: Map<string, Set<string>>;
 }
 
 export function startProfile(request: RequestMeta, framework: Profile["framework"]): ActiveProfile {
@@ -44,6 +47,7 @@ export function startProfile(request: RequestMeta, framework: Profile["framework
     closed: false,
     truncated: false,
     nextId: 1,
+    secrets: new Map(),
   };
 }
 
@@ -61,6 +65,8 @@ export function beginOperation(
     queryIds: [],
   };
   active.profile.operations.push(record);
+  const secrets = secretValues(operation.args);
+  if (secrets.size) active.secrets.set(record.id, secrets);
   return record;
 }
 
@@ -88,7 +94,9 @@ export function beginQuery(
     opId: query.opIds?.[0],
     txId: query.txId,
     sql: query.sql,
-    params: sanitize(query.params ?? []) as unknown[],
+    params: sanitize(
+      redactParams(query.sql, query.params ?? [], secretsOf(active, query.opIds)),
+    ) as unknown[],
     fingerprint: fingerprint(query.sql),
     startMs: elapsed(active),
     origin: query.origin,
@@ -127,6 +135,9 @@ function summarize(profile: Profile): ProfileSummary {
     errorCount: failedQueries + failedOperations,
   };
 }
+
+const secretsOf = (active: ActiveProfile, opIds: string[] = []) =>
+  new Set(opIds.flatMap((id) => [...(active.secrets.get(id) ?? [])]));
 
 const round = (ms: number) => Math.round(ms * 100) / 100;
 const elapsed = (active: ActiveProfile) => round(performance.now() - active.startedAt);

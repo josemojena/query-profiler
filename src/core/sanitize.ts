@@ -1,4 +1,5 @@
-const SECRET = /pass(word)?|secret|token|api[-_]?key|authorization|cookie/i;
+import { REDACTED, SECRET } from "./redact.js";
+
 const MAX_STRING = 2048;
 const MAX_DEPTH = 10;
 
@@ -15,7 +16,7 @@ export function sanitize(value: unknown, depth = 0): unknown {
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => [
       key,
-      SECRET.test(key) ? "[redacted]" : sanitize(item, depth + 1),
+      SECRET.test(key) ? REDACTED : sanitize(item, depth + 1),
     ]),
   );
 }
