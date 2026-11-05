@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { Profile } from "../src/core/index.js";
 import { toolbarSnippet } from "../src/react-router/inject.js";
 import { DATA_REQUEST, NEXT_PAGE, PROFILE, PROMOTIONS, listItem } from "./fixture.js";
+import { openStreams, setVisibility, trackStreams } from "./visibility.js";
 
 const ORIGIN = "http://app.test";
 let bundle = "";
@@ -69,7 +70,7 @@ async function open(page: Page, options: Options = {}) {
     return profile ? json(profile) : route.fulfill({ status: 404, body: "{}" });
   });
   await page.goto(`${ORIGIN}/orders`);
-  return { parents };
+  return { parents, profiles };
 }
 
 const bar = (page: Page) => page.locator("query-profiler-toolbar");
@@ -174,6 +175,31 @@ test("lists recent requests and goes back to this page", async ({ page }) => {
   await expect(bar(page).locator(".strip")).toContainText("/orders.data");
   await bar(page).getByRole("button", { name: "Back to this page" }).click();
   await expect(bar(page).locator(".strip")).toContainText("7 queries");
+});
+
+test("gives its live connection back while the tab is hidden, and catches up when it shows again", async ({
+  page,
+}) => {
+  await trackStreams(page);
+  const { profiles } = await open(page);
+  await expect(bar(page).locator(".strip")).toContainText("7 queries");
+  await expect.poll(() => openStreams(page)).toBe(1);
+  await setVisibility(page, "hidden");
+  await expect.poll(() => openStreams(page)).toBe(0);
+  profiles.push(PROMOTIONS);
+  await setVisibility(page, "visible");
+  await expect.poll(() => openStreams(page)).toBe(1);
+  await expect(bar(page).locator(".strip")).toContainText("1 call");
+});
+
+test("opens no live connection in a tab that loads in the background", async ({ page }) => {
+  await trackStreams(page);
+  await page.addInitScript(() =>
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true }),
+  );
+  await open(page);
+  await expect(bar(page).locator(".strip")).toContainText("7 queries");
+  expect(await openStreams(page)).toBe(0);
 });
 
 test("shows nothing when the profiler API is not there", async ({ page }) => {

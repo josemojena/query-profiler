@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- A tab in the background no longer holds a connection to the dev server: the bar and the profiler
+  page stop listening for new requests while their tab is hidden, and catch up when it shows again.
+  Over HTTP/1.1 browsers allow six connections per host, so many open tabs used to stall the app.
+
 ## 0.1.1
 
 - Secrets no longer show in SQL parameters. A parameter is hidden when it equals a value the

@@ -3,6 +3,7 @@ import type { Editor } from "./format.js";
 import type { DetailTab } from "./detail.js";
 import { runnableSql } from "./format.js";
 import { getJson } from "./http.js";
+import { followProfiles, mergeProfiles } from "./live.js";
 import { renderList, renderPage, type PageState } from "./page-view.js";
 import { pageStyles } from "./styles.js";
 
@@ -11,7 +12,7 @@ const LIMIT = 100;
 /** The profiler's own page: every request on the left, the one picked on the right, or the stats. */
 export class ProfilerPage extends HTMLElement {
   #root = this.attachShadow({ mode: "open" });
-  #events?: EventSource;
+  #stopFollowing?: () => void;
   #state: PageState = {
     base: "/_profiler",
     root: "",
@@ -33,7 +34,7 @@ export class ProfilerPage extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.#events?.close();
+    this.#stopFollowing?.();
     removeEventListener("popstate", this.#onPopState);
   }
 
@@ -45,16 +46,19 @@ export class ProfilerPage extends HTMLElement {
     ]);
     this.#state.root = meta?.root ?? "";
     this.#state.list = list ?? [];
-    this.#events = new EventSource(`${base}/api/stream`);
-    this.#events.addEventListener("profile", (event) => {
-      const item = JSON.parse(event.data) as ProfileListItem;
-      this.#state.list = [item, ...this.#state.list.filter((i) => i.token !== item.token)].slice(
-        0,
-        LIMIT,
-      );
-      this.#renderList();
+    this.#stopFollowing = followProfiles(`${base}/api/stream`, {
+      onProfile: (item) => this.#addToList([item]),
+      onResume: () =>
+        void getJson<ProfileListItem[]>(`${base}/api/profiles?limit=${LIMIT}`).then((items) =>
+          this.#addToList(items ?? []),
+        ),
     });
     await this.#route();
+  }
+
+  #addToList(items: ProfileListItem[]) {
+    this.#state.list = mergeProfiles(items, this.#state.list, LIMIT);
+    this.#renderList();
   }
 
   #onPopState = () => void this.#route();
