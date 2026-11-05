@@ -62,6 +62,7 @@ const state = (profile: Profile | undefined, patch: Partial<ViewState> = {}): Vi
   pinned: false,
   tab: "queries",
   height: 300,
+  theme: "dark",
   expanded: new Set(),
   ...patch,
 });
@@ -188,5 +189,24 @@ describe("a page and its calls", () => {
       '<tr class="child" data-action="select" data-token="d00d1e"',
     ]);
     expect(html).toContain("/api/promotions");
+  });
+
+  it("hang from one line, which ends at the last call", () => {
+    const html = render(state(page, { calls, open: true, tab: "requests" }));
+    expect(html.match(/<span class="branch[^"]*">/g)).toEqual([
+      '<span class="branch">',
+      '<span class="branch last">',
+    ]);
+  });
+});
+
+describe("the theme switch", () => {
+  it("marks the theme in use", () => {
+    const html = render(state(profileWith([]), { theme: "light" }));
+    expect(html.match(/data-choice="(\w+)" aria-pressed="true"/g)).toEqual([
+      'data-choice="light" aria-pressed="true"',
+    ]);
+    expect(html).toContain('data-choice="dark" aria-pressed="false"');
+    expect(html).toContain('data-choice="system" aria-pressed="false"');
   });
 });

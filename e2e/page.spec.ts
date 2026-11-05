@@ -85,6 +85,28 @@ test("opens on the newest page, with its calls under it in the list", async ({ p
   await expect(app).toContainText("N+1 ×5");
 });
 
+test("hangs a page's calls from its box, the call picked marked", async ({ page }) => {
+  const app = await open(page, `/_profiler/${PROMOTIONS.token}`);
+  const group = app.locator(".group", { has: page.locator(".item.child") });
+  await expect(group.locator(":scope > .item")).toContainText("/orders");
+  await expect(group.locator(":scope > .item")).not.toHaveClass(/\bon\b/);
+  await expect(group.locator(".calls-tree .item.child.on")).toContainText("/api/promotions");
+});
+
+test("uses the theme picked in the bar, and switches it from its side", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("query-profiler:theme", "light"));
+  const app = await open(page, "/_profiler");
+  const side = () =>
+    app.locator(".side").evaluate((element) => getComputedStyle(element).backgroundColor);
+  await expect.poll(side).toBe("rgb(245, 246, 249)");
+  await app.getByRole("button", { name: "Dark", exact: true }).click();
+  await expect.poll(side).toBe("rgb(19, 23, 34)");
+  await expect(app.getByRole("button", { name: "Dark", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});
+
 test("goes to a call through the address, and back to its page", async ({ page }) => {
   const app = await open(page, `/_profiler/${PROMOTIONS.token}`);
   await expect(app.locator("h1")).toContainText("GET /api/promotions");

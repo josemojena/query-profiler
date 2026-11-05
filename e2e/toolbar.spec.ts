@@ -76,6 +76,12 @@ async function open(page: Page, options: Options = {}) {
 
 const bar = (page: Page) => page.locator("query-profiler-toolbar");
 const openPanel = (page: Page) => bar(page).locator(".summary").click();
+const stripColor = (page: Page) =>
+  bar(page)
+    .locator(".strip")
+    .evaluate((strip) => getComputedStyle(strip).backgroundColor);
+const DARK_CHROME = "rgb(19, 23, 34)";
+const LIGHT_CHROME = "rgb(245, 246, 249)";
 
 test("sums up the page's request in a strip at the bottom", async ({ page }) => {
   await open(page);
@@ -130,6 +136,37 @@ test("shrinks to a pill and remembers it", async ({ page }) => {
   await expect(bar(page).locator(".pill")).toBeVisible();
   await bar(page).locator(".pill").click();
   await expect(bar(page).locator(".strip")).toBeVisible();
+});
+
+test("is dark by default, even on a light system, and keeps the theme picked", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await open(page);
+  await expect.poll(() => stripColor(page)).toBe(DARK_CHROME);
+  const light = bar(page).getByRole("button", { name: "Light", exact: true });
+  await light.click();
+  await expect.poll(() => stripColor(page)).toBe(LIGHT_CHROME);
+  await expect(light).toHaveAttribute("aria-pressed", "true");
+  await page.reload();
+  await expect.poll(() => stripColor(page)).toBe(LIGHT_CHROME);
+});
+
+test("follows the system on Auto", async ({ page }) => {
+  await open(page);
+  await bar(page).getByRole("button", { name: "Auto", exact: true }).click();
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect.poll(() => stripColor(page)).toBe(LIGHT_CHROME);
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect.poll(() => stripColor(page)).toBe(DARK_CHROME);
+});
+
+test("starts on the theme the page sets with data-theme, until one is picked", async ({ page }) => {
+  await open(page, {
+    script: `document.querySelector("query-profiler-toolbar").dataset.theme = "light";`,
+  });
+  await expect.poll(() => stripColor(page)).toBe(LIGHT_CHROME);
+  await bar(page).getByRole("button", { name: "Dark", exact: true }).click();
+  await page.reload();
+  await expect.poll(() => stripColor(page)).toBe(DARK_CHROME);
 });
 
 test("tags the page's calls with its token and shows them under it", async ({ page }) => {

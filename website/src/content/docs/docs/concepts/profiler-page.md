@@ -12,4 +12,7 @@ description: The full view at /_profiler, a profile at /_profiler/:token, and st
 - **Stats** (`/_profiler/stats`): across the stored requests, the slowest and the most repeated
   statement shapes, time by model and by route.
 
+It shares the bar's theme: dark by default, with the switch next to its name for **Light** or
+**Auto**.
+
 [Open the demo](/demo-profiler) to try it on sample data.

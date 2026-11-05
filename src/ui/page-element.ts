@@ -6,6 +6,7 @@ import { getJson } from "./http.js";
 import { followProfiles, mergeProfiles } from "./live.js";
 import { renderList, renderPage, type PageState } from "./page-view.js";
 import { pageStyles } from "./styles.js";
+import { choiceOf, chooseTheme, initialTheme } from "./theme.js";
 
 const LIMIT = 100;
 
@@ -22,11 +23,14 @@ export class ProfilerPage extends HTMLElement {
     filter: "",
     view: "requests",
     tab: "queries",
+    theme: "dark",
   };
 
   connectedCallback() {
     this.#state.base = this.dataset.base ?? this.#state.base;
     this.#state.editor = (this.dataset.editor as Editor | undefined) ?? this.#state.editor;
+    this.#state.theme = initialTheme(this);
+    this.dataset.theme = this.#state.theme;
     this.#root.addEventListener("click", this.#onClick);
     this.#root.addEventListener("input", this.#onInput);
     addEventListener("popstate", this.#onPopState);
@@ -101,6 +105,14 @@ export class ProfilerPage extends HTMLElement {
       case "tab":
         state.tab = target.dataset.tab as DetailTab;
         break;
+      case "theme": {
+        const theme = choiceOf(target);
+        if (theme) {
+          chooseTheme(this, theme);
+          state.theme = theme;
+        }
+        break;
+      }
       case "expand": {
         const id = target.dataset.id!;
         const expanded = new Set(state.expanded);

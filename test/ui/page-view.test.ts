@@ -40,6 +40,7 @@ const state = (patch: Partial<PageState> = {}): PageState => ({
   filter: "",
   view: "requests",
   tab: "queries",
+  theme: "dark",
   profile,
   ...patch,
 });
@@ -78,6 +79,26 @@ describe("the profiler page", () => {
     };
     expect(renderPage(state({ profile: call }))).toContain(
       'called from <a href="/_profiler/aaaaaa"',
+    );
+  });
+
+  it("hangs each page's calls from its box, and marks the one picked", () => {
+    const call: Profile = {
+      ...profile,
+      ...item("bbbbbb", "/api/promotions", "aaaaaa"),
+      warnings: [],
+    };
+    const html = renderPage(state({ profile: call }));
+    expect(html.match(/<ul class="calls-tree">/g)).toHaveLength(1);
+    expect(html.match(/<li><a href="\/_profiler\/\w+" data-action="go" class="[^"]+">/g)).toEqual([
+      '<li><a href="/_profiler/bbbbbb" data-action="go" class="item child on">',
+      '<li><a href="/_profiler/cccccc" data-action="go" class="item child">',
+    ]);
+  });
+
+  it("puts the theme switch by its name, with the theme in use marked", () => {
+    expect(renderPage(state({ theme: "system" }))).toContain(
+      'data-choice="system" aria-pressed="true"',
     );
   });
 
