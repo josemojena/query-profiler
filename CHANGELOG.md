@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **React Router: the Vite plugin alone.** `queryProfiler()` in `vite.config.ts` now profiles every
+  request in the dev server, puts the bar on every page and serves `/_profiler`; nothing goes in
+  your routes, and React Router 7 no longer needs `future.v8_middleware`. The bar learns its page's
+  token from the page's `Server-Timing` header. `log: true` prints one line per request.
+  **Breaking:** `query-profiler/react-router`, `/react-router/route` and `/react-router/toolbar`
+  are gone, with `profilerMiddleware()` and `<ProfilerToolbar />`: remove them from your app.
 - In React Router 8, a client navigation home now becomes the new page in the bar: React Router 8
   loads `/` from `/_.data`, which the bar and the profiles took for a path of its own (`/_`).
 - An app run with tsx gets the right line of code for each query again; the line was mapped twice

@@ -18,9 +18,10 @@ It updates live, lists recent requests, shrinks to a pill, and links to the
 
 ## How it gets there without touching your code
 
-The middleware adds a small script before `</body>`. It starts tracking the page's `fetch` calls
-right away, before your app hydrates, so calls made on mount are not missed. Once the page has
-loaded it adds the bar as a web component, so React's hydration never sees it. Its styles live in
-its Shadow DOM and never clash with yours.
+In development, the Vite plugin adds a small module to your app's client entry. It reads the page's
+token from the `Server-Timing` header of the page's own response and starts tracking the page's
+`fetch` calls right away, before your app hydrates, so calls made on mount are not missed. Once the
+page has loaded it adds the bar as a web component, so React's hydration never sees it. Its styles
+live in its Shadow DOM and never clash with yours. A build gets none of it.
 
 The bar at the bottom of the [home page](/) is the real component, on sample data.

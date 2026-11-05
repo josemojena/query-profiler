@@ -5,7 +5,7 @@ description: The pieces of query-profiler and the life of a request.
 
 ## One profile per request
 
-The framework adapter (for React Router, the middleware) opens a **profile** when a request starts
+The integration (for React Router, the Vite plugin's dev-server middleware) opens a **profile** when a request starts
 and runs the rest of the request inside an `AsyncLocalStorage` scope that holds it. Whatever Prisma
 or `pg` does while that request is in flight, however many promises and callbacks away, lands in
 that profile. Outside a request (a script, a job) nothing is recorded.
