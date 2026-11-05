@@ -1,6 +1,7 @@
 import { escape } from "./format.js";
 
-const WIDTH = 72;
+// About what fits in the SQL column of the bar and of the profiler page.
+const WIDTH = 50;
 const INDENT = "  ";
 // Whitespace, a 'string', a "name", a comment, $1, a word, ( ) , and anything else, in that order.
 const PATTERN =

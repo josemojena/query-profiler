@@ -13,10 +13,12 @@ const solid = (sql: string) =>
   sql.replace(/('(?:[^']|'')*'|"(?:[^"]|"")*")|\s+/g, (_, quoted?: string) => quoted ?? "");
 
 describe("formatted SQL", () => {
-  it("puts each clause of a Prisma query on its own line, and keeps a short one whole", () => {
+  it("puts each clause of a Prisma query on its own line, and keeps a short condition whole", () => {
     expect(formatSql(FIND_USER)).toBe(
       [
-        `SELECT "public"."User"."id", "public"."User"."email"`,
+        `SELECT`,
+        `  "public"."User"."id",`,
+        `  "public"."User"."email"`,
         `FROM "public"."User"`,
         `WHERE ("public"."User"."id" = $1 AND 1=1)`,
         `LIMIT $2`,
@@ -70,7 +72,8 @@ describe("formatted SQL", () => {
         `select u.id, count(p.id)`,
         `from users u`,
         `left join posts p on p.author_id = u.id`,
-        `where u.deleted_at is null and u.email ilike '%@example.test'`,
+        `where u.deleted_at is null`,
+        `  and u.email ilike '%@example.test'`,
         `group by u.id`,
         `order by count(p.id) desc`,
         `limit 10`,
