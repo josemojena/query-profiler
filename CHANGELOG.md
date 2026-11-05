@@ -12,16 +12,22 @@
   loads `/` from `/_.data`, which the bar and the profiles took for a path of its own (`/_`).
 - An app run with tsx gets the right line of code for each query again; the line was mapped twice
   through the same source map.
-- **Express 4.18 and later**, 5 included: `app.use(profilerMiddleware())` from
-  `query-profiler/express` profiles each request, tags each response with `X-Debug-Token` (exposed
-  to CORS), names the route that answered and serves `/_profiler`.
+- **Any Node server, with no code in it: Express, Fastify, Koa, Hapi, NestJS, Hono.** Add
+  `--conditions=development --import query-profiler/register` to the dev command (`node --watch`,
+  `tsx watch`, nodemon, the Nest CLI, or `NODE_OPTIONS`). The preload profiles each request from
+  Node's `http.server.request.start` diagnostics channel, tags each response with `X-Debug-Token`
+  (exposed to CORS), and serves the profiler on a port of its own: 4983, or `QUERY_PROFILER_PORT`.
+  It opens that port once the app listens, waits a moment for a restarting app to let go of it,
+  then takes the next free one. `QUERY_PROFILER_LOG=1` prints one line per request.
+  **Breaking:** `query-profiler/fastify` and its `profilerPlugin` are gone: remove them from your
+  server, and add the preload to its dev command. The package no longer depends on `fastify-plugin`.
 - The profiler's API answers `HEAD` like `GET`, with no body.
 - **Development only, without a bundler**: the docs show how to keep `query-profiler` a dev
-  dependency for a server run with plain `node` (import it only if it is installed), or bundled
-  with tsup, esbuild, Rollup or webpack; the Express and Fastify examples are set up that way, and
-  CI checks that the examples run with the package not installed.
-- A server bundled with the profiler in development starts and serves `/_profiler`: the core finds
-  its UI files from the app too, as a bundler moves it out of its package.
+  dependency for a server run with plain `node` (the Prisma client imports it only if it is
+  installed), or bundled with tsup, esbuild, Rollup or webpack; the Express and Fastify examples
+  are set up that way, and CI checks that the examples run with the package not installed.
+- A server bundled with the profiler in development serves `/_profiler`: the core finds its UI files
+  from the app too, as a bundler moves it out of its package.
 - The line of code behind each query is found through the bundle's source maps when Node runs with
   `--enable-source-maps`, even if a framework formats stack traces itself.
 - **Themes.** The bar and the profiler page are dark by default, in the website's colors, with a

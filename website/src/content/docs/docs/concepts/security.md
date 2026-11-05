@@ -6,10 +6,10 @@ description: What query-profiler keeps, where, who can see it, and what it does 
 ## Security and privacy
 
 - **Development only.** Production gets the no-op entries: builds through the Vite plugin, and
-  plain `node` without `--conditions=development`. Even the real code does nothing with `NODE_ENV`
+  plain `node` without the preload and `--conditions=development`. Even the real code does nothing with `NODE_ENV`
   set to anything but `development` (`production`, `test`…).
 - **Local only.** The API answers `localhost`, `127.0.0.1` and `[::1]`, even when the dev server
-  listens on the network.
+  listens on the network. For a Node server, the profiler's own port listens on `localhost` only.
 - **In memory only.** The last 100 profiles, at most 1000 queries each, in the dev server's memory.
   Nothing is written to disk, to a database or to cookies; the browser keeps only how you left the
   bar.

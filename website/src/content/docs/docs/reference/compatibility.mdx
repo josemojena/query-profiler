@@ -14,17 +14,16 @@ import Integrations from "../../../../components/docs/Integrations.astro";
   the request's async context, so statements cannot be tied to their request.
 - **Prisma 8** needs its own integration, built on its new middleware, once it is stable.
 
-## Fastify versions
+## Node servers
 
-- **Fastify 4.26 and later**, 5 included, tested in CI on 4.26.0, 5.0.0 and the newest.
-- Before 4.26, `reply.send()` takes no Fetch `Response`, so `/_profiler` cannot be served; before
-  4.20, the request's async context does not reach the handler.
+The [preload](/docs/guides/node) works with any framework that serves through Node's `http` module.
+CI runs the same requests, with Prisma against PostgreSQL, in each of these:
 
-## Express versions
-
-- **Express 4.18 and later**, 5 included, tested in CI on 4.18.0, 5.0.0 and the newest.
-- Before 4.18, Express's body parser drops the request's async context: a route that reads a body
-  loses its queries.
+- **Express 4.18 and later**, 5 included, tested on 4.18.0, 5.0.0 and the newest. Before 4.18,
+  Express's body parser drops the request's async context: a route that reads a body loses its
+  queries.
+- **Fastify**, tested on 4.26.0, 5.0.0 and the newest.
+- **Koa 3**, **Hapi 21**, **NestJS 12** on Express, and **Hono 4** on `@hono/node-server`.
 
 ## Node
 
