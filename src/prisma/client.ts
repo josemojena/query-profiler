@@ -1,4 +1,4 @@
-import { captureOrigin, runInScope, type StackFrame } from "../core/index.js";
+import { captureOrigin, enabled, runInScope, type StackFrame } from "../core/index.js";
 import { profilerExtension } from "./extension.js";
 
 interface Client {
@@ -18,9 +18,11 @@ const DEFERRED = ["then", "catch", "finally", "requestTransaction"];
 
 /**
  * The Prisma client with the profiler: each operation, the SQL it ran and the line of your code
- * that called it. Pass it a client built with `withProfiler()`.
+ * that called it. Pass it a client built with `withProfiler()`. Outside development, the client
+ * untouched.
  */
 export function profilePrisma<T extends Client>(client: T): Omit<T, "$on"> {
+  if (!enabled()) return client;
   return callSites(client.$extends(profilerExtension)) as Omit<T, "$on">;
 }
 

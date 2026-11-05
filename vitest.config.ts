@@ -14,6 +14,8 @@ export default defineConfig({
         test: {
           name: "prisma",
           include: ["test/prisma/**/*.test.ts"],
+          // The clients are built when each file loads, as an app in development builds them.
+          env: { NODE_ENV: "development" },
           globalSetup: ["test/prisma/global-setup.ts"],
           pool: "forks",
           maxWorkers: 1,
