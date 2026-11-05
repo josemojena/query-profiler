@@ -116,9 +116,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm website:build
 
-  example-fastify:
-    name: Fastify example runs without the profiler
+  server-examples:
+    name: ${{ matrix.example }} example runs without the profiler
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [fastify, express]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -128,10 +132,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm examples:sync
-      - run: pnpm --filter example-fastify exec prisma generate
-      - run: pnpm --filter example-fastify build
+      - run: pnpm --filter example-${{ matrix.example }} exec prisma generate
+      - run: pnpm --filter example-${{ matrix.example }} build
       - name: Plain node loads none of the profiler, even with NODE_ENV=development; the condition alone turns it on
-        working-directory: examples/fastify
+        working-directory: examples/${{ matrix.example }}
         env:
           NODE_ENV: development
         run: |

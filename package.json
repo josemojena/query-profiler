@@ -106,6 +106,7 @@
     "check": "pnpm lint && pnpm format:check && pnpm check-types",
     "db:generate": "prisma generate --config test/prisma/fixture/prisma.config.ts",
     "example:react-router": "pnpm examples:sync && pnpm --filter example-react-router dev",
+    "example:express": "pnpm examples:sync && pnpm --filter example-express dev",
     "example:fastify": "pnpm examples:sync && pnpm --filter example-fastify dev",
     "examples:sync": "pnpm build && pnpm install --offline",
     "website:dev": "pnpm build && pnpm --filter website dev",
