@@ -37,7 +37,7 @@ jobs:
         run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
-      - run: pnpm --filter example-react-router exec prisma generate
+      - run: pnpm --filter './examples/*' exec prisma generate
       - run: pnpm check
       - run: pnpm test
       - run: pnpm exec playwright install --with-deps chromium
