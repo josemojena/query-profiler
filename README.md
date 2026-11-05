@@ -279,9 +279,11 @@ set `QUERY_PROFILER_TEST_DATABASE_URL`, in the environment or in a `.env` file (
    [CHANGELOG.md](CHANGELOG.md).
 2. Tag the commit and push the tag: `git tag v0.1.0 && git push origin v0.1.0`.
 3. The release workflow checks that the tag matches `package.json`, runs every check and test,
-   publishes to npm with provenance and creates the GitHub release.
+   stages the version on npm with provenance and creates the GitHub release.
+4. Approve the staged version with two-factor authentication, on npmjs.com or with
+   `npm stage list query-profiler` and `npm stage approve <id>`. Only then is it public.
 
-The workflow publishes through npm's trusted publishing, with no token. The first version is
+The workflow uses npm's trusted publishing, with no token, and may only stage versions. The first version is
 published by hand (`npm login`, then `npm publish`); after it, add this repository's
 `release.yml` as the package's trusted publisher in its settings on npmjs.com.
 
