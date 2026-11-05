@@ -1,6 +1,7 @@
 import type { Profile, ProfileListItem } from "../core/index.js";
 import { runnableSql, type Editor } from "./format.js";
 import { getJson } from "./http.js";
+import { followProfiles, mergeProfiles } from "./live.js";
 import { STRIP_HEIGHT, styles } from "./styles.js";
 import { installTracker, type Call, type Tracker } from "./tracker.js";
 import { render, type Tab, type ViewState } from "./view.js";
@@ -17,7 +18,7 @@ interface Saved {
 
 export class ProfilerToolbar extends HTMLElement {
   #root = this.attachShadow({ mode: "open" });
-  #events?: EventSource;
+  #stopFollowing?: () => void;
   /** The page the browser is on, as opposed to the one shown when picked from Recent. */
   #livePage?: string;
   #calls: Call[] = [];
@@ -49,7 +50,7 @@ export class ProfilerToolbar extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.#events?.close();
+    this.#stopFollowing?.();
     this.#tracker?.listeners.delete(this.#onCall);
   }
 
@@ -63,10 +64,10 @@ export class ProfilerToolbar extends HTMLElement {
     if (!meta) return;
     this.#state.root = meta.root;
     this.#state.recent = recent ?? [];
-    this.#events = new EventSource(`${base}/api/stream`);
-    this.#events.addEventListener("profile", (event) =>
-      this.#onProfile(JSON.parse(event.data) as ProfileListItem),
-    );
+    this.#stopFollowing = followProfiles(`${base}/api/stream`, {
+      onProfile: (item) => this.#onProfile(item),
+      onResume: () => void this.#catchUp(),
+    });
     this.#tracker = installTracker(base);
     this.#tracker.listeners.add(this.#onCall);
     onNavigation(() => {
@@ -114,13 +115,24 @@ export class ProfilerToolbar extends HTMLElement {
 
   #onProfile(item: ProfileListItem) {
     const state = this.#state;
-    state.recent = [item, ...state.recent.filter((r) => r.token !== item.token)].slice(
-      0,
-      MAX_RECENT,
-    );
+    state.recent = mergeProfiles([item], state.recent, MAX_RECENT);
     if (item.token === state.page?.token) state.page = item;
     if (state.page && item.parentToken === state.page.token)
       state.calls = [...state.calls.filter((call) => call.token !== item.token), item];
+    this.#render();
+  }
+
+  /** What finished while the tab was hidden: recent requests, and the calls of the page shown. */
+  async #catchUp() {
+    const { base, page } = this.#state;
+    const [recent, calls] = await Promise.all([
+      getJson<ProfileListItem[]>(`${base}/api/profiles?limit=${MAX_RECENT}`),
+      page && getJson<ProfileListItem[]>(`${base}/api/profiles?parent=${page.token}`),
+    ]);
+    const state = this.#state;
+    state.recent = mergeProfiles(recent ?? [], state.recent, MAX_RECENT);
+    if (calls && page?.token === state.page?.token)
+      state.calls = mergeProfiles(calls, state.calls).reverse();
     this.#render();
   }
 

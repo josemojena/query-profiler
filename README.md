@@ -184,7 +184,7 @@ queries, time the database was busy and warnings. Click it to open:
   copy the runnable SQL, open the line in your editor.
 - **Operations**, **Timeline**, **Warnings** and **Request**.
 
-It updates live and lists recent requests. Minimize it to a pill, or open the full profile.
+It updates live while its tab is visible, catches up when you come back to it, and lists recent requests. Minimize it to a pill, or open the full profile.
 
 ## The profiler page
 
@@ -240,8 +240,9 @@ Production builds resolve every package to its no-op entry.
 ## Known limitations
 
 - Profiles are lost when the dev server restarts, and each process keeps its own.
-- Each browser tab with the bar keeps a server-sent events connection open. Over HTTP/1.1 a
-  browser allows six per host, so many open tabs of the same app can stall new requests.
+- The bar and the profiler page keep a server-sent events connection open while their tab is
+  visible, and close it while it is hidden. Over HTTP/1.1 a browser allows six connections per
+  host, so six windows of the same app side by side can still stall new requests.
 - Query durations are measured from Node: they include the network and any wait for a pooled
   connection.
 

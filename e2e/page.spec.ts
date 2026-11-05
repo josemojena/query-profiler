@@ -2,10 +2,18 @@ import { build } from "esbuild";
 import { expect, test, type Page } from "@playwright/test";
 import type { Profile } from "../src/core/index.js";
 import { DATA_REQUEST, PROFILE, PROMOTIONS, listItem } from "./fixture.js";
+import { openStreams, setVisibility, trackStreams } from "./visibility.js";
 
 const ORIGIN = "http://app.test";
 // Newest first, as the API lists them: the call, its page, then an older request.
 const PROFILES: Profile[] = [PROMOTIONS, PROFILE, DATA_REQUEST];
+const INVOICES: Profile = {
+  ...DATA_REQUEST,
+  token: "b0b0b0",
+  kind: "document",
+  request: { method: "GET", url: "/invoices" },
+  startedAt: PROFILE.startedAt + 60_000,
+};
 let bundle = "";
 
 test.beforeAll(async () => {
@@ -18,8 +26,8 @@ test.beforeAll(async () => {
   bundle = result.outputFiles[0]!.text;
 });
 
-/** The profiler's page at `path`, with the API answering with the fixture profiles. */
-async function open(page: Page, path: string) {
+/** The profiler's page at `path`, with the API answering with `profiles`. */
+async function open(page: Page, path: string, profiles = [...PROFILES]) {
   await page.route(`${ORIGIN}/**`, async (route) => {
     const url = new URL(route.request().url());
     const json = (body: unknown) =>
@@ -27,7 +35,7 @@ async function open(page: Page, path: string) {
     if (url.pathname === "/_profiler/ui.js")
       return route.fulfill({ contentType: "text/javascript", body: bundle });
     if (url.pathname === "/_profiler/api/meta") return json({ root: "/repo" });
-    if (url.pathname === "/_profiler/api/profiles") return json(PROFILES.map(listItem));
+    if (url.pathname === "/_profiler/api/profiles") return json(profiles.map(listItem));
     if (url.pathname === "/_profiler/api/stream")
       return route.fulfill({ contentType: "text/event-stream", body: ": ok\n\n" });
     if (url.pathname === "/_profiler/api/stats")
@@ -56,7 +64,7 @@ async function open(page: Page, path: string) {
         models: [{ model: "Order", operations: 5, totalMs: 17 }],
         routes: [{ path: "/orders", requests: 2, queries: 8, dbTimeMs: 49.9, warnings: 2 }],
       });
-    const profile = PROFILES.find((p) => p.token === url.pathname.split("/").pop());
+    const profile = profiles.find((p) => p.token === url.pathname.split("/").pop());
     if (url.pathname.startsWith("/_profiler/api/profiles/") && profile) return json(profile);
     return route.fulfill({
       contentType: "text/html",
@@ -104,4 +112,20 @@ test("shows the stats", async ({ page }) => {
   await expect(app.locator(".switch a.on")).toHaveText("Stats");
   await app.getByRole("link", { name: "Requests" }).click();
   await expect(app.locator("h1")).toContainText("GET /orders");
+});
+
+test("gives its live connection back while the tab is hidden, and lists what finished meanwhile", async ({
+  page,
+}) => {
+  await trackStreams(page);
+  const profiles = [...PROFILES];
+  const app = await open(page, "/_profiler", profiles);
+  await expect(app.locator("h1")).toContainText("GET /orders");
+  await expect.poll(() => openStreams(page)).toBe(1);
+  await setVisibility(page, "hidden");
+  await expect.poll(() => openStreams(page)).toBe(0);
+  profiles.unshift(INVOICES);
+  await setVisibility(page, "visible");
+  await expect(app.locator(".item", { hasText: "/invoices" })).toBeVisible();
+  await expect.poll(() => openStreams(page)).toBe(1);
 });
