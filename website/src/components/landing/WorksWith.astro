@@ -1,19 +1,22 @@
 ---
 import { integrations } from "../../data/integrations";
 import { link } from "../../data/site";
+
+// The landing page lists only what works today; the compatibility page also shows what is coming.
+const supported = integrations.filter((integration) => integration.status === "ready");
 ---
 
 <section class="wrap works">
   <div class="eyebrow">-- works with</div>
   <h2 class="title">Prisma first. Your framework next.</h2>
   <div class="panel result">
-    <div class="query"><span class="k">SELECT</span> name, status <span class="k">FROM</span> integrations;</div>
+    <div class="query"><span class="k">SELECT</span> name, status <span class="k">FROM</span> integrations <span class="k">WHERE</span> status = 'ready';</div>
     <div class="scroll">
       <table>
         <thead><tr><th scope="col">name</th><th scope="col">status</th></tr></thead>
         <tbody>
           {
-            integrations.map((integration) => (
+            supported.map((integration) => (
               <tr>
                 <td>{integration.guide ? <a href={link(integration.guide)}>{integration.name}</a> : integration.name}</td>
                 <td class={integration.status}>{integration.status}</td>
@@ -23,7 +26,7 @@ import { link } from "../../data/site";
         </tbody>
       </table>
     </div>
-    <div class="count">({integrations.length} rows)</div>
+    <div class="count">({supported.length} rows)</div>
   </div>
 </section>
 
@@ -37,7 +40,5 @@ import { link } from "../../data/site";
   td { padding: 9px 18px; border-bottom: 1px solid #1c2130; }
   td a { color: var(--ink); }
   .ready { color: var(--green); }
-  .next { color: var(--blue); }
-  .planned { color: var(--muted); }
   .count { padding: 10px 18px; color: var(--dim); font-size: 13px; }
 </style>
