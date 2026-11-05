@@ -1,5 +1,6 @@
 import type { Profile, ProfileListItem } from "../core/index.js";
 import { runnableSql, type Editor } from "./format.js";
+import { formatSql } from "./sql.js";
 import { clearAll, getJson } from "./http.js";
 import { followProfiles, mergeProfiles } from "./live.js";
 import { STRIP_HEIGHT, styles } from "./styles.js";
@@ -235,7 +236,7 @@ export class ProfilerToolbar extends HTMLElement {
         const query = state.profile?.queries.find((q) => q.id === target.dataset.id);
         if (query)
           void navigator.clipboard
-            .writeText(runnableSql(query))
+            .writeText(formatSql(runnableSql(query)))
             .then(() => (target.textContent = "Copied"));
         return;
       }

@@ -165,8 +165,9 @@ queries, time the database was busy and warnings. Click it to open:
 - **Requests**: the page, and under it every call it made (fetchers, navigations, actions,
   revalidations). Each call is its own profile; the bar tags it with the page's token
   (`X-Debug-Parent`), so it hangs under the page. A client navigation starts a new page.
-- **Queries** of the request you pick: N+1 groups collapsed, slow and duplicated ones marked,
-  copy the runnable SQL, open the line in your editor.
+- **Queries** of the request you pick: N+1 groups collapsed, slow and duplicated ones marked.
+  Open one to read its SQL laid out over lines and in colour, copy it runnable, and open the line in
+  your editor.
 - **Operations**, **Timeline**, **Warnings** and **Request**.
 
 It updates live while its tab is visible, catches up when you come back to it, and lists recent requests, with **Clear** to remove them all. Minimize it to a pill, or open the full profile.

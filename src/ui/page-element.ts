@@ -5,6 +5,7 @@ import { runnableSql } from "./format.js";
 import { clearAll, getJson } from "./http.js";
 import { followProfiles, mergeProfiles } from "./live.js";
 import { renderList, renderPage, type PageState } from "./page-view.js";
+import { formatSql } from "./sql.js";
 import { pageStyles } from "./styles.js";
 import { choiceOf, chooseTheme, initialTheme } from "./theme.js";
 
@@ -142,7 +143,7 @@ export class ProfilerPage extends HTMLElement {
         const query = state.profile?.queries.find((q) => q.id === target.dataset.id);
         if (query)
           void navigator.clipboard
-            .writeText(runnableSql(query))
+            .writeText(formatSql(runnableSql(query)))
             .then(() => (target.textContent = "Copied"));
         return;
       }

@@ -83,6 +83,12 @@ tr.warn td { background: var(--warn-row); }
 tr.child td { background: transparent; padding-left: 28px; }
 .sql { word-break: break-word; }
 .sql.clip { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+/* An open query: laid out over lines, as it would be written by hand. */
+.sql.formatted { white-space: pre-wrap; line-height: 1.55; cursor: pointer; }
+.sql .kw { color: var(--accent); }
+.sql .str { color: var(--ok); }
+.sql .param { color: var(--warn); }
+.sql .cm { color: var(--ink-3); }
 .sub { color: var(--ink-2); font-size: 12px; margin-top: 3px; }
 .badge { display: inline-block; font-size: 11.5px; font-weight: 650; padding: 1px 8px; border-radius: 999px; margin-left: 8px; vertical-align: 1px; }
 .badge.n1, .badge.duplicate { background: var(--warn-soft); color: var(--warn); }

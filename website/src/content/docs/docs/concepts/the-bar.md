@@ -9,8 +9,9 @@ made: requests, queries, the time the database was busy and warnings. Click it t
 - **Requests**: the page, and under it every call it made after loading: fetchers, navigations,
   actions, revalidations. Each call is its own profile, tagged with the page's token
   (`X-Debug-Parent`), so it hangs under the page. A client navigation starts a new page.
-- **Queries** of the request you pick: N+1 groups collapsed, slow and duplicate queries marked, the
-  runnable SQL to copy, and the line to open in your editor.
+- **Queries** of the request you pick: N+1 groups collapsed, slow and duplicate queries marked.
+  Open one to read its SQL laid out over lines, one clause per line and in colour, copy it runnable
+  with its parameters filled in, and open the line in your editor.
 - **Operations**, **Timeline**, **Warnings** and **Request**.
 
 It updates live, lists recent requests, shrinks to a pill, and links to the
