@@ -26,7 +26,12 @@ export default defineConfig({
         { label: "Start here", items: ["docs", "docs/installation"] },
         {
           label: "Guides",
-          items: ["docs/guides/react-router", "docs/guides/prisma", "docs/guides/turning-it-off"],
+          items: [
+            "docs/guides/react-router",
+            "docs/guides/fastify",
+            "docs/guides/prisma",
+            "docs/guides/turning-it-off",
+          ],
         },
         {
           label: "Concepts",

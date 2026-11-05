@@ -13,8 +13,9 @@ never loaded.
 | `query-profiler/react-router`         | `profilerMiddleware()`: a profile per request in React Router 7.9+ and 8.                                                   | `react-router` 7.9+         |
 | `query-profiler/react-router/route`   | A resource route serving the profiler, for servers without Vite.                                                            | `react-router` 7.9+         |
 | `query-profiler/react-router/toolbar` | `<ProfilerToolbar />`, for servers without Vite.                                                                            | `react`                     |
+| `query-profiler/fastify`              | `profilerPlugin`: a profile per request in Fastify, and the profiler's page and API under `/_profiler`.                     | `fastify` 4.26+             |
 | `query-profiler/vite`                 | `queryProfiler()`: serves the API and the UI in development, keeps the profiler out of builds.                              | `vite` 6+                   |
 | `query-profiler/ui`                   | The bar (`<query-profiler-toolbar>`) and the page (`<query-profiler-page>`) as web components.                              | a browser                   |
 
-Every entry that runs in your app has a no-op version with the same API, which production builds
-get.
+Every entry that runs in your app has a no-op version with the same API, which production gets:
+builds through the Vite plugin, and plain `node` without `--conditions=development`.

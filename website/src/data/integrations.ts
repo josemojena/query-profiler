@@ -13,7 +13,7 @@ export const integrations: Integration[] = [
   { name: "PostgreSQL", status: "ready", guide: "docs/installation" },
   { name: "React Router 7.9+ · 8 · Remix", status: "ready", guide: "docs/guides/react-router" },
   { name: "Vite 6+", status: "ready", guide: "docs/guides/react-router" },
-  { name: "Fastify", status: "next" },
+  { name: "Fastify 4.26+ · 5", status: "ready", guide: "docs/guides/fastify" },
   { name: "Next.js · NestJS", status: "planned" },
   { name: "MySQL", status: "planned" },
   { name: "Prisma ORM 8", status: "planned" },
