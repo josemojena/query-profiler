@@ -1,11 +1,15 @@
 // @ts-check
+import sitemap from "@astrojs/sitemap";
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
+  site: "https://query-profiler.dev",
   trailingSlash: "never",
   build: { format: "file" },
   integrations: [
+    // The demo pages are noindex: keep them out of the sitemap too.
+    sitemap({ filter: (page) => !page.includes("/demo-profiler") }),
     starlight({
       title: "query-profiler",
       description:

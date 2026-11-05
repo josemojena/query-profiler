@@ -4,6 +4,8 @@
 [![CI](https://github.com/josemojena/query-profiler/actions/workflows/ci.yml/badge.svg)](https://github.com/josemojena/query-profiler/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
+**Docs and live demo: [query-profiler.dev](https://query-profiler.dev)**
+
 **The database profiler for Prisma ORM**, in development. Inspired by the Symfony profiler: for
 every request your app serves, what Prisma did in the database and why.
 
