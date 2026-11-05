@@ -229,6 +229,9 @@ behind each, live. Each response's `X-Debug-Token` opens that request at `/_prof
 - `QUERY_PROFILER_LOG=1` prints one line per request in the terminal.
 - `QUERY_PROFILER_HOST=0.0.0.0` makes it listen on every interface, to reach it from outside a
   container with its port published. It still answers only requests addressed to a local host.
+- Several processes share one profiler: with Node's `cluster`, PM2 in cluster mode, or two apps at
+  once, the first one serves it and the others send it their requests. If it stops, another one
+  takes the port over.
 - When a request comes from another origin, the preload adds `X-Debug-Token` to
   `Access-Control-Expose-Headers`; if your CORS settings set that header themselves, list
   `X-Debug-Token` there too.
@@ -268,6 +271,7 @@ Router, and on the profiler's own port for a Node server. `/_profiler`,
 | `GET /api/profiles/:token`                    | One profile, whole                                                                              |
 | `GET /api/stream`                             | Server-sent events: one `profile` per finished request, and `clear` when the storage is emptied |
 | `GET /api/meta`                               | Where paths are shown from                                                                      |
+| `POST /api/profiles`                          | Takes another process's finished profile, as JSON; refuses a request with an `Origin`           |
 | `DELETE /api/profiles`                        | Empties the storage                                                                             |
 
 `createHandler()` is a plain Fetch handler (`Request` → `Response`), so any framework can mount it.
@@ -289,6 +293,8 @@ preload does too.
   set to anything but `development` (`production`, `test`…).
 - **Local only.** The API answers `localhost`, `127.0.0.1` and `[::1]`, even when the dev server
   listens on the network. For a Node server, the profiler's own port listens on `localhost` only.
+  It takes profiles from other processes as JSON only and never with an `Origin`, so a page in your
+  browser cannot send it any.
 - **In memory only.** Profiles live in the dev server's memory: the last 100, at most 1000 queries
   each. Nothing is written to disk, to a database or to cookies; the browser keeps only how you
   left the bar.
