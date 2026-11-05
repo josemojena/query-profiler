@@ -3,18 +3,6 @@ import { prisma } from "./db.js";
 
 const app = Fastify();
 
-// query-profiler is a dev dependency: a production install leaves it out, and the app runs without it.
-const profiler = await Promise.all([
-  import("query-profiler"),
-  import("query-profiler/fastify"),
-]).catch(() => undefined);
-if (profiler) {
-  const [{ formatProfile }, { profilerPlugin }] = profiler;
-  await app.register(profilerPlugin, {
-    onProfile: (profile) => console.log(formatProfile(profile)),
-  });
-}
-
 // One query per user, on purpose: the profiler flags it as an N+1.
 app.get("/users", async () => {
   const users = await prisma.user.findMany({ orderBy: { id: "asc" } });

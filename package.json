@@ -46,6 +46,11 @@
       "types": "./dist/core/index.d.ts",
       "default": "./dist/core/index.js"
     },
+    "./register": {
+      "types": "./dist/node/register.d.ts",
+      "development": "./dist/node/register.js",
+      "default": "./dist/node/register-noop.js"
+    },
     "./constants": {
       "types": "./dist/core/constants.d.ts",
       "default": "./dist/core/constants.js"
