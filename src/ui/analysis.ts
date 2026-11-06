@@ -4,20 +4,24 @@ import type { Engine, PlanStep } from "../analysis/plan.js";
 import type { QueryRecord } from "../core/index.js";
 import { escape, ms } from "./format.js";
 
-// The plan of a query and what the analysis finds in it, inside the query's open row.
+// A query's tools, in a row of their own under its open row: Explain plan and Measure it, each
+// with its own answer, the findings and their fixes. Flat, like the rest of the profiler.
 
-export type PlanState =
-  | { loading: true; measure: boolean }
-  | { analysis: Analysis }
-  | { error: string };
+export type PlanState = { loading: true } | { analysis: Analysis } | { error: string };
 
 export type TrialState = { loading: true } | { trial: Trial } | { error: string };
+
+export type QueryTab = "explain" | "measure";
 
 export interface AnalysisView {
   /** What each query's SQL shows without asking the database, by query id. */
   findings: Record<string, Finding[]>;
-  /** The plans asked for, by query id. */
-  plans: Record<string, PlanState>;
+  /** The estimated plans asked for, by query id. */
+  estimates: Record<string, PlanState>;
+  /** The measured plans asked for, by query id. */
+  measures: Record<string, PlanState>;
+  /** The tab open in each open query's tools. */
+  tabs: Record<string, QueryTab>;
   /** The indexes tried, by query id and index name. */
   trials: Record<string, TrialState>;
   /** Sections opened: a fix's SQL, a table's notes, the database's own plan. */
@@ -26,7 +30,9 @@ export interface AnalysisView {
 
 export const emptyAnalysis = (): AnalysisView => ({
   findings: {},
-  plans: {},
+  estimates: {},
+  measures: {},
+  tabs: {},
   trials: {},
   open: new Set(),
 });
@@ -40,11 +46,24 @@ const ENGINES: Record<Engine, string> = {
   sqlite: "SQLite",
 };
 const SEVERITY = { problem: 0, warning: 1, info: 2 };
-const READ = /^\s*(?:\/\*[\s\S]*?\*\/\s*)*\(?\s*(?:SELECT|WITH)\b/i;
+// Past comments and an opening parenthesis, the statement's first word.
+const LEAD = String.raw`^\s*(?:\/\*[\s\S]*?\*\/\s*)*\(?\s*`;
+const EXPLAINABLE = new RegExp(
+  `${LEAD}(?:SELECT|WITH|VALUES|TABLE|INSERT|UPDATE|DELETE|REPLACE|MERGE)\\b`,
+  "i",
+);
+const READ = new RegExp(`${LEAD}(?:SELECT|WITH)\\b`, "i");
 const LOCKING =
   /\bFOR\s+(?:NO\s+KEY\s+)?(?:UPDATE|SHARE|KEY\s+SHARE)\b|\bLOCK\s+IN\s+SHARE\s+MODE\b/i;
 
 const trialKey = (queryId: string, index: string) => `${queryId}:${index}`;
+const explainable = (query: QueryRecord) =>
+  query.database !== undefined && EXPLAINABLE.test(query.sql);
+const measurable = (query: QueryRecord) =>
+  explainable(query) &&
+  query.database?.provider !== "sqlite" &&
+  READ.test(query.sql) &&
+  !LOCKING.test(query.sql);
 
 /** The first thing a closed row's SQL shows, under it, when it shows something. */
 export function clue(view: AnalysisView, query: QueryRecord): string {
@@ -55,119 +74,146 @@ export function clue(view: AnalysisView, query: QueryRecord): string {
   return `<div class="clue ${first.severity}">${escape(first.message)}${rest.length ? ` <span class="more">and ${rest.length} more</span>` : ""}</div>`;
 }
 
-/** The actions of an open row: explain, measure, and the plan below them. */
-export function planActions(view: AnalysisView, query: QueryRecord): string {
-  const state = view.plans[query.id];
-  const reads = READ.test(query.sql) && !LOCKING.test(query.sql);
-  const measurable = reads && query.database?.provider !== "sqlite";
-  return [
-    query.database
-      ? `<button data-action="explain" data-id="${escape(query.id)}" class="${state ? "on" : ""}">${state ? "Hide plan" : "Explain plan"}</button>`
-      : "",
-    measurable && query.database
-      ? `<button data-action="measure" data-id="${escape(query.id)}" title="Runs the read in a transaction that is rolled back">Measure it</button>`
-      : "",
-  ].join("");
+/** The way into a query's plan, on its closed row, when the database can be asked about it. */
+export function explainLink(query: QueryRecord): string {
+  return explainable(query)
+    ? `<button class="explain-link" data-action="explain-open" data-id="${escape(query.id)}">Explain ›</button>`
+    : "";
 }
 
-/** The plan box under an open row, once a plan is asked for. */
-export function planBox(view: AnalysisView, query: QueryRecord, times: number): string {
-  const state = view.plans[query.id];
-  if (!state) return "";
-  if ("loading" in state)
-    return `<div class="plan"><div class="plan-head"><span><b>Plan</b></span><span>${state.measure ? "running it in a transaction that is rolled back…" : "asking the database…"}</span></div></div>`;
+/** The tools row under an open query, the table's whole width. */
+export function toolsRow(view: AnalysisView, query: QueryRecord, times: number): string {
+  const id = escape(query.id);
+  const active = view.tabs[query.id];
+  const tab = (name: QueryTab, label: string, hint: string) =>
+    `<button class="qtab${active === name ? " on" : ""}" data-action="query-tab" data-tab="${name}" data-id="${id}">${label}<small>${hint}</small></button>`;
+  const tabs = [
+    explainable(query) ? tab("explain", "Explain plan", "estimated") : "",
+    measurable(query)
+      ? tab(
+          "measure",
+          "Measure it",
+          active === "measure" ? "ran it, rolled back" : "runs it, rolled back",
+        )
+      : "",
+  ].join("");
+  const strip = `<div class="qtabs">${tabs}<span class="spacer"></span><button class="link" data-action="copy" data-id="${id}">Copy runnable SQL</button><button class="close" data-action="query-close" data-id="${id}">Close ✕</button></div>`;
+  return `<tr class="tools"><td></td><td colspan="3">${strip}${pane(view, query, times)}</td></tr>`;
+}
+
+function pane(view: AnalysisView, query: QueryRecord, times: number): string {
+  const active = view.tabs[query.id];
+  if (!explainable(query))
+    return `<div class="said">${query.database ? "The database has no plan for this statement." : "The connection that ran this query is not one the profiler can ask."}</div>`;
+  if (!active)
+    return `<div class="said">Explain plan asks the database for its estimate, without running the query. Measure it runs a read in a transaction that is rolled back.</div>`;
+  const state = (active === "explain" ? view.estimates : view.measures)[query.id];
+  if (!state || "loading" in state)
+    return `<div class="said">${active === "measure" ? "Running it in a transaction that is rolled back…" : "Asking the database…"}</div>`;
   if ("error" in state)
-    return `<div class="plan"><div class="plan-head"><span><b>Plan</b></span></div><div class="finding"><span class="caveat">Couldn't get the plan: ${escape(state.error)}</span></div></div>`;
+    return `<div class="said">Couldn't get the plan: ${escape(state.error)}</div>`;
   const { analysis } = state;
-  const engine = `${ENGINES[analysis.engine]} ${escape(analysis.version)}`;
-  const forWhich = times > 1 ? ` · for the first of the ${times}` : "";
   const plan = analysis.plan;
-  const how = plan
-    ? plan.measured
-      ? "measured, in a transaction rolled back"
+  const engine = `<b>${ENGINES[analysis.engine]} ${escape(analysis.version)}</b>`;
+  const forWhich = times > 1 ? ` · for the first of the ${times}` : "";
+  const how = !plan
+    ? ""
+    : plan.measured
+      ? " · measured, in a transaction rolled back"
       : plan.generic
-        ? "estimated, without the parameters' values"
+        ? " · estimated, without the parameters' values"
         : plan.approximate
-          ? "estimated, with stand-ins for hidden values"
-          : "estimated, not run"
+          ? " · estimated, with stand-ins for hidden values"
+          : " · estimated, not run";
+  const rawKey = `raw:${query.id}:${active}`;
+  const rawLink = plan
+    ? `<button class="link" data-action="section" data-key="${escape(rawKey)}">${view.open.has(rawKey) ? "Hide the database's plan" : "Show the database's plan"}</button>`
     : "";
-  const head = `<div class="plan-head"><span><b>Plan</b> · ${engine}${forWhich}</span><span>${how}</span></div>`;
+  const said = `<div class="said"><span>${engine}${forWhich}${how}</span>${rawLink}</div>`;
   if (!plan)
-    return `<div class="plan">${head}<div class="finding"><span class="caveat">${escape(analysis.noPlan?.message ?? "No plan.")}</span></div>${findingsHtml(view, query, analysis, "query")}</div>`;
+    return `${said}<div class="said">${escape(analysis.noPlan?.message ?? "No plan.")}</div>${findingsSection(view, query, analysis, active)}`;
   const flagged = new Set(analysis.findings.map((finding) => finding.step));
-  const rows: string[] = [];
+  const steps: string[] = [];
   let position = 0;
-  const walk = (steps: PlanStep[], depth: number) => {
-    for (const step of steps) {
-      rows.push(stepHtml(step, depth, flagged.has(position)));
+  const walk = (children: PlanStep[], depth: number) => {
+    for (const child of children) {
+      steps.push(stepHtml(child, depth, flagged.has(position)));
       position += 1;
-      walk(step.children, depth + 1);
+      walk(child.children, depth + 1);
     }
   };
   walk(plan.steps, 0);
-  const tables = analysis.findings.filter((finding) => finding.about === "table");
-  const names = [...new Set(tables.map((finding) => finding.table).filter(Boolean))];
-  const tableKey = `table:${query.id}`;
-  const rawKey = `raw:${query.id}`;
-  const about = tables.length
-    ? `<div class="about"><span><b>About the table${names.length > 1 ? "s" : ""} ${escape(names.join(", "))}</b> · ${tables.length} note${tables.length > 1 ? "s" : ""}, whatever the query</span><button data-action="section" data-key="${escape(tableKey)}">${view.open.has(tableKey) ? "Hide" : "Show"}</button></div>${view.open.has(tableKey) ? findingsHtml(view, query, analysis, "table") : ""}`
-    : "";
   const raw = view.open.has(rawKey) ? `<pre class="raw-plan mono">${escape(plan.raw)}</pre>` : "";
-  return `<div class="plan">${head}<div class="steps">${rows.join("")}</div>${findingsHtml(view, query, analysis, "query")}${about}<div class="raw"><button data-action="section" data-key="${escape(rawKey)}">${view.open.has(rawKey) ? "Hide the database's plan" : "Show the database's plan"}</button></div>${raw}</div>`;
+  return `${said}${raw}<div class="steps">${steps.join("")}</div>${findingsSection(view, query, analysis, active)}`;
 }
 
 function stepHtml(step: PlanStep, depth: number, flagged: boolean): string {
   const name = step.relation ?? step.table;
   const parts = [
     name ? `<b>${escape(name)}</b>` : "",
-    step.index ? `<span class="label mono">${escape(step.index)}</span>` : "",
-    step.lookup ? `<span class="label mono">${escape(step.lookup)}</span>` : "",
-    step.filter ? `<span class="label mono">filter: ${escape(step.filter)}</span>` : "",
-    step.keys?.length ? `<span class="label mono">${escape(step.keys.join(", "))}</span>` : "",
-    step.temporary ? `<span class="how plain">temporary</span>` : "",
-    step.onDisk ? `<span class="how scan">on disk</span>` : "",
+    step.index ? `<span class="detail mono">${escape(step.index)}</span>` : "",
+    step.lookup ? `<span class="detail mono">${escape(step.lookup)}</span>` : "",
+    step.filter ? `<span class="detail mono">filter: ${escape(step.filter)}</span>` : "",
+    step.keys?.length ? `<span class="detail mono">${escape(step.keys.join(", "))}</span>` : "",
+    step.temporary ? `<span class="badge plain">temporary</span>` : "",
+    step.onDisk ? `<span class="badge problem">on disk</span>` : "",
   ].filter(Boolean);
   const measured = step.measured;
   const rows = measured
     ? `${rowCount(measured.rows)}${measured.loops > 1 ? ` · ${measured.loops} loops` : ""}${measured.ms === undefined ? "" : ` · ${ms(measured.ms)}`}`
     : step.rows === undefined
       ? ""
-      : `~${rowCount(step.rows)}`;
-  return `<div class="step${flagged ? " flagged" : ""}" style="padding-left:${depth * 14}px"><span class="tree mono">${depth ? "└─" : ""}</span>${accessBadge(step)}<span class="what">${parts.join(" ")}</span><span class="rows">${rows}</span></div>`;
+      : `~${rowCount(step.rows)}${step.cost === undefined ? "" : ` · cost ${round(step.cost).toLocaleString("en-US")}`}`;
+  return `<div class="step${flagged ? " flagged" : ""}"><span class="tree mono" style="padding-left:${depth * 14}px">${depth ? "└─" : ""}</span>${accessBadge(step)}<span class="what">${parts.join(" ")}</span><span class="rows">${rows}</span></div>`;
 }
 
 function accessBadge(step: PlanStep): string {
   switch (step.access) {
     case "full":
-      return `<span class="how scan">Reads every row</span>`;
+      return `<span class="badge problem">Reads every row</span>`;
     case "automatic-index":
-      return `<span class="how scan">Builds an index</span>`;
+      return `<span class="badge problem">Builds an index</span>`;
     case "index-full":
-      return `<span class="how warn">Reads the whole index</span>`;
+      return `<span class="badge warning">Reads the whole index</span>`;
     case "index":
     case "index-only":
     case "unique":
-      return `<span class="how index">Uses index</span>`;
+      return `<span class="badge index">Uses index</span>`;
     default:
-      return `<span class="how plain">${escape(step.label)}</span>`;
+      return `<span class="badge plain">${escape(step.label)}</span>`;
   }
 }
 
-function findingsHtml(
+function findingsSection(
   view: AnalysisView,
   query: QueryRecord,
   analysis: Analysis,
-  about: Finding["about"],
+  tab: QueryTab,
 ): string {
-  return analysis.findings
-    .filter((finding) => finding.about === about)
-    .map((finding, index) => {
-      const docs = finding.docs
-        ? `<a class="docs" href="${escape(finding.docs)}" target="_blank" rel="noopener">${ENGINES[analysis.engine]} manual</a>`
-        : "";
-      return `<div class="finding"><div class="finding-head"><span class="sev ${finding.severity}">${finding.severity}</span><span class="msg">${escape(finding.message)}</span>${docs}</div>${fixHtml(view, query, analysis, finding, `${about}${index}`)}</div>`;
-    })
-    .join("");
+  const own = analysis.findings.filter((finding) => finding.about === "query");
+  const tables = analysis.findings.filter((finding) => finding.about === "table");
+  const names = [...new Set(tables.map((finding) => finding.table).filter(Boolean))];
+  const tableKey = `table:${query.id}:${tab}`;
+  const findings = own.length
+    ? `<div class="h">What it finds</div>${own.map((finding, at) => findingHtml(view, query, analysis, finding, `${tab}${at}`)).join("")}`
+    : `<div class="said">Nothing to fix in how it reads.</div>`;
+  const fold = tables.length
+    ? `<div class="fold"><button class="link" data-action="section" data-key="${escape(tableKey)}">${view.open.has(tableKey) ? "▾" : "▸"}</button> <b>About the table${names.length > 1 ? "s" : ""} ${escape(names.join(", "))}</b> · ${tables.length} note${tables.length > 1 ? "s" : ""}, whatever the query <button class="link" data-action="section" data-key="${escape(tableKey)}">${view.open.has(tableKey) ? "Hide" : "Show"}</button></div>${view.open.has(tableKey) ? tables.map((finding, at) => findingHtml(view, query, analysis, finding, `${tab}t${at}`)).join("") : ""}`
+    : "";
+  return findings + fold;
+}
+
+function findingHtml(
+  view: AnalysisView,
+  query: QueryRecord,
+  analysis: Analysis,
+  finding: Finding,
+  key: string,
+): string {
+  const docs = finding.docs
+    ? `<a class="docs" href="${escape(finding.docs)}" target="_blank" rel="noopener">${ENGINES[analysis.engine]} manual</a>`
+    : "<span></span>";
+  return `<div class="find"><span><span class="badge ${finding.severity}">${finding.severity}</span></span><div class="what"><span class="msg">${escape(finding.message)}</span>${fixHtml(view, query, analysis, finding, key)}</div>${docs}</div>`;
 }
 
 function fixHtml(
@@ -180,17 +226,26 @@ function fixHtml(
   const fix = finding.fix;
   if (!fix) return "";
   const sqlKey = `sql:${query.id}:${key}`;
-  const prisma = fix.prisma ? codeHtml(fix.prisma) : "";
-  const sql = fix.sql && (view.open.has(sqlKey) || !fix.prisma) ? codeHtml(fix.sql) : "";
-  const showSql =
-    fix.sql && fix.prisma
-      ? `<button data-action="section" data-key="${escape(sqlKey)}">${view.open.has(sqlKey) ? "Hide SQL" : "Show SQL"}</button>`
-      : "";
+  const shown = fix.prisma ?? fix.sql;
+  const links = [
+    shown ? copyButton(shown) : "",
+    fix.prisma && fix.sql
+      ? `<button class="link" data-action="section" data-key="${escape(sqlKey)}">${view.open.has(sqlKey) ? "Hide SQL" : "Show SQL"}</button>`
+      : "",
+  ];
   const triable = fix.index !== undefined && fix.sql !== undefined;
   const undoable = analysis.engine === "postgres" || analysis.engine === "sqlite";
-  const trial = triable ? trialHtml(view, query, fix.index!, undoable) : { button: "", result: "" };
-  const actions = [trial.button, showSql].filter(Boolean).join("");
-  return `<div class="fix"><span class="text">${escape(fix.text)}</span>${prisma}${sql}${actions ? `<div class="fix-actions">${actions}</div>` : ""}${trial.result}</div>`;
+  const trial = triable ? trialHtml(view, query, fix.index!, undoable) : { link: "", result: "" };
+  const line = shown
+    ? `<div class="line"><span class="mono">${escape(shown)}</span>${links.join("")}${trial.link}</div>`
+    : trial.link
+      ? `<div class="line">${trial.link}</div>`
+      : "";
+  const sql =
+    fix.prisma && fix.sql && view.open.has(sqlKey)
+      ? `<div class="line"><span class="mono">${escape(fix.sql)}</span>${copyButton(fix.sql)}</div>`
+      : "";
+  return `<span class="fix">${escape(fix.text)}</span>${line}${sql}${trial.result}`;
 }
 
 function trialHtml(
@@ -198,32 +253,33 @@ function trialHtml(
   query: QueryRecord,
   index: string,
   undoable: boolean,
-): { button: string; result: string } {
+): { link: string; result: string } {
   if (!undoable)
     return {
-      button: `<button class="try" disabled>Try this index</button><span class="caveat">MySQL and MariaDB commit a CREATE INDEX at once, so it cannot be tried and undone.</span>`,
+      link: `<span class="sub">Try this index: MySQL and MariaDB commit a CREATE INDEX at once, so it cannot be tried and undone.</span>`,
       result: "",
     };
   const state = view.trials[trialKey(query.id, index)];
-  const button = `<button class="try" data-action="trial" data-id="${escape(query.id)}" data-index="${escape(index)}"${state && "loading" in state ? " disabled" : ""}>${state && "loading" in state ? "Trying…" : "Try this index"}</button>`;
-  if (!state || "loading" in state) return { button, result: "" };
+  const trying = state !== undefined && "loading" in state;
+  const link = `<button class="link" data-action="trial" data-id="${escape(query.id)}" data-index="${escape(index)}"${trying ? " disabled" : ""}>${trying ? "Trying…" : "Try this index"}</button>`;
+  if (!state || trying) return { link, result: "" };
   if ("error" in state)
     return {
-      button,
-      result: `<div class="trial failed">Couldn't try it: ${escape(state.error)}</div>`,
+      link,
+      result: `<div class="tried failed">Couldn't try it: ${escape(state.error)}</div>`,
     };
   const { trial } = state;
-  const read = trial.plan.steps.length ? firstRead(trial.plan.steps) : undefined;
+  const read = firstRead(trial.plan.steps);
   const cost =
     trial.before !== undefined && trial.after !== undefined
-      ? `, cost ${round(trial.before)} → ${round(trial.after)}`
+      ? `, cost ${round(trial.before).toLocaleString("en-US")} → ${round(trial.after).toLocaleString("en-US")}`
       : "";
   const said = trial.used
-    ? `With the index, the database uses it${read ? `: ${escape(read.label)}` : ""}${cost}.`
+    ? `✓ With the index, the database uses it${read ? `: ${escape(read.label)}` : ""}${cost}.`
     : "With the index, the database still does not use it for this query.";
   return {
-    button,
-    result: `<div class="trial${trial.used ? "" : " unused"}"><b>${said}</b><span class="sub">Created and rolled back in a transaction: your database is as it was.</span></div>`,
+    link,
+    result: `<div class="tried${trial.used ? "" : " unused"}">${said} <span class="sub">Created and rolled back in a transaction: your database is as it was.</span></div>`,
   };
 }
 
@@ -243,29 +299,52 @@ const rowCount = (rows: number) => {
 
 const round = (cost: number) => (cost >= 100 ? Math.round(cost) : Math.round(cost * 100) / 100);
 
-const codeHtml = (text: string) =>
-  `<div class="code"><span class="mono">${escape(text)}</span><button data-action="copy-text" data-copy="${escape(text)}">Copy</button></div>`;
+const copyButton = (text: string) =>
+  `<button class="link" data-action="copy-text" data-copy="${escape(text)}">Copy</button>`;
 
-/** What an action in the plan box does; false when the action is none of them. */
+export interface Where {
+  base: string;
+  token: string | undefined;
+  /** Opens or closes a query's row. */
+  expand(id: string, open: boolean): void;
+}
+
+/** What an action in a query's tools does; false when the action is none of them. */
 export function planAction(
   target: HTMLElement,
   view: AnalysisView,
-  where: { base: string; token: string | undefined; queries: QueryRecord[] },
+  where: Where,
   rerender: () => void,
 ): boolean {
   const id = target.dataset.id;
   const { base, token } = where;
   switch (target.dataset.action) {
-    case "explain": {
+    case "explain-open":
       if (!id || !token) return true;
-      if (view.plans[id]) {
-        delete view.plans[id];
-        rerender();
-      } else void ask(view, base, token, id, false, rerender);
+      where.expand(id, true);
+      view.tabs[id] = "explain";
+      if (!view.estimates[id]) void ask(view, base, token, id, "explain", rerender);
+      rerender();
+      return true;
+    case "query-tab": {
+      const tab = target.dataset.tab as QueryTab;
+      if (!id || !token) return true;
+      // The open tab, pressed again, closes.
+      if (view.tabs[id] === tab) delete view.tabs[id];
+      else {
+        view.tabs[id] = tab;
+        const known = tab === "explain" ? view.estimates : view.measures;
+        if (!known[id]) void ask(view, base, token, id, tab, rerender);
+      }
+      rerender();
       return true;
     }
-    case "measure":
-      if (id && token) void ask(view, base, token, id, true, rerender);
+    case "query-close":
+      if (id) {
+        delete view.tabs[id];
+        where.expand(id, false);
+      }
+      rerender();
       return true;
     case "trial": {
       const index = target.dataset.index;
@@ -310,15 +389,15 @@ async function ask(
   base: string,
   token: string,
   id: string,
-  measure: boolean,
+  tab: QueryTab,
   rerender: () => void,
 ) {
-  view.plans[id] = { loading: true, measure };
-  rerender();
+  const known = tab === "explain" ? view.estimates : view.measures;
+  known[id] = { loading: true };
   const result = await call<Analysis>(
-    `${base}/api/profiles/${token}/queries/${id}/analysis${measure ? "?measure=1" : ""}`,
+    `${base}/api/profiles/${token}/queries/${id}/analysis${tab === "measure" ? "?measure=1" : ""}`,
   );
-  view.plans[id] = "error" in result ? result : { analysis: result.body };
+  known[id] = "error" in result ? result : { analysis: result.body };
   rerender();
 }
 

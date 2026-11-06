@@ -122,7 +122,12 @@ export class ProfilerPage extends HTMLElement {
     const where = {
       base: state.base,
       token: state.profile?.token,
-      queries: state.profile?.queries ?? [],
+      expand: (id: string, open: boolean) => {
+        const expanded = new Set(state.expanded);
+        if (open) expanded.add(id);
+        else expanded.delete(id);
+        state.expanded = expanded;
+      },
     };
     if (planAction(target, state.analysis, where, () => this.#render())) return;
     switch (target.dataset.action) {

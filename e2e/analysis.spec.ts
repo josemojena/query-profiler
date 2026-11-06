@@ -186,46 +186,73 @@ test("shows what a query's SQL alone gives away under its closed row, without as
 }) => {
   const { app, asked } = await open(page);
   await expect(app.locator(".clue")).toHaveText(SEARCH_CLUE.message);
+  await expect(app.getByRole("button", { name: "Explain ›" })).toHaveCount(2);
   expect(asked.map((each) => each.path)).toEqual([
     `/_profiler/api/profiles/${POSTS.token}/findings`,
   ]);
 });
 
-test("explains an open query: its plan as steps, what the rules find, and the Prisma line to copy", async ({
+test("opens a query's plan from its Explain link: steps, findings, and the Prisma line to copy", async ({
   page,
 }) => {
   const { app, asked } = await open(page);
-  await app.locator(".sql").first().click();
-  await app.getByRole("button", { name: "Explain plan" }).click();
-  const plan = app.locator(".plan");
-  await expect(plan.locator(".plan-head")).toContainText("PostgreSQL 18.6");
-  await expect(plan.locator(".plan-head")).toContainText("estimated, not run");
-  await expect(plan.locator(".step").nth(1)).toContainText("Reads every row");
-  await expect(plan.locator(".step").nth(1)).toContainText('filter: ("authorId" = $1)');
-  await expect(plan.locator(".step.flagged")).toHaveCount(1);
-  await expect(plan.locator(".finding").first()).toContainText("Reads all 6 rows of Post");
-  await expect(plan.locator(".code").first()).toContainText("@@index([authorId])");
+  await app.getByRole("button", { name: "Explain ›" }).first().click();
+  const tools = app.locator("tr.tools");
+  await expect(tools.locator(".qtab.on")).toContainText("Explain plan");
+  await expect(tools.locator(".said").first()).toContainText(
+    "PostgreSQL 18.6 · estimated, not run",
+  );
+  await expect(tools.locator(".step").nth(1)).toContainText("Reads every row");
+  await expect(tools.locator(".step").nth(1)).toContainText('filter: ("authorId" = $1)');
+  await expect(tools.locator(".step.flagged")).toHaveCount(1);
+  await expect(tools.locator(".find").first()).toContainText("Reads all 6 rows of Post");
+  await expect(tools.locator(".find .line").first()).toContainText("@@index([authorId])");
   expect(asked.at(-1)).toMatchObject({
     path: `/_profiler/api/profiles/${POSTS.token}/queries/q_1/analysis`,
     header: "1",
   });
-  await plan.getByRole("button", { name: "Show SQL" }).click();
-  await expect(plan.locator(".code").nth(1)).toContainText('CREATE INDEX "Post_authorId_idx"');
-  await app.getByRole("button", { name: "Hide plan" }).click();
-  await expect(app.locator(".plan")).toHaveCount(0);
+  await tools.getByRole("button", { name: "Show SQL" }).click();
+  await expect(tools.locator(".find .line").nth(1)).toContainText(
+    'CREATE INDEX "Post_authorId_idx"',
+  );
+  await tools.getByRole("button", { name: "Close ✕" }).click();
+  await expect(app.locator("tr.tools")).toHaveCount(0);
+});
+
+test("opens a query from its SQL without asking the database, and keeps Explain and Measure apart", async ({
+  page,
+}) => {
+  const { app, asked } = await open(page);
+  await app.locator(".sql").first().click();
+  const tools = app.locator("tr.tools");
+  await expect(tools.locator(".said")).toContainText(
+    "Explain plan asks the database for its estimate",
+  );
+  await expect(tools.getByRole("button", { name: "Copy runnable SQL" })).toBeVisible();
+  expect(asked.filter((each) => each.path.includes("/queries/"))).toEqual([]);
+  await tools.getByRole("button", { name: /^Explain plan/ }).click();
+  await expect(tools.locator(".said").first()).toContainText("estimated, not run");
+  await tools.getByRole("button", { name: /^Measure it/ }).click();
+  expect(asked.at(-1)!.path).toBe(
+    `/_profiler/api/profiles/${POSTS.token}/queries/q_1/analysis?measure=1`,
+  );
+  await tools.getByRole("button", { name: /^Explain plan/ }).click();
+  // Back on Explain plan, its answer is the one kept: nothing is asked again.
+  expect(asked.filter((each) => each.path.endsWith("/analysis"))).toHaveLength(1);
+  await tools.getByRole("button", { name: /^Explain plan/ }).click();
+  await expect(tools.locator(".qtab.on")).toHaveCount(0);
 });
 
 test("tries the suggested index by its name, and says the database is as it was", async ({
   page,
 }) => {
   const { app, asked } = await open(page);
-  await app.locator(".sql").first().click();
-  await app.getByRole("button", { name: "Explain plan" }).click();
+  await app.getByRole("button", { name: "Explain ›" }).first().click();
   await app.getByRole("button", { name: "Try this index" }).click();
-  await expect(app.locator(".trial")).toContainText(
-    "With the index, the database uses it: Index Scan, cost 1.08 → 0.14.",
+  await expect(app.locator(".tried")).toContainText(
+    "✓ With the index, the database uses it: Index Scan, cost 1.08 → 0.14.",
   );
-  await expect(app.locator(".trial")).toContainText("Created and rolled back in a transaction");
+  await expect(app.locator(".tried")).toContainText("Created and rolled back in a transaction");
   expect(asked.at(-1)).toMatchObject({
     path: `/_profiler/api/profiles/${POSTS.token}/queries/q_1/trial`,
     header: "1",
@@ -237,14 +264,13 @@ test("keeps a table's notes apart and folded, and shows the database's own plan 
   page,
 }) => {
   const { app } = await open(page);
-  await app.locator(".sql").first().click();
-  await app.getByRole("button", { name: "Explain plan" }).click();
-  await expect(app.locator(".about")).toContainText(
+  await app.getByRole("button", { name: "Explain ›" }).first().click();
+  await expect(app.locator(".fold")).toContainText(
     "About the table Post · 1 note, whatever the query",
   );
-  await expect(app.locator(".plan")).not.toContainText("does not create one");
-  await app.locator(".about").getByRole("button", { name: "Show" }).click();
-  await expect(app.locator(".plan")).toContainText("PostgreSQL does not create one");
+  await expect(app.locator("tr.tools")).not.toContainText("does not create one");
+  await app.locator(".fold").getByRole("button", { name: "Show" }).click();
+  await expect(app.locator("tr.tools")).toContainText("PostgreSQL does not create one");
   await expect(app.getByRole("link", { name: "PostgreSQL manual" })).toHaveAttribute(
     "href",
     /ddl-constraints/,
@@ -258,10 +284,9 @@ test("cannot try an index on MySQL, and says why", async ({ page }) => {
     status: 200,
     body: { ...ANALYSIS, engine: "mysql", version: "8.4.3" },
   });
-  await app.locator(".sql").first().click();
-  await app.getByRole("button", { name: "Explain plan" }).click();
-  await expect(app.getByRole("button", { name: "Try this index" })).toBeDisabled();
-  await expect(app.locator(".fix-actions")).toContainText(
+  await app.getByRole("button", { name: "Explain ›" }).first().click();
+  await expect(app.getByRole("button", { name: "Try this index" })).toHaveCount(0);
+  await expect(app.locator(".find").first()).toContainText(
     "MySQL and MariaDB commit a CREATE INDEX at once",
   );
 });
@@ -271,9 +296,8 @@ test("says what the database answered when it could not plan the query", async (
     status: 422,
     body: { error: "database_error", message: 'column "nope" does not exist' },
   });
-  await app.locator(".sql").first().click();
-  await app.getByRole("button", { name: "Explain plan" }).click();
-  await expect(app.locator(".plan")).toContainText(
+  await app.getByRole("button", { name: "Explain ›" }).first().click();
+  await expect(app.locator("tr.tools")).toContainText(
     `Couldn't get the plan: column "nope" does not exist`,
   );
 });
