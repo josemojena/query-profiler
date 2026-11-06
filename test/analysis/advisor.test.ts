@@ -80,6 +80,15 @@ describe("the index a query wants", () => {
     expect(advise(PAGE, params, [index(["userId"], { where: "archived = false" })])).toBeDefined();
   });
 
+  it("with an equality to look up, counts only an index that starts with one, not with the range", () => {
+    const sql = `SELECT "id" FROM "public"."Order" WHERE "public"."Order"."title" = $1 AND "public"."Order"."views" > $2`;
+    expect(advise(sql, ["a", 10], [index(["views"])])!.columns).toEqual([
+      { name: "title" },
+      { name: "views" },
+    ]);
+    expect(advise(sql, ["a", 10], [index(["title"])])).toBeUndefined();
+  });
+
   it("takes a relation filter's join column from the other side of the =", () => {
     expect(advise(SOME, ["paid", "0"], [], "postgres")!.columns).toEqual([
       { name: "status" },

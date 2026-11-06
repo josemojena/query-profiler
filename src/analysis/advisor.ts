@@ -54,7 +54,10 @@ export const usableWrapper = (wrapper: string | undefined) => !wrapper || HARMLE
 export function adviseIndex(input: AdviceInput): IndexAdvice | undefined {
   const columns = wantedColumns(input);
   if (!columns.length) return undefined;
-  const usable = new Set(columns.map((column) => column.name));
+  // With equality columns, only an index that starts with one finds the rows well: one that
+  // starts with a range or the sort is a poor stand-in.
+  const { equalities } = wantedParts(input);
+  const usable = new Set(equalities.length ? equalities : columns.map((column) => column.name));
   const served = ordered(input).some((index) => usable.has(index.columns[0] ?? ""));
   if (served) return undefined;
   return writeAdvice(input.engine, input.table, columns, input.version);
@@ -102,6 +105,24 @@ export function adviseSortIndex(input: AdviceInput): IndexAdvice | undefined {
 
 /** The columns an index on this table would use for the query, in the order it should list them. */
 export function wantedColumns(input: AdviceInput): IndexColumn[] {
+  const { equalities, sorts, ranges } = wantedParts(input);
+  const ordered: IndexColumn[] = [
+    ...equalities.map((name) => ({ name })),
+    ...sorts,
+    ...ranges.slice(0, 1).map((name) => ({ name })),
+  ];
+  const seen = new Set<string>();
+  return ordered
+    .filter((column) => !seen.has(column.name) && seen.add(column.name))
+    .slice(0, MOST_COLUMNS);
+}
+
+/** The query's equality, sort and range columns on this table. */
+function wantedParts(input: AdviceInput): {
+  equalities: string[];
+  sorts: IndexColumn[];
+  ranges: string[];
+} {
   const same = (table: TableName | undefined) =>
     table !== undefined && sameTable(input.engine, table, input.table);
   const filters: string[] = [];
@@ -128,15 +149,7 @@ export function wantedColumns(input: AdviceInput): IndexColumn[] {
   const sorts = sorted
     ? input.orderBy.map((key) => ({ name: key.column!.column, descending: key.descending }))
     : [];
-  const ordered: IndexColumn[] = [
-    ...unique(equalities).map((name) => ({ name })),
-    ...sorts,
-    ...ranges.slice(0, 1).map((name) => ({ name })),
-  ];
-  const seen = new Set<string>();
-  return ordered
-    .filter((column) => !seen.has(column.name) && seen.add(column.name))
-    .slice(0, MOST_COLUMNS);
+  return { equalities: unique(equalities), sorts, ranges };
 }
 
 /** LIKE 'abc%', which an index can read as a range, unlike LIKE '%abc'. */

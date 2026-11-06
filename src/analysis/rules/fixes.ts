@@ -8,6 +8,8 @@ export interface Fix {
   text: string;
   /** The index it adds, by name: what a trial of it asks for. */
   index?: string;
+  /** The table and columns of the index it adds, in order, a descending one with " DESC". */
+  on?: { table: string; columns: string[] };
   prisma?: string;
   sql?: string;
 }
@@ -88,6 +90,10 @@ export function fixFor(
         kind,
         text: `Add an index on ${advice.columns.map((part) => part.name).join(", ")} to the ${table} model, then run prisma migrate dev.`,
         index: advice.name,
+        on: {
+          table: advice.table.name,
+          columns: advice.columns.map((part) => `${part.name}${part.descending ? " DESC" : ""}`),
+        },
         prisma: advice.prisma,
         sql: advice.sql,
       };
