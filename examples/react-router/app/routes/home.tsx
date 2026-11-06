@@ -3,7 +3,7 @@ import type { Route } from "./+types/home";
 
 // One query per user on purpose: the bar flags it as N+1.
 export async function loader() {
-  const users = await prisma.user.findMany({ orderBy: { id: "asc" } });
+  const users = await prisma.user.findMany({ orderBy: { id: "asc" }, take: 6 });
   const posts = await Promise.all(
     users.map((user) => prisma.post.count({ where: { authorId: user.id } })),
   );
@@ -13,9 +13,14 @@ export async function loader() {
 export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <main className="p-8">
-      <a href="/products" className="underline">
-        Products
-      </a>
+      <nav className="flex gap-4">
+        <a href="/products" className="underline">
+          Products
+        </a>
+        <a href="/problems" className="underline">
+          Queries with problems
+        </a>
+      </nav>
       <h1 className="mb-4 text-2xl font-bold">Users</h1>
       <ul>
         {loaderData.users.map((user) => (

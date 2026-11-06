@@ -23,6 +23,8 @@ export const MANY_LOOPS = 100;
 /** Estimated and measured rows this many times apart. */
 export const MISESTIMATE = 10;
 const WASTE = 10;
+/** A filter that keeps a fifth of a table or more: an index finds those rows no cheaper. */
+const BROAD = 0.2;
 const WASTED_ROWS = 1000;
 
 export interface Analyzed extends Subject {
@@ -131,6 +133,8 @@ function planSubjects(context: Context): Analyzed[] {
     const related = table ? relatedColumns(table, identity!) : [];
     const heapFetches = measured?.heapFetches ?? 0;
     const batches = hashBatches(step);
+    const share =
+      step.rows !== undefined && table?.rows ? Math.min(step.rows / table.rows, 1) : undefined;
     return subject(
       "read",
       {
@@ -166,6 +170,10 @@ function planSubjects(context: Context): Analyzed[] {
         wasteful: removed >= WASTED_ROWS && removed >= WASTE * Math.max(measured?.rows ?? 0, 1),
         considered: (step.possibleIndexes?.length ?? 0) > 0 && !step.index,
         buried: buried !== undefined,
+        // The query stops at a LIMIT: reading in an index's order until then is cheap.
+        limited,
+        // So many rows match that reading them all is what an index would cost too.
+        broad: share !== undefined && share >= BROAD,
         withoutValues: plan?.generic === true || plan?.approximate === true,
         stale:
           table !== undefined &&
@@ -192,6 +200,7 @@ function planSubjects(context: Context): Analyzed[] {
         estimated,
         actual: measured?.rows,
         possible: step.possibleIndexes?.join(", "),
+        share: share === undefined ? undefined : Math.round(share * 100),
         buriedIn: buried?.name,
         leading: buried?.columns[0],
         modified: table?.modified,

@@ -492,3 +492,93 @@ describe("the facts PostgreSQL's manual adds", () => {
     expect(subject!.values).toMatchObject({ buriedIn: "t_b_a", leading: "b" });
   });
 });
+
+describe("a full read of an index", () => {
+  it("is fine up to a LIMIT, which stops it once it has the rows", () => {
+    const read = (sql: string) =>
+      subjects({
+        engine: "postgres",
+        statement: readStatement(sql, "postgres"),
+        plan: {
+          engine: "postgres",
+          version: "18.1",
+          measured: false,
+          generic: false,
+          approximate: false,
+          raw: "",
+          steps: [
+            {
+              label: "Index Scan",
+              kind: "read",
+              table: "t",
+              relation: "t",
+              access: "index-full",
+              index: "t_pkey",
+              filter: "(a = 1)",
+              rows: 5000,
+              children: [],
+            },
+          ],
+        },
+        tables: [],
+        params: [],
+      })[0]!.facts;
+    expect(read("SELECT id FROM t WHERE a = 1 ORDER BY id LIMIT 5").limited).toBe(true);
+    expect(read("SELECT id FROM t WHERE a = 1 ORDER BY id").limited).toBe(false);
+  });
+});
+
+describe("a full read that keeps many rows", () => {
+  it("is what an index would cost too, so it is no index skipped", () => {
+    const facts = (rows: number) =>
+      subjects({
+        engine: "postgres",
+        statement: readStatement("SELECT id FROM t WHERE flag = $1", "postgres"),
+        plan: {
+          engine: "postgres",
+          version: "18.1",
+          measured: false,
+          generic: false,
+          approximate: false,
+          raw: "",
+          steps: [
+            {
+              label: "Seq Scan",
+              kind: "read",
+              table: "t",
+              relation: "t",
+              access: "full",
+              filter: "(flag = true)",
+              rows,
+              children: [],
+            },
+          ],
+        },
+        tables: [
+          {
+            schema: "public",
+            name: "t",
+            rows: 60_000,
+            analyzed: true,
+            columns: [],
+            foreignKeys: [],
+            indexes: [
+              {
+                name: "t_flag",
+                columns: ["flag"],
+                unique: false,
+                primary: false,
+                expression: false,
+              },
+            ],
+          },
+        ],
+        params: [true],
+      })[0]!;
+    expect(facts(40_000)).toMatchObject({
+      facts: { served: true, broad: true },
+      values: { share: 67 },
+    });
+    expect(facts(600).facts.broad).toBe(false);
+  });
+});
