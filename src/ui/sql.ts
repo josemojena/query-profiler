@@ -1,12 +1,9 @@
 import { escape } from "./format.js";
+import { KINDS, PATTERN, matchParens, tokenize, type Range } from "./sql-tokens.js";
 
 // About what fits in the SQL column of the bar and of the profiler page.
 const WIDTH = 50;
 const INDENT = "  ";
-// Whitespace, a 'string', a "name" or `name`, a comment, $1 or ?, a word, ( ) , and anything else,
-// in that order.
-const PATTERN =
-  /(\s+)|('(?:[^']|'')*'?)|("(?:[^"]|"")*"?|`(?:[^`]|``)*`?)|(--[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|(\$\d+|\?)|([A-Za-z_][\w$]*)|(\()|(\))|(,)|([^\s'"`(),A-Za-z_$?]+|\$)/g;
 // Dollar-quoted bodies ($$ … $$) keep their own layout: left as written. So is SQL with a line
 // comment, which ends at its line: moving what follows it could comment that out.
 const DOLLAR_QUOTE = /\$[A-Za-z_]*\$/;
@@ -20,50 +17,6 @@ const KEYWORDS = new Set(
   NULLS FIRST LAST WITH TRUE FALSE CONFLICT DO NOTHING BEGIN COMMIT ROLLBACK SAVEPOINT RELEASE FOR
   SHARE ANY`.split(/\s+/),
 );
-
-type Kind = "string" | "name" | "comment" | "param" | "word" | "open" | "close" | "comma" | "other";
-
-interface Token {
-  kind: Kind;
-  text: string;
-  upper: string;
-  /** Whitespace came before it in the SQL as written. */
-  spaced: boolean;
-}
-
-interface Range {
-  from: number;
-  to: number;
-}
-
-const KINDS: Kind[] = ["string", "name", "comment", "param", "word", "open", "close", "comma"];
-
-function tokenize(sql: string): Token[] {
-  const tokens: Token[] = [];
-  let spaced = false;
-  for (const match of sql.matchAll(PATTERN)) {
-    if (match[1]) {
-      spaced = true;
-      continue;
-    }
-    const kind = KINDS.find((_, index) => match[index + 2] !== undefined) ?? "other";
-    const text = match[0];
-    tokens.push({ kind, text, upper: kind === "word" ? text.toUpperCase() : text, spaced });
-    spaced = false;
-  }
-  return tokens;
-}
-
-/** The index of each opening parenthesis's closing one. */
-function matchParens(tokens: Token[]): Map<number, number> {
-  const pairs = new Map<number, number>();
-  const open: number[] = [];
-  tokens.forEach((token, index) => {
-    if (token.kind === "open") open.push(index);
-    else if (token.kind === "close" && open.length) pairs.set(open.pop()!, index);
-  });
-  return pairs;
-}
 
 /**
  * The statement laid out over lines: one clause per line, a long list one item per line, a long
