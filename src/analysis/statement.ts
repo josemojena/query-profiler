@@ -26,6 +26,8 @@ export interface Condition {
   kind: ConditionKind;
   /** What wraps the column, when something does: lower(), a cast (::text), COLLATE… */
   wrapper?: string;
+  /** A function call around the column, with its other arguments and the column unqualified. */
+  expression?: string;
   value: Operand;
   /** Joined to others with OR, so an index on its column alone may not serve. */
   alternative: boolean;
@@ -678,6 +680,7 @@ export function readStatement(sql: string, engine: Engine): Statement {
       operator: written,
       kind: kindOf(operator, negated),
       ...(left.wrapper ? { wrapper: left.wrapper } : {}),
+      ...(left.expression ? { expression: left.expression } : {}),
       value,
       alternative,
       clause,
@@ -685,7 +688,7 @@ export function readStatement(sql: string, engine: Engine): Statement {
   }
 
   type Term =
-    | { kind: "column"; column: ColumnReference; wrapper?: string }
+    | { kind: "column"; column: ColumnReference; wrapper?: string; expression?: string }
     | { kind: "subquery"; query: Query }
     | { kind: "operand"; operand: Operand };
 
@@ -719,18 +722,24 @@ export function readStatement(sql: string, engine: Engine): Statement {
       const inner = { from: from + 2, to: to - 1 };
       if (name === "ANY" || name === "SOME")
         return { kind: "operand", operand: { kind: "list", positions: paramsIn(inner) } };
-      const argument = items(inner)
-        .map((item) => unwrap(item))
-        .find((item) => chain(item.from)?.end === item.to || (name === "CAST" && chain(item.from)));
+      const args = items(inner).map((item) => unwrap(item));
+      const argument = args.find(
+        (item) => chain(item.from)?.end === item.to || (name === "CAST" && chain(item.from)),
+      );
       if (argument) {
-        const column = resolve(chain(argument.from)!.parts, scope);
+        const found = chain(argument.from)!;
+        const column = resolve(found.parts, scope);
+        // The column as written, without its table: what an index on the expression names.
+        const bare = pieces[found.end - 1]!.text;
+        const call = `${pieces[from]!.text}(${args.map((item) => (item === argument ? bare : text(item))).join(", ")})`;
         return {
           kind: "column",
           column,
           wrapper:
             name === "CAST"
-              ? `cast as ${text({ from: chain(argument.from)!.end + 1, to: argument.to }).toLowerCase()}`
+              ? `cast as ${text({ from: found.end + 1, to: argument.to }).toLowerCase()}`
               : `${name.toLowerCase()}()`,
+          ...(name === "CAST" ? {} : { expression: call }),
         };
       }
     }

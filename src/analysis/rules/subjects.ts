@@ -16,7 +16,8 @@ import type { Subject, SubjectKind } from "./engine.js";
 /** Fewer rows than this, and reading them all is often what the database should do. */
 export const SMALL_TABLE = 1000;
 export const DEEP_OFFSET = 1000;
-export const LONG_LIST = 100;
+// MySQL estimates an IN list of more than 200 values from statistics instead of the index itself.
+export const LONG_LIST = 200;
 export const HUGE_LIST = 1000;
 export const MANY_LOOPS = 100;
 /** Estimated and measured rows this many times apart. */
@@ -34,6 +35,8 @@ export interface Analyzed extends Subject {
 
 export interface Context {
   engine: Engine;
+  /** The engine's version, when the database was asked. */
+  version?: string;
   statement: Statement;
   plan?: Plan;
   tables: Table[];
@@ -110,6 +113,7 @@ function planSubjects(context: Context): Analyzed[] {
       params: context.params,
       existing: (table?.indexes ?? []).filter((index) => index.valid !== false),
       joins: inner || filteredElsewhere(identity),
+      version: context.version,
     };
     const wanted = input ? wantedColumns(input) : [];
     const advice = input && table ? adviseIndex(input) : undefined;
@@ -131,7 +135,17 @@ function planSubjects(context: Context): Analyzed[] {
         indexed: ["index", "index-only", "unique"].includes(step.access ?? ""),
         covering: step.access === "index-only",
         automatic: step.access === "automatic-index",
-        filtered: Boolean(step.filter || step.lookup) || wanted.length > 0,
+        // Rows kept or found by a condition: an index read only for its order filters nothing.
+        filtered:
+          Boolean(step.filter || step.lookup) ||
+          conditions.some(
+            (condition) =>
+              condition.value.kind !== "column" &&
+              condition.clause !== "having" &&
+              identity !== undefined &&
+              condition.column.table !== undefined &&
+              sameTable(engine, condition.column.table, identity),
+          ),
         missing: advice !== undefined,
         served: wanted.length > 0 && advice === undefined && table !== undefined,
         small: rows !== undefined && rows < SMALL_TABLE,
@@ -217,6 +231,7 @@ function sortAdvice(context: Context): IndexAdvice | undefined {
   if (!table) return undefined;
   return adviseSortIndex({
     engine,
+    version: context.version,
     table: { schema: table.schema, name: table.name },
     conditions: statement.queries.flatMap((query) => query.conditions),
     orderBy: statement.query.orderBy,
@@ -256,6 +271,7 @@ function conditionSubjects({ statement, params }: Context): Analyzed[] {
         },
         {
           table: condition.column.table?.name,
+          expression: condition.expression,
           column: qualified(condition),
           wrapper: condition.wrapper,
           operator: condition.operator,
@@ -288,7 +304,7 @@ function querySubject({ statement, params }: Context): Analyzed {
   );
 }
 
-function foreignKeySubjects({ tables, engine }: Context): Analyzed[] {
+function foreignKeySubjects({ tables, engine, version }: Context): Analyzed[] {
   return tables.flatMap((table) =>
     table.foreignKeys.map((key) => {
       const columns = new Set(key.columns);
@@ -312,6 +328,7 @@ function foreignKeySubjects({ tables, engine }: Context): Analyzed[] {
                 engine,
                 identity,
                 key.columns.map((name) => ({ name })),
+                version,
               ),
         },
       );

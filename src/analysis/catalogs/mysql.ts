@@ -67,7 +67,21 @@ export async function readMysqlCatalog(run: RunSql, asked: TableName[]): Promise
       references: { table: String(parts[0]![4]), columns: parts.map((row) => String(row[5])) },
     }));
   }
-  return pickTables(asked, found, current);
+  const picked = pickTables(asked, found, current);
+  // TABLE_ROWS is an estimate MySQL caches for up to a day: a table seeded since looks empty.
+  await Promise.all(picked.map(async (table) => countRows(run, table)));
+  return picked;
+}
+
+// Counting stops at a million rows: enough to tell a small table from a big one.
+async function countRows(run: RunSql, table: Table): Promise<void> {
+  const quoted = (name: string) => `\`${name.replaceAll("`", "``")}\``;
+  const target = `${table.schema ? `${quoted(table.schema)}.` : ""}${quoted(table.name)}`;
+  const counted = await run(
+    `SELECT COUNT(*) FROM (SELECT 1 FROM ${target} LIMIT 1000000) counted`,
+  ).catch(() => undefined);
+  const rows = asNumber(counted?.rows[0]?.[0]);
+  if (rows !== undefined) table.rows = rows;
 }
 
 function groupIndexes(rows: unknown[][]): Index[] {

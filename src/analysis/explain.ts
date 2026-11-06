@@ -27,6 +27,9 @@ const WRITES = new Set(["INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE"]);
 const FIRST_WORD = /^(?:\s+|--[^\n]*(?:\n|$)|\/\*[\s\S]*?\*\/|\()*([A-Za-z]+)/;
 const ISO_DATE = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z$/;
 const INTEGER = /^-?\d+$/;
+// FOR UPDATE, FOR NO KEY UPDATE, FOR SHARE, FOR KEY SHARE, and MySQL's LOCK IN SHARE MODE.
+const LOCKING =
+  /\bFOR\s+(?:NO\s+KEY\s+)?(?:UPDATE|SHARE|KEY\s+SHARE)\b|\bLOCK\s+IN\s+SHARE\s+MODE\b/i;
 const QUOTED = /'(?:[^']|'')*'|`(?:[^`]|``)*`|"(?:[^"]|"")*"/g;
 // LIMIT n, OFFSET n, and MySQL's LIMIT offset, n.
 const BEFORE_COUNT = /\b(?:LIMIT|OFFSET)\s*$|\bLIMIT\s+(?:\?|\$\d+)\s*,\s*$/i;
@@ -100,6 +103,12 @@ export async function explain(
       problem: "not_measurable",
       message: "Only reads are run to measure them: running a write would change the data.",
     };
+  if (measure && LOCKING.test(withoutStrings(query.sql)))
+    return {
+      problem: "not_measurable",
+      message:
+        "A locking read is not run to measure it: it would hold its rows' locks while it runs.",
+    };
   const faithful = query.params.every(isFaithful);
   const generic = !faithful && !measure && engine === "postgres" && atLeast(version, "16");
   const counts = countPositions(query.sql);
@@ -110,7 +119,11 @@ export async function explain(
   const { rows } = options.run
     ? await options.run(sql, params)
     : measure
-      ? await database.rolledBack((run) => run(sql, params))
+      ? await database.rolledBack(async (run) => {
+          // A measured query runs for real: PostgreSQL stops it after 10 seconds.
+          if (engine === "postgres") await run("SET LOCAL statement_timeout = '10s'");
+          return run(sql, params);
+        })
       : await database.run(sql, params);
   const output =
     engine === "sqlite"

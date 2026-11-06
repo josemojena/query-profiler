@@ -89,3 +89,29 @@ describe("version comparison", () => {
     expect(atLeast("11", "10.11")).toBe(true);
   });
 });
+
+describe("measuring a query", () => {
+  it("never runs a locking read, and stops a PostgreSQL one after 10 seconds", async () => {
+    const mysql = fakeDatabase("mysql", "8.4.3");
+    for (const sql of [
+      "SELECT id FROM t WHERE a = ? FOR UPDATE",
+      "SELECT id FROM t LOCK IN SHARE MODE",
+      "SELECT id FROM t FOR SHARE",
+    ])
+      expect(await explain(mysql.database, { sql, params: [1] }, { measure: true })).toMatchObject({
+        problem: "not_measurable",
+      });
+    const postgres = fakeDatabase("postgres", "18.1");
+    const calls: string[] = [];
+    const database = {
+      ...postgres.database,
+      rolledBack: <T>(fn: (run: RunSql) => Promise<T>) =>
+        fn(async (sql, params) => {
+          calls.push(sql);
+          return postgres.database.run(sql, params);
+        }),
+    };
+    await explain(database, { sql: "SELECT 1", params: [] }, { measure: true });
+    expect(calls[0]).toBe("SET LOCAL statement_timeout = '10s'");
+  });
+});

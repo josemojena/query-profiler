@@ -272,3 +272,16 @@ describe("SQL written by hand", () => {
     expect(readStatement(odd.at(-1)!, "postgres").tables).toEqual([]);
   });
 });
+
+describe("a function on a filtered column", () => {
+  it("keeps the whole call, with its other arguments and the column without its table", () => {
+    const [condition] = readStatement(
+      "SELECT 1 FROM t WHERE json_extract(t.data, '$.a') = ?",
+      "mysql",
+    ).query.conditions;
+    expect(condition).toMatchObject({
+      wrapper: "json_extract()",
+      expression: "json_extract(data, '$.a')",
+    });
+  });
+});

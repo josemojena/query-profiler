@@ -88,7 +88,7 @@ export async function analyzeQuery(
   const tables = await readCatalog(database.run, engine, [...statement.tables, ...relations]).catch(
     () => [],
   );
-  const found = subjects({ engine, statement, plan, tables, params: query.params });
+  const found = subjects({ engine, version, statement, plan, tables, params: query.params });
   return {
     engine,
     version,
@@ -162,7 +162,7 @@ function findingsOf(found: Analyzed[], engine: Engine, version: string): Finding
       const key = `${rule.id}\u0000${message}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const fix = fixFor(rule.fix, subject, engine);
+      const fix = fixFor(rule.fix, subject, engine, version);
       findings.push({
         rule: rule.id,
         severity: rule.severity,

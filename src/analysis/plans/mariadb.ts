@@ -106,7 +106,11 @@ function table(node: Json): PlanStep {
       table: asText(node.table_name),
       access: access === "index" && node.using_index === true ? "index-only" : access,
       index: asText(node.key),
-      lookup: (node.used_key_parts as string[] | undefined)?.join(", "),
+      // A full index scan lists the index's columns too, though it looks nothing up.
+      lookup:
+        access === "index-full" || access === "full"
+          ? undefined
+          : (node.used_key_parts as string[] | undefined)?.join(", "),
       filter: asText(node.attached_condition),
       possibleIndexes: node.possible_keys as string[] | undefined,
       rows:

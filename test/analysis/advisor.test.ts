@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adviseIndex,
+  adviseSortIndex,
   patternText,
   wantedColumns,
   writeAdvice,
@@ -125,5 +126,59 @@ describe("the pattern a LIKE compares with", () => {
     expect(pattern(`SELECT 1 FROM t WHERE a ILIKE ('%' || $1 || '%')`, ["ab"])).toBe("%");
     expect(pattern("SELECT 1 FROM t WHERE a LIKE CONCAT('%', ?, '%')", ["ab"], "mysql")).toBe("%");
     expect(pattern(`SELECT 1 FROM t WHERE a LIKE ($1 || '%')`, ["ab"])).toBe("ab");
+  });
+});
+
+describe("the indexes that count", () => {
+  const post = { name: "Post" };
+  const sorted = (engine: Engine, existing: Index[], version = "8.4.3") => {
+    const statement = readStatement(
+      `SELECT "id" FROM "Post" WHERE "authorId" = ? ORDER BY "createdAt", "id" LIMIT 10`,
+      engine,
+    );
+    return adviseSortIndex({
+      engine,
+      version,
+      table: post,
+      conditions: statement.query.conditions,
+      orderBy: statement.query.orderBy,
+      params: [1],
+      existing,
+    });
+  };
+
+  it("leaves out FULLTEXT, GIN and hash indexes, which find no rows by = nor give them in order", () => {
+    const statement = readStatement("SELECT id FROM Post WHERE title = ?", "mysql");
+    const input = {
+      engine: "mysql" as const,
+      table: post,
+      conditions: statement.query.conditions,
+      orderBy: [],
+      params: ["a"],
+    };
+    expect(
+      adviseIndex({ ...input, existing: [index(["title"], { method: "FULLTEXT" })] }),
+    ).toBeDefined();
+    expect(
+      adviseIndex({ ...input, existing: [index(["title"], { method: "BTREE" })] }),
+    ).toBeUndefined();
+  });
+
+  it("takes InnoDB's primary key at the end of every index into the order, and no prefix index", () => {
+    const primary = index(["id"], { primary: true, unique: true });
+    expect(sorted("mysql", [primary, index(["authorId", "createdAt"])])).toBeUndefined();
+    expect(sorted("postgres", [primary, index(["authorId", "createdAt"])])).toBeDefined();
+    expect(
+      sorted("mysql", [primary, index(["authorId", "createdAt"], { prefix: { createdAt: 10 } })]),
+    ).toBeDefined();
+  });
+
+  it("writes no DESC where it does nothing: before MySQL 8.0 and MariaDB 10.8", () => {
+    const columns = [{ name: "createdAt", descending: true }];
+    expect(writeAdvice("mysql", post, columns, "5.7.44").prisma).toBe("@@index([createdAt])");
+    expect(writeAdvice("mariadb", post, columns, "10.6.20").prisma).toBe("@@index([createdAt])");
+    expect(writeAdvice("mariadb", post, columns, "11.4.4").prisma).toBe(
+      "@@index([createdAt(sort: Desc)])",
+    );
   });
 });

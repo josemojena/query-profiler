@@ -173,3 +173,21 @@ describe("SQLite's plan", () => {
     );
   });
 });
+
+describe("MySQL's measured hash join", () => {
+  it("marks the table read into the hash, the join buffer", () => {
+    const steps = readMysqlTree(
+      [
+        "-> Inner hash join (o.title = a.`name`)  (cost=2.05e+6 rows=2e+6) (actual time=1.2..9.8 rows=20 loops=1)",
+        "    -> Table scan on o  (cost=1.01 rows=20000) (actual time=0.05..4.2 rows=20000 loops=1)",
+        "    -> Hash",
+        "        -> Table scan on a  (cost=101 rows=1000) (actual time=0.02..0.3 rows=1000 loops=1)",
+      ].join("\n"),
+    );
+    const reads = allSteps(steps).filter((step) => step.kind === "read");
+    expect(reads.map((read) => [read.table, read.notes])).toEqual([
+      ["o", undefined],
+      ["a", ["Using join buffer (hash join)"]],
+    ]);
+  });
+});

@@ -54,6 +54,16 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     expect(full.step).toBeGreaterThanOrEqual(0);
   });
 
+  it("counts each table's rows, exactly, whatever the engine caches", async () => {
+    const { analysis } = await analyze(`SELECT id FROM qp_post WHERE id = ${p(1)}`, [77]);
+    expect(analysis.tables.find((table) => table.name === "qp_post")!.rows).toBe(20000);
+  });
+
+  it("finds nothing wrong in reading an index in order up to a LIMIT", async () => {
+    const { analysis } = await analyze(`SELECT id FROM qp_post ORDER BY views LIMIT 5`);
+    expect(analysis.findings.filter((each) => each.about === "query")).toEqual([]);
+  });
+
   it("says nothing about how a read through an index reads", async () => {
     const { analysis } = await analyze(`SELECT id FROM qp_post WHERE id = ${p(1)}`, [77]);
     expect(analysis.findings.filter((each) => each.step !== undefined)).toEqual([]);
@@ -123,7 +133,7 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     const wrapped = finding(analysis, "function-on-column")!;
     expect(wrapped.message).toContain("lower()");
     if (engine === "mariadb") expect(wrapped.fix!.text).toContain("generated column");
-    else expect(wrapped.fix!.sql).toMatch(/\(\(lower\(["`]email["`]\)\)\);$/);
+    else expect(wrapped.fix!.sql).toMatch(/\(\(lower\(["`]?email["`]?\)\)\);$/);
   });
 
   it("finds a deep OFFSET and a NOT IN over a subquery", async () => {

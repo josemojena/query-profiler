@@ -101,7 +101,11 @@ function table(node: Json): PlanStep {
       table: asText(node.table_name),
       access: access === "index" && covering ? "index-only" : access,
       index: asText(node.key),
-      lookup: (node.used_key_parts as string[] | undefined)?.join(", "),
+      // A full index scan lists the index's columns too, though it looks nothing up.
+      lookup:
+        access === "index-full" || access === "full"
+          ? undefined
+          : (node.used_key_parts as string[] | undefined)?.join(", "),
       filter: asText(node.attached_condition),
       possibleIndexes: node.possible_keys as string[] | undefined,
       rows: asNumber(node.rows_produced_per_join),
@@ -144,7 +148,19 @@ export function readMysqlTree(text: string): PlanStep[] {
     (parents.at(-1)?.step.children ?? roots).push(current);
     parents.push({ depth, step: current });
   }
-  return roots.map(mergeFilters);
+  return roots.map(mergeFilters).map((root) => hashed(root, false));
+}
+
+// A hash join reads the table under its Hash step in full, into the join buffer.
+function hashed(current: PlanStep, inHash: boolean): PlanStep {
+  const inside = inHash || current.label === "Hash";
+  const children = current.children.map((child) => hashed(child, inside));
+  if (!inside || current.kind !== "read") return { ...current, children };
+  return {
+    ...current,
+    notes: [...(current.notes ?? []), "Using join buffer (hash join)"],
+    children,
+  };
 }
 
 const READ_LINES: [RegExp, Access][] = [

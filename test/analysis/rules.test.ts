@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RULES } from "../../src/analysis/analyze.js";
 import { readCatalog } from "../../src/analysis/catalog.js";
-import type { Plan } from "../../src/analysis/plan.js";
+import type { Engine, Plan } from "../../src/analysis/plan.js";
 import { readPostgresPlan } from "../../src/analysis/plans/postgres.js";
 import {
   appliesTo,
@@ -126,7 +126,7 @@ describe("every rule", () => {
             {
               kind,
               facts: {},
-              values: { wrapper: "lower()", index: "i" },
+              values: { wrapper: "lower()", expression: "lower(a)", index: "i" },
               advice: {
                 table: { name: "t" },
                 columns: [{ name: "a" }],
@@ -276,5 +276,31 @@ describe("the facts of a table's indexes", () => {
       ["t_1", false],
       ["t_2", false],
     ]);
+  });
+});
+
+describe("the expression index fix", () => {
+  const fix = (expression: string, engine: Engine, version = "") =>
+    fixFor(
+      "expression-index",
+      {
+        kind: "condition",
+        facts: {},
+        values: { expression },
+        table: { name: "t" },
+        column: "data",
+      },
+      engine,
+      version,
+    );
+
+  it("indexes the whole call where the engine can, and says how otherwise", () => {
+    expect(fix("json_extract(data, '$.a')", "mysql", "8.4.3")!.sql).toBe(
+      "CREATE INDEX `t_data_json_extract_idx` ON `t` ((json_extract(data, '$.a')));",
+    );
+    expect(fix("json_extract(data, '$.a')", "mysql", "8.0.12")).not.toHaveProperty("sql");
+    expect(fix("lower(data)", "mariadb", "11.4.4")!.text).toContain("generated column");
+    // now() and the like give another result each time: no index can hold them.
+    expect(fix("my_function(data)", "postgres", "18.1")).not.toHaveProperty("sql");
   });
 });

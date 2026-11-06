@@ -1,4 +1,5 @@
 import type { Index, TableName } from "./catalog.js";
+import { atLeast } from "./explain.js";
 import type { Engine } from "./plan.js";
 import type { Condition, Operand, SortKey } from "./statement.js";
 
@@ -20,6 +21,8 @@ export interface IndexAdvice {
 
 export interface AdviceInput {
   engine: Engine;
+  /** The engine's version, for what its indexes can do: DESC key parts only matter from MySQL 8.0 and MariaDB 10.8. */
+  version?: string;
   table: TableName;
   /** Every condition of the query, on any table: the ones on this table are picked out. */
   conditions: Condition[];
@@ -52,11 +55,9 @@ export function adviseIndex(input: AdviceInput): IndexAdvice | undefined {
   const columns = wantedColumns(input);
   if (!columns.length) return undefined;
   const usable = new Set(columns.map((column) => column.name));
-  const served = input.existing.some(
-    (index) => !index.expression && !index.where && usable.has(index.columns[0] ?? ""),
-  );
+  const served = ordered(input).some((index) => usable.has(index.columns[0] ?? ""));
   if (served) return undefined;
-  return writeAdvice(input.engine, input.table, columns);
+  return writeAdvice(input.engine, input.table, columns, input.version);
 }
 
 /**
@@ -74,16 +75,29 @@ export function adviseSortIndex(input: AdviceInput): IndexAdvice | undefined {
     .slice(sortAt)
     .filter((column) => input.orderBy.some((key) => key.column?.column === column.name))
     .map((column) => column.name);
+  // InnoDB keeps the primary key at the end of every secondary index: (createdAt) is in the order
+  // of ORDER BY createdAt, id.
+  const primary = input.existing.find((index) => index.primary)?.columns ?? [];
+  const innodb = input.engine === "mysql" || input.engine === "mariadb";
   const serves = (index: Index) => {
-    if (index.expression || index.where) return false;
-    const head = new Set(index.columns.slice(0, leading.size));
-    const next = index.columns.slice(leading.size, leading.size + sort.length);
+    // A prefix index holds the first characters only, so it cannot give the order.
+    if (sort.some((name) => index.prefix?.[name] !== undefined)) return false;
+    const columns = innodb
+      ? [...index.columns, ...primary.filter((name) => !index.columns.includes(name))]
+      : index.columns;
+    const head = new Set(columns.slice(0, leading.size));
+    const next = columns.slice(leading.size, leading.size + sort.length);
     return (
       [...leading].every((name) => head.has(name)) && sort.every((name, at) => next[at] === name)
     );
   };
-  if (input.existing.some(serves)) return undefined;
-  return writeAdvice(input.engine, input.table, columns.slice(0, sortAt + sort.length));
+  if (ordered(input).some(serves)) return undefined;
+  return writeAdvice(
+    input.engine,
+    input.table,
+    columns.slice(0, sortAt + sort.length),
+    input.version,
+  );
 }
 
 /** The columns an index on this table would use for the query, in the order it should list them. */
@@ -148,7 +162,31 @@ export function patternText(value: Operand, params: unknown[]): string | undefin
   return typeof param === "string" ? param : undefined;
 }
 
-export function writeAdvice(engine: Engine, table: TableName, columns: IndexColumn[]): IndexAdvice {
+/**
+ * The indexes that keep their rows in key order, the only ones that find rows by =, by a range or
+ * give them sorted: B-trees, not FULLTEXT, GIN, hash or partial ones.
+ */
+function ordered({ existing, engine }: AdviceInput): Index[] {
+  return existing.filter(
+    (index) =>
+      index.valid !== false &&
+      !index.expression &&
+      !index.where &&
+      (engine === "sqlite" || index.method === undefined || /^btree$/i.test(index.method)),
+  );
+}
+
+export function writeAdvice(
+  engine: Engine,
+  table: TableName,
+  wanted: IndexColumn[],
+  version = "",
+): IndexAdvice {
+  // A descending key part is ignored before MySQL 8.0 and MariaDB 10.8.
+  const ignoresDescending =
+    (engine === "mysql" && version !== "" && !atLeast(version, "8.0")) ||
+    (engine === "mariadb" && version !== "" && !atLeast(version, "10.8"));
+  const columns: IndexColumn[] = ignoresDescending ? wanted.map(({ name }) => ({ name })) : wanted;
   const name = `${table.name}_${columns.map((column) => column.name).join("_")}_idx`.slice(
     0,
     NAME_LENGTH,
