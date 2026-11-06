@@ -1,0 +1,39 @@
+{
+  "query_block": {
+    "select_id": 1,
+    "cost": 0.017964137,
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "u",
+          "access_type": "index",
+          "possible_keys": ["PRIMARY"],
+          "key": "User_email_key",
+          "key_length": "766",
+          "used_key_parts": ["email"],
+          "loops": 1,
+          "rows": 1,
+          "cost": 0.006792605,
+          "filtered": 100,
+          "using_index": true
+        }
+      },
+      {
+        "block-nl-join": {
+          "table": {
+            "table_name": "o",
+            "access_type": "ALL",
+            "loops": 1,
+            "rows": 1,
+            "cost": 0.011171532,
+            "filtered": 100
+          },
+          "buffer_type": "flat",
+          "buffer_size": "8KiB",
+          "join_type": "BNL",
+          "attached_condition": "o.total = u.`id`"
+        }
+      }
+    ]
+  }
+}

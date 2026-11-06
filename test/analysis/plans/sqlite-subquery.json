@@ -1,0 +1,6 @@
+[
+  [3, 0, 91, "SEARCH User USING INTEGER PRIMARY KEY (rowid=?)"],
+  [7, 0, 0, "LIST SUBQUERY 1"],
+  [9, 7, 216, "SCAN Order"],
+  [28, 0, 0, "USE TEMP B-TREE FOR ORDER BY"]
+]

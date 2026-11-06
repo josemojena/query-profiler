@@ -1,0 +1,46 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Nested Loop",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Join Type": "Inner",
+      "Startup Cost": 0,
+      "Total Cost": 2.04,
+      "Plan Rows": 1,
+      "Plan Width": 8,
+      "Disabled": false,
+      "Inner Unique": false,
+      "Join Filter": "(u.id = o.\"userId\")",
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "User",
+          "Alias": "u",
+          "Startup Cost": 0,
+          "Total Cost": 1.01,
+          "Plan Rows": 1,
+          "Plan Width": 4,
+          "Disabled": false,
+          "Filter": "(email = 'a@example.test'::text)"
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Inner",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "Order",
+          "Alias": "o",
+          "Startup Cost": 0,
+          "Total Cost": 1.01,
+          "Plan Rows": 1,
+          "Plan Width": 8,
+          "Disabled": false
+        }
+      ]
+    }
+  }
+]

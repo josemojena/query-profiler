@@ -1,0 +1,44 @@
+{
+  "query_optimization": {
+    "r_total_time_ms": 0.01762352
+  },
+  "query_block": {
+    "select_id": 1,
+    "cost": 0.011647987,
+    "r_loops": 1,
+    "r_total_time_ms": 0.025349471,
+    "nested_loop": [
+      {
+        "read_sorted_file": {
+          "r_rows": 1,
+          "filesort": {
+            "sort_key": "`Order`.total desc",
+            "r_loops": 1,
+            "r_total_time_ms": 0.019001663,
+            "r_limit": 5,
+            "r_used_priority_queue": true,
+            "r_output_rows": 1,
+            "r_sort_mode": "sort_key,rowid",
+            "table": {
+              "table_name": "Order",
+              "access_type": "ALL",
+              "loops": 1,
+              "r_loops": 1,
+              "rows": 1,
+              "r_rows": 1,
+              "cost": 0.0110178,
+              "r_table_time_ms": 0.005470808,
+              "r_other_time_ms": 0.003132142,
+              "r_engine_stats": {
+                "pages_accessed": 2
+              },
+              "filtered": 100,
+              "r_filtered": 100,
+              "attached_condition": "`Order`.total > 1"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
