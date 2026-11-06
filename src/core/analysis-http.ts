@@ -1,11 +1,14 @@
 import { analyzeQuery, readFindings, tryIndex, type Finding } from "../analysis/analyze.js";
+import { n1Fixes } from "../analysis/n1.js";
+import { findSchema } from "../analysis/schema.js";
 import { analyzeSession } from "../analysis/session.js";
 import { ANALYSIS_HEADER } from "./constants.js";
 import { findDatabase } from "./database.js";
-import type { QueryRecord } from "./profile.js";
+import type { Profile, QueryRecord } from "./profile.js";
 import { getProfile, listProfiles } from "./storage.js";
 
-const ROUTE = /^\/api\/profiles\/([0-9a-f]+)\/(?:findings|queries\/(q_\d+)\/(analysis|trial))$/;
+const ROUTE =
+  /^\/api\/profiles\/([0-9a-f]+)\/(?:findings|(fixes)|queries\/(q_\d+)\/(analysis|trial))$/;
 const MEMORY = 1000;
 const remembered = new Map<string, Finding[]>();
 
@@ -14,7 +17,8 @@ export function analysisRoute(request: Request, path: string): Promise<Response>
   if (path === "/api/stats/analysis") return sessionRoute(request);
   const match = ROUTE.exec(path);
   if (!match) return undefined;
-  const [, token, queryId, action] = match;
+  const [, token, fixes, queryId, action] = match;
+  if (fixes) return fixesRoute(request, token!);
   return answer(request, token!, queryId, action);
 }
 
@@ -64,6 +68,19 @@ async function answer(
     );
   }
 }
+
+/** The code that replaces each N+1 of a profile, with the relations from the app's schema. */
+async function fixesRoute(request: Request, token: string): Promise<Response> {
+  const profile = getProfile(token);
+  if (request.method !== "GET" && request.method !== "HEAD")
+    return json({ error: "not_found" }, 404);
+  if (!profile) return json({ error: "not_found" }, 404);
+  return json(fixesOf(profile));
+}
+
+/** A profile's N+1 fixes, with the app's schema when the profiler finds it. */
+export const fixesOf = (profile: Profile) =>
+  n1Fixes(profile, findSchema([...new Set(profile.operations.flatMap((op) => op.model ?? []))]));
 
 /** Every statement shape of the stored requests, analyzed once: it asks the database. */
 async function sessionRoute(request: Request): Promise<Response> {

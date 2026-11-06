@@ -24,21 +24,27 @@ export function formatProfile(profile: Profile): string {
   return `[query-profiler] ${what} · ${count(summary.queryCount, "query", "queries")} · ${summary.dbTimeMs} ms in db · ${count(summary.operationCount, "operation")}${warnings} · ${profile.durationMs} ms · ${profile.token}`;
 }
 
+/** The best fix for an N+1, by the id of its first query: what it uses and what it saves. */
+export type TerminalFixes = Record<
+  string,
+  { options: { short: string; queries: number; instead: number }[] }
+>;
+
 /** A line per warning, with what ran and the line of code behind it, for a terminal. */
-export function formatWarnings(profile: Profile): string[] {
+export function formatWarnings(profile: Profile, fixes: TerminalFixes = {}): string[] {
   // Each statement of one call counts on its own: one line for the call says it.
   const shown = [
     ...new Map(
       profile.warnings
         .filter((warning) => warning.kind !== "truncated")
-        .map((warning) => describe(profile, warning))
+        .map((warning) => describe(profile, warning, fixes))
         .map((row) => [row.join("\u0000"), row]),
     ).values(),
   ];
   const rows = shown.slice(0, SHOWN_WARNINGS);
   const width = Math.max(0, ...rows.map(([, what]) => what.length));
-  const lines = rows.map(([name, what, line]) =>
-    `${name.padEnd(9)}  ${what.padEnd(width)}  ${line}`.trimEnd(),
+  const lines = rows.map(([name, what, line, fix]) =>
+    `${name.padEnd(9)}  ${what.padEnd(width)}  ${line}${fix ? `  ${fix}` : ""}`.trimEnd(),
   );
   if (shown.length > SHOWN_WARNINGS)
     lines.push(`and ${count(shown.length - SHOWN_WARNINGS, "more warning")}`);
@@ -50,7 +56,11 @@ export function formatWarnings(profile: Profile): string[] {
   return lines;
 }
 
-function describe(profile: Profile, warning: Warning): [string, string, string] {
+function describe(
+  profile: Profile,
+  warning: Warning,
+  fixes: TerminalFixes,
+): [string, string, string, string] {
   const query = profile.queries.find((each) => each.id === warning.queryIds[0]);
   const operation = query && profile.operations.find((op) => op.id === query.opId);
   const name = operation
@@ -62,7 +72,11 @@ function describe(profile: Profile, warning: Warning): [string, string, string] 
       : count(warning.queryIds.length, "time");
   const frame = (operation?.origin ?? query?.origin)?.[0];
   const line = frame ? `${shownPath(frame.file)}:${frame.line}` : "";
-  return [WARNING_NAMES[warning.kind], `${name}, ${amount}`, line];
+  const best = warning.kind === "n+1" ? fixes[warning.queryIds[0] ?? ""]?.options[0] : undefined;
+  const fix = best
+    ? `→ ${best.short}: ${count(best.queries, "query", "queries")} instead of ${best.instead}`
+    : "";
+  return [WARNING_NAMES[warning.kind], `${name}, ${amount}`, line, fix];
 }
 
 const shortSql = (query: QueryRecord | undefined) => {
