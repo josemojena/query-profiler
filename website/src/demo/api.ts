@@ -23,6 +23,14 @@ const listItem = ({
 function answer(path: string, params: URLSearchParams, stats: unknown): Response {
   if (path === "/meta") return Response.json({ root: demo.root });
   if (path === "/stats") return Response.json(stats ?? {});
+  if (path === "/stats/analysis")
+    return Response.json(
+      {
+        error: "no_database",
+        message: "this demo has no database behind it. In your app, it asks yours.",
+      },
+      { status: 409 },
+    );
   if (path === "/profiles") {
     const parent = params.get("parent");
     const limit = Number(params.get("limit")) || 50;

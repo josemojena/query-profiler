@@ -3,6 +3,7 @@ import type { NoPlan } from "../analysis/explain.js";
 import type { Engine, PlanStep } from "../analysis/plan.js";
 import type { QueryRecord } from "../core/index.js";
 import { escape, ms } from "./format.js";
+import { askProfiler } from "./http.js";
 
 // A query's tools, in a row of their own under its open row: Explain plan and Measure it, each
 // with its own answer, the findings and their fixes. Flat, like the rest of the profiler.
@@ -37,9 +38,8 @@ export const emptyAnalysis = (): AnalysisView => ({
   open: new Set(),
 });
 
-// Same as the core's ANALYSIS_HEADER: the UI's files are served on their own and import none of it.
-const HEADER = "X-Query-Profiler";
-const ENGINES: Record<Engine, string> = {
+/** Each engine's name, as its makers write it. */
+export const ENGINES: Record<Engine, string> = {
   postgres: "PostgreSQL",
   mysql: "MySQL",
   mariadb: "MariaDB",
@@ -309,6 +309,14 @@ export interface Where {
   expand(id: string, open: boolean): void;
 }
 
+/** Opens a query's row on Explain plan, asking the database the first time. */
+export function openExplain(view: AnalysisView, where: Where, id: string, rerender: () => void) {
+  if (!where.token) return;
+  where.expand(id, true);
+  view.tabs[id] = "explain";
+  if (!view.estimates[id]) void ask(view, where.base, where.token, id, "explain", rerender);
+}
+
 /** What an action in a query's tools does; false when the action is none of them. */
 export function planAction(
   target: HTMLElement,
@@ -320,10 +328,7 @@ export function planAction(
   const { base, token } = where;
   switch (target.dataset.action) {
     case "explain-open":
-      if (!id || !token) return true;
-      where.expand(id, true);
-      view.tabs[id] = "explain";
-      if (!view.estimates[id]) void ask(view, base, token, id, "explain", rerender);
+      if (id) openExplain(view, where, id, rerender);
       rerender();
       return true;
     case "query-tab": {
@@ -352,7 +357,7 @@ export function planAction(
       const key = trialKey(id, index);
       view.trials[key] = { loading: true };
       rerender();
-      void call<Trial | NoPlan>(`${base}/api/profiles/${token}/queries/${id}/trial`, {
+      void askProfiler<Trial | NoPlan>(`${base}/api/profiles/${token}/queries/${id}/trial`, {
         method: "POST",
         body: JSON.stringify({ index }),
       }).then((result) => {
@@ -394,7 +399,7 @@ async function ask(
 ) {
   const known = tab === "explain" ? view.estimates : view.measures;
   known[id] = { loading: true };
-  const result = await call<Analysis>(
+  const result = await askProfiler<Analysis>(
     `${base}/api/profiles/${token}/queries/${id}/analysis${tab === "measure" ? "?measure=1" : ""}`,
   );
   known[id] = "error" in result ? result : { analysis: result.body };
@@ -413,27 +418,5 @@ export async function loadFindings(
     return response.ok ? ((await response.json()) as Record<string, Finding[]>) : {};
   } catch {
     return {};
-  }
-}
-
-async function call<T>(
-  url: string,
-  init: RequestInit = {},
-): Promise<{ body: T } | { error: string }> {
-  try {
-    const response = await fetch(url, {
-      ...init,
-      headers: { Accept: "application/json", "Content-Type": "application/json", [HEADER]: "1" },
-    });
-    const body = (await response.json().catch(() => ({}))) as T & {
-      message?: string;
-      error?: string;
-    };
-    if (response.ok) return { body };
-    return {
-      error: body.message ?? `the profiler answered ${response.status} (${body.error ?? "error"})`,
-    };
-  } catch {
-    return { error: "the profiler could not be reached." };
   }
 }

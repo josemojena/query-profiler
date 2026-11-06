@@ -1,8 +1,9 @@
 import { analyzeQuery, readFindings, tryIndex, type Finding } from "../analysis/analyze.js";
+import { analyzeSession } from "../analysis/session.js";
 import { ANALYSIS_HEADER } from "./constants.js";
 import { findDatabase } from "./database.js";
 import type { QueryRecord } from "./profile.js";
-import { getProfile } from "./storage.js";
+import { getProfile, listProfiles } from "./storage.js";
 
 const ROUTE = /^\/api\/profiles\/([0-9a-f]+)\/(?:findings|queries\/(q_\d+)\/(analysis|trial))$/;
 const MEMORY = 1000;
@@ -10,6 +11,7 @@ const remembered = new Map<string, Finding[]>();
 
 /** The analysis routes, or undefined when the path is none of them. */
 export function analysisRoute(request: Request, path: string): Promise<Response> | undefined {
+  if (path === "/api/stats/analysis") return sessionRoute(request);
   const match = ROUTE.exec(path);
   if (!match) return undefined;
   const [, token, queryId, action] = match;
@@ -61,6 +63,14 @@ async function answer(
       422,
     );
   }
+}
+
+/** Every statement shape of the stored requests, analyzed once: it asks the database. */
+async function sessionRoute(request: Request): Promise<Response> {
+  if (request.method !== "GET" && request.method !== "HEAD")
+    return json({ error: "not_found" }, 404);
+  if (!request.headers.has(ANALYSIS_HEADER)) return json({ error: "forbidden" }, 403);
+  return json(await analyzeSession(listProfiles(), (query) => findDatabase(query.database)));
 }
 
 // The same SQL with the same values always gives the same findings.

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { analyzeQuery, tryIndex, type Analysis } from "../../src/analysis/analyze.js";
+import { analyzeSession } from "../../src/analysis/session.js";
 import {
   endProfile,
   findDatabase,
@@ -242,6 +243,37 @@ describe.each(ENGINES)("%s", (engine, connect) => {
       expect(finding(never, "impossible-condition")!.message).toMatch(/^Impossible WHERE/);
     },
   );
+
+  it("adds the session up: one index that serves several shapes, ranked by the time at stake", async () => {
+    const active = startProfile(
+      { method: "GET", url: "/posts", kind: "document" },
+      { name: "test" },
+    );
+    await runWithProfile(active, async () => {
+      for (const title of ["Post 1", "Post 2", "Post 3"])
+        await prisma.$queryRawUnsafe(`SELECT id FROM qp_post WHERE title = ${p(1)}`, title);
+      await prisma.$queryRawUnsafe(
+        `SELECT id FROM qp_post WHERE title = ${p(1)} AND views > ${p(2)}`,
+        "Post 4",
+        10,
+      );
+    });
+    const session = await analyzeSession([endProfile(active, { status: 200 })], (query) =>
+      findDatabase(query.database),
+    );
+    expect(session).toMatchObject({ shapes: 2, analyzed: 2, skipped: 0 });
+    const onTitle = session.indexes.find((pick) => pick.table === "qp_post")!;
+    expect(onTitle).toMatchObject({
+      columns: ["title", "views"],
+      covers: ["qp_post_title_idx"],
+      runs: 4,
+    });
+    expect(session.tables.find((use) => use.table === "qp_post")).toMatchObject({
+      shapes: 2,
+      runs: 4,
+      fullReads: 2,
+    });
+  });
 
   it.skipIf(engine === "sqlite")("measures the rows a read threw away", async () => {
     const { analysis } = await analyze(

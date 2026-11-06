@@ -88,6 +88,22 @@ describe.each(ENGINES.filter(([engine]) => engine === "postgres" || engine === "
       expect(other.status).toBe(404);
     });
 
+    it("adds the stored requests up, asking the database only with the header", async () => {
+      const route = (asked: boolean) => {
+        const headers = new Headers(asked ? { [ANALYSIS_HEADER]: "1" } : {});
+        return handle(
+          new Request("http://localhost:4983/_profiler/api/stats/analysis", { headers }),
+        );
+      };
+      expect((await route(false)).status).toBe(403);
+      const session = (await (await route(true)).json()) as {
+        shapes: number;
+        indexes: { name: string }[];
+      };
+      expect(session.shapes).toBeGreaterThanOrEqual(2);
+      expect(session.indexes.map((pick) => pick.name)).toContain("qp_post_title_idx");
+    });
+
     it("asks the database only with its own header, which a page on another origin cannot send unasked", async () => {
       expect(
         (await api(`${profile.token}/queries/${byTitle()}/analysis`, { asked: false })).status,

@@ -3,6 +3,7 @@ import { LOGO } from "./brand.js";
 import { count } from "./count.js";
 import { detail, type Detail, type DetailTab } from "./detail.js";
 import { escape, ms, statusTone } from "./format.js";
+import { sessionSection, type SessionView } from "./session.js";
 import { themeSwitch, type Theme } from "./theme.js";
 
 export interface PageState extends Detail {
@@ -12,6 +13,8 @@ export interface PageState extends Detail {
   profile?: Profile;
   tab: DetailTab;
   stats?: Stats;
+  /** The session's analysis, kept while the page is open. */
+  session: SessionView;
   theme: Theme;
 }
 
@@ -128,6 +131,7 @@ function statsView(state: PageState): string {
   const { stats } = state;
   if (!stats) return `<div class="empty">Loading…</div>`;
   return `<header class="head"><div><h1>Stats</h1><div class="sub">Across the last ${count(stats.profiles, "request")}.</div></div></header>
+    ${sessionSection(state.session, state.base, stats.profiles)}
     <h2>Slowest statements</h2>${statementRows(state, stats.slowest)}
     <h2>Most repeated statements</h2>${statementRows(state, stats.repeated)}
     <h2>By model</h2><table><thead><tr><th>Model</th><th>Operations</th><th>Time</th></tr></thead><tbody>${stats.models

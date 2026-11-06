@@ -2,10 +2,12 @@ import type { Profile, ProfileListItem, Stats } from "../core/index.js";
 import type { Editor } from "./format.js";
 import type { DetailTab } from "./detail.js";
 import { runnableSql } from "./format.js";
-import { emptyAnalysis, loadFindings, planAction } from "./analysis.js";
+import { emptyAnalysis, loadFindings, openExplain, planAction, type Where } from "./analysis.js";
+import { queryRows } from "./detail.js";
 import { clearAll, getJson } from "./http.js";
 import { followProfiles, mergeProfiles } from "./live.js";
 import { renderList, renderPage, type PageState } from "./page-view.js";
+import { emptySession, sessionAction } from "./session.js";
 import { formatSql } from "./sql.js";
 import { pageStyles } from "./styles.js";
 import { choiceOf, chooseTheme, initialTheme } from "./theme.js";
@@ -22,6 +24,7 @@ export class ProfilerPage extends HTMLElement {
     editor: "vscode",
     expanded: new Set(),
     analysis: emptyAnalysis(),
+    session: emptySession(),
     list: [],
     filter: "",
     view: "requests",
@@ -76,6 +79,7 @@ export class ProfilerPage extends HTMLElement {
     const state = this.#state;
     state.list = [];
     state.profile = undefined;
+    state.session = emptySession();
     if (state.view === "stats") void this.#route();
     else {
       history.replaceState(null, "", state.base);
@@ -107,7 +111,39 @@ export class ProfilerPage extends HTMLElement {
           this.#render();
         });
     }
+    const opened =
+      state.view === "requests" && state.profile && this.#openNamedQuery(state.profile);
     this.#render();
+    if (opened)
+      this.#root
+        .querySelector(`[data-action="expand"][data-id="${opened}"]`)
+        ?.scrollIntoView({ block: "center" });
+  }
+
+  /** The query the address names (`#q_3`, from the session's analysis): its row, open on Explain plan. */
+  #openNamedQuery(profile: Profile): string | undefined {
+    const id = /^#(q_\d+)$/.exec(location.hash)?.[1];
+    const row =
+      id && queryRows(profile).find((each) => each.queries.some((query) => query.id === id));
+    const first = row ? row.queries[0]?.id : undefined;
+    if (!first) return undefined;
+    this.#state.tab = "queries";
+    openExplain(this.#state.analysis, this.#where(), first, () => this.#render());
+    return first;
+  }
+
+  #where(): Where {
+    const state = this.#state;
+    return {
+      base: state.base,
+      token: state.profile?.token,
+      expand: (id: string, open: boolean) => {
+        const expanded = new Set(state.expanded);
+        if (open) expanded.add(id);
+        else expanded.delete(id);
+        state.expanded = expanded;
+      },
+    };
   }
 
   #go(href: string) {
@@ -119,17 +155,8 @@ export class ProfilerPage extends HTMLElement {
     const target = (event.target as Element).closest<HTMLElement>("[data-action]");
     if (!target) return;
     const state = this.#state;
-    const where = {
-      base: state.base,
-      token: state.profile?.token,
-      expand: (id: string, open: boolean) => {
-        const expanded = new Set(state.expanded);
-        if (open) expanded.add(id);
-        else expanded.delete(id);
-        state.expanded = expanded;
-      },
-    };
-    if (planAction(target, state.analysis, where, () => this.#render())) return;
+    if (planAction(target, state.analysis, this.#where(), () => this.#render())) return;
+    if (sessionAction(target, state.session, state.base, () => this.#render())) return;
     switch (target.dataset.action) {
       case "go": {
         const mouse = event as MouseEvent;

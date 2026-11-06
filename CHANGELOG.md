@@ -19,12 +19,17 @@
   the real engine: PostgreSQL 13 to 18, MySQL 8.0 to 9.x (and its JSON format version 2, the default
   from 9.5), MariaDB 10.6 to 11.x, and SQLite. See every rule at
   https://query-profiler.dev/docs/reference/rules.
+- **Analysis of the session**, on top of Stats in `/_profiler`. **Analyze the session ›** plans
+  every distinct statement of the stored requests once, through its slowest run, and adds them up:
+  the indexes to add, ranked by the time they would fix (an index that starts another's columns is
+  folded into the wider one), what the rules find across the session, and the tables the time goes
+  to. **Open** goes to a finding's slowest statement, in its request, on Explain plan.
 - **Hints under a closed row** from the SQL and its values alone, with no database: a `%` first,
   `ILIKE`, a function on a filtered column, a deep `OFFSET`, a `NOT IN` with a `NULL`… They do not
   count as warnings.
-- **Three new routes**: `GET /api/profiles/:token/findings`, `GET
-  /api/profiles/:token/queries/:id/analysis` and `POST /api/profiles/:token/queries/:id/trial`. The
-  two that ask the database need the `X-Query-Profiler` header.
+- **Four new routes**: `GET /api/profiles/:token/findings`, `GET
+  /api/profiles/:token/queries/:id/analysis`, `POST /api/profiles/:token/queries/:id/trial` and
+  `GET /api/stats/analysis`. The three that ask the database need the `X-Query-Profiler` header.
 - **The React Router example** has a `/problems` page with a query for each common problem, on a
   database of 60,000 posts.
 
