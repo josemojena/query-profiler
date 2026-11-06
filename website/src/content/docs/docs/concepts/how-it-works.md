@@ -9,7 +9,11 @@ The integration opens a **profile** when a request starts: for React Router, the
 dev-server middleware; for a Node server, the preload, from Node's `http.server.request.start`
 diagnostics channel. The rest of the request runs inside an `AsyncLocalStorage` scope that holds it. Whatever Prisma
 or `pg` does while that request is in flight, however many promises and callbacks away, lands in
-that profile. Outside a request (a script, a job) nothing is recorded.
+that profile.
+
+Outside a request, the preload opens profiles of its own: a script's whole run, a server's
+startup, a job wrapped in `profileTask()`, and the work between requests, in bursts. See
+[Scripts, workers and jobs](/docs/guides/scripts).
 
 The profile closes when the **last byte of the response is sent**, not when the loader returns, so
 streamed and deferred data count too. Then it is analyzed and stored.
@@ -46,7 +50,8 @@ async context to the operation.
 
 ## Where profiles live
 
-In the **dev server's memory**: the last 100 profiles, at most 1000 queries each. Nothing goes to
+In the **dev server's memory**: the last 100 profiles (no more than 20 of them background work), at
+most 1000 queries each; past that, a profile counts the rest. Nothing goes to
 disk, a database or cookies. Profiles are lost when the dev server restarts, and each process keeps
 its own. The bar and the profiler page read them through the [HTTP API](/docs/reference/http-api)
 and hear about new ones over server-sent events.

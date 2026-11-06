@@ -23,15 +23,25 @@ Call the API (`curl -i http://localhost:3000/users`): each response carries `X-D
 terminal prints where the profiler is, http://localhost:4983/_profiler: open it for every request.
 Set `QUERY_PROFILER_LOG=1` in `.env` to also print one line per request.
 
+The seed runs through the same client, with the preload. With the server running, run it again:
+
+```sh
+pnpm --filter example-express db:seed
+```
+
+The terminal sums the run up, with the N+1 its loop of `create` calls makes, and links to it in the
+profiler, next to the requests.
+
 `pnpm example:express` builds query-profiler and gives the example a fresh copy of it, as npm would
 install it. Run it again after changing the package.
 
 ## Where query-profiler goes
 
-| File           | What it adds                                                                                   |
-| -------------- | ---------------------------------------------------------------------------------------------- |
-| `package.json` | `query-profiler` as a dev dependency; the `dev` script runs with the preload and its condition |
-| `src/db.ts`    | The Prisma client with `withProfiler()` and `profilePrisma()`, when the package is installed   |
+| File             | What it adds                                                                                   |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `package.json`   | `query-profiler` as a dev dependency; the `dev` script runs with the preload and its condition |
+| `src/db.ts`      | The Prisma client with `withProfiler()` and `profilePrisma()`, when the package is installed   |
+| `prisma/seed.ts` | Uses that client; `db:seed` runs it with the preload                                           |
 
 It is set up as development only: `pnpm --filter example-express build` and `start` run plain `node`,
 and a production install (`npm ci --omit=dev`) leaves the package out, so the app runs without it.

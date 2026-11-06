@@ -43,13 +43,13 @@ One package, one entry per integration. Import only the ones you use: the framew
 are optional peer dependencies, so installing `query-profiler` never pulls in Next.js, React or Vite, and
 an entry you don't import is never loaded.
 
-| Import                    | What it does                                                                                                                 | Needs                       |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| `query-profiler`          | The `Profile` format, the per-request context, storage, analysis and the HTTP handler.                                       | nothing                     |
-| `query-profiler/prisma`   | The Prisma ORM integration: every operation, its SQL and the line of code behind it.                                         | `@prisma/client` 7.1+, `pg` |
-| `query-profiler/register` | A preload for Node servers (`--import`): a profile per request, and the profiler on a port of its own.                       | Node 20.19+                 |
-| `query-profiler/vite`     | For React Router: a profile per request, the bar and `/_profiler` in the Vite dev server; nothing of the profiler in builds. | `vite` 6+                   |
-| `query-profiler/ui`       | The bar and the profiler page, as web components with their styles inside. No framework.                                     | a browser                   |
+| Import                    | What it does                                                                                                                  | Needs                       |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `query-profiler`          | The `Profile` format, the per-request context, storage, analysis and the HTTP handler.                                        | nothing                     |
+| `query-profiler/prisma`   | The Prisma ORM integration: every operation, its SQL and the line of code behind it; `profileTask()` for a job's own profile. | `@prisma/client` 7.1+, `pg` |
+| `query-profiler/register` | A preload for Node (`--import`): a profile per request or per script run, and the profiler on a port of its own.              | Node 22.19+ or 24.5+        |
+| `query-profiler/vite`     | For React Router: a profile per request, the bar and `/_profiler` in the Vite dev server; nothing of the profiler in builds.  | `vite` 6+                   |
+| `query-profiler/ui`       | The bar and the profiler page, as web components with their styles inside. No framework.                                      | a browser                   |
 
 ## How it works
 
@@ -63,6 +63,9 @@ an entry you don't import is never loaded.
   like, with their arguments. It also takes the line of your code that made each call when the
   call is made: Prisma runs it later, when it is awaited, and Node before 26 loses the caller
   across that gap.
+- **Outside requests.** With the preload, what runs outside any request has a profile too: a
+  script's whole run, a server's startup, and the work between requests, in bursts. See
+  [scripts, workers and the work between requests](#scripts-workers-and-the-work-between-requests).
 - **Linking statements to operations.** A sqlcommenter plugin, added by `withProfiler()`, stamps
   each statement with the operation it answers. The async context names the likely operation;
   the stamp settles it when Prisma batches or compacts queries. See [docs/spike.md](docs/spike.md).
@@ -239,19 +242,69 @@ behind each, live. Each response's `X-Debug-Token` opens that request at `/_prof
   `X-Debug-Token` there too.
 - Tested in CI with Express 4.18+ and 5, Fastify 4.26+ and 5, Koa 3, Hapi 21, NestJS 12 and Hono 4.
   Before 4.18, Express's body parser drops the request's async context, so a route that reads a
-  body loses its queries. HTTP/2 servers are profiled on Node 22.17+ and 24.2+, without
-  `X-Debug-Token`.
+  body has its queries in a background profile instead. HTTP/2 servers are profiled on Node 22.17+
+  and 24.2+, without `X-Debug-Token`.
 - If it is off, the terminal says why. Nothing at all, or an empty profiler: see
   [troubleshooting](https://query-profiler.dev/docs/guides/troubleshooting).
+
+## Scripts, workers and the work between requests
+
+A seed, a one-off script, a timer in your server or a queue worker query the database outside any
+request. Run them with the same preload, through your app's profiled `prisma`, and they are
+profiled too:
+
+```json
+{
+  "scripts": {
+    "db:seed": "tsx --import query-profiler/register prisma/seed.ts"
+  }
+}
+```
+
+- **A script**, a process that never listens, is one profile: its whole run. When it ends, the
+  terminal sums it up, each warning with the line behind it:
+
+  ```txt
+  [query-profiler] script prisma/seed.ts · 32 queries · 33.58 ms in db · 8 operations · 3 warnings · 102.11 ms · 3b9cfe
+    N+1        User.create, 6 times  prisma/seed.ts:6
+    http://localhost:4983/_profiler/3b9cfe
+  ```
+
+  With your app's dev server running, the run is in its profiler too, at the link on the last line.
+  A long script shows there while it still runs, and one that ends with `process.exit()` gets there
+  as well. With React Router, the Vite plugin also opens the profiler's port (4983) for scripts to
+  reach it; you keep using `/_profiler` on your app's port.
+
+- **A server's startup**, what it does before it listens, is a profile of its own.
+- **Between requests**, queries go into background profiles: a `setInterval`, a queue in the same
+  process, work left running after a response. Each one closes once nothing has run for 200 ms, and
+  is named after the line that started it. The last 20 are kept, so a job that runs every second
+  does not push your requests out. The bar leaves them out of Recent; they are in `/_profiler`.
+- **A job's own profile**: wrap each run in `profileTask()`, from `query-profiler/prisma`. It
+  returns what the function returns; outside development it only runs it.
+
+  ```ts
+  import { profileTask } from "query-profiler/prisma";
+
+  new Worker("emails", (job) => profileTask(`send-email ${job.id}`, () => sendEmail(job.data)));
+  ```
+
+  A process that runs tasks counts as serving, as one that listens does: what it did before its
+  first task is its startup.
+
+A profile keeps its first 1,000 queries and counts the rest, so a seed that inserts 60,000 rows one
+at a time says how many it ran.
 
 ## The profiler page
 
 `/_profiler` is the full view, the same data with room to read it:
 
 - **Requests**: every recent request on the left, each page with its calls under it, filterable
-  by path or status. On the right, the one you pick (`/_profiler/:token`): method, path, status and
-  time; cards for queries, time in the database, operations and warnings; the calls it made; the
-  same tabs as the bar; and its JSON to download.
+  by path or status. Scripts, tasks, startups and background work are listed with them, by what ran
+  instead of a method and status. On the right, the one you pick (`/_profiler/:token`): method,
+  path, status and time; cards for queries, time in the database, operations and warnings; the calls
+  it made; the same tabs as the bar; and its JSON to download. The page opens on the newest one that
+  is not background work.
 - **Stats** (`/_profiler/stats`): across the stored requests, the slowest and the most repeated
   statement shapes, time by model and by route. On top, **Analyze the session ›** adds up the
   [query analysis](https://query-profiler.dev/docs/concepts/query-analysis#the-whole-session) of
@@ -287,7 +340,7 @@ Router, and on the profiler's own port for a Node server. `/_profiler`,
 | `GET /api/profiles/:token`                      | One profile, whole                                                                              |
 | `GET /api/stream`                               | Server-sent events: one `profile` per finished request, and `clear` when the storage is emptied |
 | `GET /api/meta`                                 | Where paths are shown from                                                                      |
-| `POST /api/profiles`                            | Takes another process's finished profile, as JSON; refuses a request with an `Origin`           |
+| `POST /api/profiles`                            | Takes another process's profile, as JSON, again as a script's grows; refuses an `Origin`        |
 | `DELETE /api/profiles`                          | Empties the storage                                                                             |
 | `GET /api/profiles/:token/findings`             | What each query's SQL shows without asking the database                                         |
 | `GET /api/profiles/:token/queries/:id/analysis` | The query's plan, tables and findings; `?measure=1` to measure it. Needs `X-Query-Profiler`     |
@@ -315,8 +368,8 @@ preload does too.
   listens on the network. For a Node server, the profiler's own port listens on `localhost` only.
   It takes profiles from other processes as JSON only and never with an `Origin`, so a page in your
   browser cannot send it any.
-- **In memory only.** Profiles live in the dev server's memory: the last 100, at most 1000 queries
-  each. Nothing is written to disk, to a database or to cookies; the browser keeps only how you
+- **In memory only.** Profiles live in the dev server's memory: the last 100 (no more than 20 of
+  them background work), at most 1000 queries each. Nothing is written to disk, to a database or to cookies; the browser keeps only how you
   left the bar.
 - **Secrets.** Prisma arguments whose key looks like a secret (`password`, `token`, `apiKey`,
   `authorization`, `cookie`…) are shown as `[redacted]`, and so are the SQL parameters that carry

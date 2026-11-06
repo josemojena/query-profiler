@@ -38,6 +38,7 @@ export default defineConfig({
           items: [
             "docs/guides/react-router",
             "docs/guides/node",
+            "docs/guides/scripts",
             "docs/guides/prisma",
             "docs/guides/turning-it-off",
             "docs/guides/troubleshooting",

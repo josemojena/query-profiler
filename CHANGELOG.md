@@ -30,8 +30,37 @@
 - **Four new routes**: `GET /api/profiles/:token/findings`, `GET
   /api/profiles/:token/queries/:id/analysis`, `POST /api/profiles/:token/queries/:id/trial` and
   `GET /api/stats/analysis`. The three that ask the database need the `X-Query-Profiler` header.
+- **The database work no request started.** Until now a query outside a request was dropped. With
+  the preload, it has a profile too:
+  - **A script** (`tsx --import query-profiler/register prisma/seed.ts`), a process that never
+    listens, is one profile: its whole run. When it ends, the terminal sums it up, each warning with
+    its line of code, and links to it in the profiler your app's dev server serves. A long one shows
+    there while it still runs; one that ends with `process.exit()` gets there too.
+  - **A server's startup**, what it does before it listens.
+  - **Background work**: the queries between requests (a timer, a queue in the same process, work
+    left running after a response), in bursts that close once nothing has run for 200 ms, named
+    after the line that started them. The last 20 are kept.
+- **`profileTask(name, fn)`**, from `query-profiler/prisma`: a job of a worker, or a run of a cron,
+  in a profile of its own, as a request has. Outside development it only runs `fn`.
+- **The Vite plugin opens the profiler's own port** (4983) as well, so scripts run with the preload
+  reach React Router's profiler. `/_profiler` stays on the app's port.
+- **The lists say what each profile is.** A request keeps its method and status, now in a pill in
+  every list, as in the bar's table. A script, a startup, a task or background work shows its kind in
+  a grey pill, next to its name, and its **Run** tab replaces **Request**. `/_profiler` opens on the
+  newest profile that is not background work, which the bar also leaves out of **Recent** (until now
+  **Recent requests**).
+- **Past 1,000 queries, a profile counts the rest** (`summary.unrecordedQueries`), and its warning
+  says how many there were.
 - **The React Router example** has a `/problems` page with a query for each common problem, on a
-  database of 60,000 posts.
+  database of 60,000 posts. **The Express example's seed** runs through the profiled client:
+  `pnpm --filter example-express db:seed`.
+
+### Changed
+
+- `POST /api/profiles` takes a profile again with a token it already has, as a script's grows: the
+  one with the longer duration stays.
+- `ProfileKind` has `script`, `startup` and `task`; `background` is now used. Their `request.method`
+  is empty and `request.url` names what ran.
 
 ## 0.3.0
 

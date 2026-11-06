@@ -9,8 +9,8 @@ never loaded.
 | Import                    | What it does                                                                                                                | Needs                       |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
 | `query-profiler`          | The `Profile` format, the per-request context, storage, analysis, `formatProfile()` and the HTTP handler `createHandler()`. | nothing                     |
-| `query-profiler/prisma`   | `withProfiler()`, `profilePrisma()`, `profilePool()`: the Prisma ORM integration.                                           | `@prisma/client` 7.1+, `pg` |
-| `query-profiler/register` | A preload for Node servers (`--import`): a profile per request, and the profiler on a port of its own.                      | Node 20.19+                 |
+| `query-profiler/prisma`   | `withProfiler()`, `profilePrisma()`, `profilePool()`: the Prisma ORM integration. `profileTask()`: a job's own profile.     | `@prisma/client` 7.1+, `pg` |
+| `query-profiler/register` | A preload for Node (`--import`): a profile per request or per script run, and the profiler on a port of its own.            | Node 22.19+ or 24.5+        |
 | `query-profiler/vite`     | `queryProfiler()`: for React Router, a profile per request, the bar and `/_profiler` in development; nothing in builds.     | `vite` 6+                   |
 | `query-profiler/ui`       | The bar (`<query-profiler-toolbar>`) and the page (`<query-profiler-page>`) as web components.                              | a browser                   |
 
