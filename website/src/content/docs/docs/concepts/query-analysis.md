@@ -54,6 +54,24 @@ Some of the [rules](/docs/reference/rules), by what they look at:
 Every rule links to the section of its engine's manual that backs it, and is tested against the real
 engine.
 
+## The whole session
+
+One query at a time shows what is wrong with it; the session shows what to fix first. On the
+[Stats](/docs/concepts/profiler-page) page, **Analyze the session ›** asks your database for the plan
+of every distinct statement in the stored requests (the same SQL with other values counts once),
+through its slowest run, and adds them up:
+
+- **Indexes to add**, ranked by the time the statements they would serve took: the `@@index` line to
+  copy, its SQL, how many statements it fixes, how often they ran, and on which routes. When one
+  index starts with another's columns, only the wider one is listed: it serves both.
+- **What the rules find** across the session, most severe first, then by time: every problem and the
+  six warnings with the most time, the rest folded. **Open** goes to the slowest statement it was
+  found in, in its request, on Explain plan.
+- **Tables**: the statements and time on each, and how many read it in full; under them, what holds
+  for a table whatever the query, once each.
+
+Nothing runs: it asks for estimated plans only, and only when you press it.
+
 ## Each engine
 
 | Engine     | Estimated plan                                           | Measured plan                             | Index trial |
@@ -76,5 +94,5 @@ database's plan** shows the engine's own.
   later (`GENERIC_PLAN`), and with a stand-in elsewhere: the plan says which.
 - **Only the SQL your app ran.** The profiler explains a recorded query by its id, and tries only the
   index it suggested itself. It never takes SQL from the browser.
-- **Only from the page.** Explain plan, Measure it and Try this index need the `X-Query-Profiler`
-  header, which a page on another origin cannot send without a preflight the profiler never answers.
+- **Only from the page.** Explain plan, Measure it, Try this index and Analyze the session need the
+  `X-Query-Profiler` header, which a page on another origin cannot send without a preflight the profiler never answers.

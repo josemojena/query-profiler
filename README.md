@@ -253,7 +253,10 @@ behind each, live. Each response's `X-Debug-Token` opens that request at `/_prof
   time; cards for queries, time in the database, operations and warnings; the calls it made; the
   same tabs as the bar; and its JSON to download.
 - **Stats** (`/_profiler/stats`): across the stored requests, the slowest and the most repeated
-  statement shapes, time by model and by route.
+  statement shapes, time by model and by route. On top, **Analyze the session ›** adds up the
+  [query analysis](https://query-profiler.dev/docs/concepts/query-analysis#the-whole-session) of
+  every distinct statement: the indexes to add, ranked by the time they would fix, what the rules
+  find across the session, and the tables the time goes to.
 
 **Clear**, next to Requests and Stats, removes every stored request. Every open tab with the
 profiler or the bar empties its lists too; the bar keeps the page it is on.
@@ -289,6 +292,7 @@ Router, and on the profiler's own port for a Node server. `/_profiler`,
 | `GET /api/profiles/:token/findings`             | What each query's SQL shows without asking the database                                         |
 | `GET /api/profiles/:token/queries/:id/analysis` | The query's plan, tables and findings; `?measure=1` to measure it. Needs `X-Query-Profiler`     |
 | `POST /api/profiles/:token/queries/:id/trial`   | Tries an index the analysis suggested, by its name. Needs `X-Query-Profiler`                    |
+| `GET /api/stats/analysis`                       | Every distinct statement of the stored requests analyzed, added up. Needs `X-Query-Profiler`    |
 
 `createHandler()` is a plain Fetch handler (`Request` → `Response`), so any framework can mount it.
 Every profiled response carries `X-Debug-Token`.
