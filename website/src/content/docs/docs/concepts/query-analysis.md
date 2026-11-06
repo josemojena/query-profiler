@@ -15,8 +15,9 @@ planner, through the same connection your app uses, and the rules run in the pro
 
 1. **Under every query, without asking the database.** The SQL and its values alone show some
    problems: a `LIKE` with `%` first, `ILIKE` (Prisma's `mode: "insensitive"`), a function on a
-   filtered column, a deep `OFFSET`, a `NOT IN` with a `NULL`. The first one shows under the closed
-   row. These are hints: they do not count as warnings.
+   filtered column, a deep `OFFSET`, a `NOT IN` with a `NULL`, a read with no limit that returned
+   1,000 rows or more. The first one shows under the closed row. These are hints: they do not count
+   as warnings.
 2. **Explain plan.** Every row the database can be asked about has **Explain ›**. It opens the query
    on its plan, estimated: the query does not run. You see each step (a table read in full, an index
    used, a sort, a temporary table), the tables' indexes, and the findings, most severe first, each

@@ -9,9 +9,10 @@ made: requests, queries, the time the database was busy and warnings. Click it t
 - **Requests**: the page, and under it every call it made after loading: fetchers, navigations,
   actions, revalidations. Each call is its own profile, tagged with the page's token
   (`X-Debug-Parent`), so it hangs under the page. A client navigation starts a new page.
-- **Queries** of the request you pick: N+1 groups collapsed, slow and duplicate queries marked.
-  Open one to read its SQL laid out over lines, one clause per line and in colour, copy it runnable
-  with its parameters filled in, and open the line in your editor.
+- **Queries** of the request you pick, with the rows each one returned: N+1 groups collapsed, slow
+  and duplicate queries marked. Open one to read its SQL laid out over lines, one clause per line
+  and in colour, copy it runnable with its parameters filled in, and open the line in your editor.
+  An N+1 has [**Fix the N+1 ›**](/docs/concepts/warnings#fixing-an-n1).
 - **Operations**, **Timeline**, **Warnings** and **Request**.
 
 It updates live, lists recent requests, scripts and tasks in **Recent**, shrinks to a pill, and

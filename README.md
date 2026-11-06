@@ -11,9 +11,10 @@ every request your app serves, what Prisma did in the database and why.
 
 - Every **Prisma operation** (`User.findMany`, `Order.create`…) with its arguments and the **line
   of your code** that called it.
-- Every **SQL statement** Prisma sent for it, with its parameters and duration, including
-  transactions, batches and the queries Prisma compacts.
-- Warnings for **N+1** queries, **slow** queries and **duplicated** queries.
+- Every **SQL statement** Prisma sent for it, with its parameters, its duration and the rows it
+  returned or changed, including transactions, batches and the queries Prisma compacts.
+- Warnings for **N+1** queries, **slow** queries and **duplicated** queries, and for an N+1 **the
+  code that replaces the loop**: an `include`, a `groupBy`, a `createMany`…
 - Shown in a **bar at the bottom of your pages**, in a **full profiler page** and as JSON, dark by
   default or light.
 
@@ -169,9 +170,10 @@ queries, time the database was busy and warnings. Click it to open:
 - **Requests**: the page, and under it every call it made (fetchers, navigations, actions,
   revalidations). Each call is its own profile; the bar tags it with the page's token
   (`X-Debug-Parent`), so it hangs under the page. A client navigation starts a new page.
-- **Queries** of the request you pick: N+1 groups collapsed, slow and duplicated ones marked.
-  Open one to read its SQL laid out over lines and in colour, copy it runnable, and open the line in
-  your editor.
+- **Queries** of the request you pick, with the rows each one returned: N+1 groups collapsed, slow
+  and duplicated ones marked. Open one to read its SQL laid out over lines and in colour, copy it
+  runnable, and open the line in your editor. An N+1 has **Fix the N+1 ›**: see
+  [fixing an N+1](#fixing-an-n1).
 - **Operations**, **Timeline**, **Warnings** and **Request**.
 
 It updates live while its tab is visible, catches up when you come back to it, and lists recent requests, with **Clear** to remove them all. Minimize it to a pill, or open the full profile.
@@ -266,7 +268,7 @@ profiled too:
 
   ```txt
   [query-profiler] script prisma/seed.ts · 32 queries · 33.58 ms in db · 8 operations · 3 warnings · 102.11 ms · 3b9cfe
-    N+1        User.create, 6 times  prisma/seed.ts:6
+    N+1        User.create, 6 times  prisma/seed.ts:6  → createMany: 2 queries instead of 30
     http://localhost:4983/_profiler/3b9cfe
   ```
 
@@ -317,6 +319,38 @@ profiler or the bar empties its lists too; the bar keeps the page it is on.
 A custom server that runs Vite in middleware mode, as React Router's templates for Express do, gets
 the same: the plugin's middleware runs inside Vite's.
 
+## Fixing an N+1
+
+An N+1 row in the Queries tab, and the N+1 warning, have **Fix the N+1 ›**. It opens a tab that
+says what repeats, which value changes each time and which earlier query those values came from,
+then the code that replaces the loop, best first, each with the queries it saves and **Copy**:
+
+| The loop                              | The fix                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------ |
+| `count` by one key                    | `_count` in the query the keys came from, or one `groupBy`               |
+| `findUnique`, `findMany` by one key   | `include` in the query the keys came from, or one `findMany` with `in`   |
+| `create`                              | `createMany`; for nested creates, `createManyAndReturn` and `createMany` |
+| `update` with the same data, `delete` | `updateMany`, `deleteMany`                                               |
+
+On the example's home page, a count of each user's posts:
+
+```ts
+prisma.user.findMany({
+  orderBy: { id: "asc" },
+  take: 6,
+  include: { _count: { select: { posts: true } } }, // 1 query instead of 7
+});
+```
+
+The `include` needs the relation's name, which Prisma's client does not expose: the profiler reads
+your `schema.prisma`, where `prisma.config.ts` says, or in `prisma/schema.prisma` or
+`prisma/schema/`, from the working directory up to the repository root, then in a monorepo's
+packages. Without it, the fix with `in` or `groupBy` still shows. When no single query replaces the
+loop (each update writes other values, each call pages on its own), it says so.
+
+A read with no limit that returned 1,000 rows or more gets a hint under its row: likely more than
+the page shows.
+
 ## Query analysis
 
 Open a query in the Queries tab and press **Explain ›**: the profiler asks your database for the
@@ -343,6 +377,7 @@ Router, and on the profiler's own port for a Node server. `/_profiler`,
 | `POST /api/profiles`                            | Takes another process's profile, as JSON, again as a script's grows; refuses an `Origin`        |
 | `DELETE /api/profiles`                          | Empties the storage                                                                             |
 | `GET /api/profiles/:token/findings`             | What each query's SQL shows without asking the database                                         |
+| `GET /api/profiles/:token/fixes`                | The code that replaces each N+1, by its first query                                             |
 | `GET /api/profiles/:token/queries/:id/analysis` | The query's plan, tables and findings; `?measure=1` to measure it. Needs `X-Query-Profiler`     |
 | `POST /api/profiles/:token/queries/:id/trial`   | Tries an index the analysis suggested, by its name. Needs `X-Query-Profiler`                    |
 | `GET /api/stats/analysis`                       | Every distinct statement of the stored requests analyzed, added up. Needs `X-Query-Profiler`    |
