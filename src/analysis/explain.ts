@@ -26,6 +26,10 @@ const WRITES = new Set(["INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE"]);
 // Past whitespace, comments and opening parentheses, to the statement's first word.
 const FIRST_WORD = /^(?:\s+|--[^\n]*(?:\n|$)|\/\*[\s\S]*?\*\/|\()*([A-Za-z]+)/;
 const ISO_DATE = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z$/;
+const INTEGER = /^-?\d+$/;
+const QUOTED = /'(?:[^']|'')*'|`(?:[^`]|``)*`|"(?:[^"]|"")*"/g;
+// LIMIT n, OFFSET n, and MySQL's LIMIT offset, n.
+const BEFORE_COUNT = /\b(?:LIMIT|OFFSET)\s*$|\bLIMIT\s+(?:\?|\$\d+)\s*,\s*$/i;
 // What sanitize() stores in place of bytes and of a string longer than it keeps.
 const BYTES = /^<\d+ bytes>$/;
 const CUT_LENGTH = 2049;
@@ -98,7 +102,10 @@ export async function explain(
     };
   const faithful = query.params.every(isFaithful);
   const generic = !faithful && !measure && engine === "postgres" && atLeast(version, "16");
-  const params = generic ? [] : query.params.map((param) => standIn(engine, param));
+  const counts = countPositions(query.sql);
+  const params = generic
+    ? []
+    : query.params.map((param, index) => standIn(engine, param, counts.has(index + 1)));
   const sql = explainSql(engine, query.sql.trim().replace(/;$/, ""), { measure, generic });
   const { rows } = measure
     ? await database.rolledBack((run) => run(sql, params))
@@ -168,13 +175,30 @@ function isFaithful(param: unknown): boolean {
   );
 }
 
-// Dates are recorded as ISO strings; MySQL and MariaDB compare their own format.
-function standIn(engine: Engine, param: unknown): unknown {
-  if ((engine === "mysql" || engine === "mariadb") && typeof param === "string") {
-    const date = ISO_DATE.exec(param);
-    if (date) return `${date[1]} ${date[2]}`;
+/**
+ * The recorded value as the database takes it. Dates are recorded as ISO strings, and MySQL and
+ * MariaDB compare their own format. A BigInt is recorded as text, and LIMIT and OFFSET take a
+ * number: Prisma 7.1 sends them as BigInts, and MySQL refuses LIMIT '1' when the driver writes the
+ * values into the SQL.
+ */
+function standIn(engine: Engine, param: unknown, count: boolean): unknown {
+  if (typeof param !== "string") return param;
+  if (count && INTEGER.test(param)) return Number(param);
+  const date = engine === "mysql" || engine === "mariadb" ? ISO_DATE.exec(param) : null;
+  return date ? `${date[1]} ${date[2]}` : param;
+}
+
+/** The parameter positions, from 1, that give a LIMIT or an OFFSET. */
+function countPositions(sql: string): Set<number> {
+  const blanked = sql.replace(QUOTED, (quoted) => " ".repeat(quoted.length));
+  const numbered = /\$\d+/.test(blanked);
+  const positions = new Set<number>();
+  let ordinal = 0;
+  for (const match of blanked.matchAll(numbered ? /\$(\d+)/g : /\?/g)) {
+    const position = numbered ? Number(match[1]) : ++ordinal;
+    if (BEFORE_COUNT.test(blanked.slice(0, match.index))) positions.add(position);
   }
-  return param;
+  return positions;
 }
 
 const withoutStrings = (sql: string) => sql.replace(/'(?:[^']|'')*'/g, "''");

@@ -109,4 +109,14 @@ describe.each(ENGINES)("%s", (engine, connect) => {
         : { generic: false, approximate: true },
     );
   });
+
+  it("plans a query whose LIMIT and OFFSET were recorded as text, as Prisma 7.1 sends BigInts there", async () => {
+    const [query] = await recorded(() =>
+      prisma.user.findFirst({ where: { email: "a@example.test" } }),
+    );
+    const asText = query!.params.map((param) =>
+      typeof param === "number" ? String(param) : param,
+    );
+    isPlan(await planOf({ ...query!, params: asText }));
+  });
 });
