@@ -19,8 +19,16 @@ export function formatProfile(profile: Profile): string {
 
 /** A line per warning, with what ran and the line of code behind it, for a terminal. */
 export function formatWarnings(profile: Profile): string[] {
-  const shown = profile.warnings.filter((warning) => warning.kind !== "truncated");
-  const rows = shown.slice(0, SHOWN_WARNINGS).map((warning) => describe(profile, warning));
+  // Each statement of one call counts on its own: one line for the call says it.
+  const shown = [
+    ...new Map(
+      profile.warnings
+        .filter((warning) => warning.kind !== "truncated")
+        .map((warning) => describe(profile, warning))
+        .map((row) => [row.join("\u0000"), row]),
+    ).values(),
+  ];
+  const rows = shown.slice(0, SHOWN_WARNINGS);
   const width = Math.max(0, ...rows.map(([, what]) => what.length));
   const lines = rows.map(([name, what, line]) =>
     `${name.padEnd(9)}  ${what.padEnd(width)}  ${line}`.trimEnd(),

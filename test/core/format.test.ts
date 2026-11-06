@@ -75,3 +75,15 @@ it("lists each warning with what ran and the line behind it, in columns", () => 
     "60,000 queries: the first 1,000 recorded, the rest only counted",
   ]);
 });
+
+it("says a call once, when each statement it runs is flagged on its own", () => {
+  const origin = [{ file: `${process.cwd()}/prisma/seed.ts`, line: 6 }];
+  const ids = (prefix: string) => [1, 2, 3, 4, 5, 6].map((n) => `${prefix}${n}`);
+  const profile = {
+    operations: [{ id: "op_1", model: "User", action: "create", origin }],
+    queries: ["a1", "b1", "c1"].map((id) => ({ id, opId: "op_1", sql: "INSERT" })),
+    warnings: ["a", "b", "c"].map((prefix) => ({ kind: "n+1", queryIds: ids(prefix) })),
+    summary: { queryCount: 18 },
+  } as unknown as Profile;
+  expect(formatWarnings(profile)).toEqual(["N+1        User.create, 6 times  prisma/seed.ts:6"]);
+});
