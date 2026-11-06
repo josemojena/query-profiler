@@ -138,7 +138,7 @@ tr.child.on .branch i { background: var(--accent); border-color: var(--accent); 
 .how.index { background: var(--ok-soft); color: var(--ok); }
 .how.plain { background: var(--chrome); color: var(--ink-2); border: 1px solid var(--line); }
 .finding { padding: 10px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 7px; }
-.finding .head { display: flex; gap: 8px; align-items: baseline; }
+.finding-head { display: flex; gap: 8px; align-items: baseline; }
 .finding .msg { line-height: 1.45; }
 .finding .docs { color: var(--accent); font-size: 12px; white-space: nowrap; margin-left: auto; }
 .sev { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }

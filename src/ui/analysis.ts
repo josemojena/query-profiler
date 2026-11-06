@@ -129,10 +129,10 @@ function stepHtml(step: PlanStep, depth: number, flagged: boolean): string {
   ].filter(Boolean);
   const measured = step.measured;
   const rows = measured
-    ? `${measured.rows.toLocaleString("en-US")} rows${measured.loops > 1 ? ` · ${measured.loops} loops` : ""}${measured.ms === undefined ? "" : ` · ${ms(measured.ms)}`}`
+    ? `${rowCount(measured.rows)}${measured.loops > 1 ? ` · ${measured.loops} loops` : ""}${measured.ms === undefined ? "" : ` · ${ms(measured.ms)}`}`
     : step.rows === undefined
       ? ""
-      : `~${Math.round(step.rows).toLocaleString("en-US")} rows`;
+      : `~${rowCount(step.rows)}`;
   return `<div class="step${flagged ? " flagged" : ""}" style="padding-left:${depth * 14}px"><span class="tree mono">${depth ? "└─" : ""}</span>${accessBadge(step)}<span class="what">${parts.join(" ")}</span><span class="rows">${rows}</span></div>`;
 }
 
@@ -165,7 +165,7 @@ function findingsHtml(
       const docs = finding.docs
         ? `<a class="docs" href="${escape(finding.docs)}" target="_blank" rel="noopener">${ENGINES[analysis.engine]} manual</a>`
         : "";
-      return `<div class="finding"><div class="head"><span class="sev ${finding.severity}">${finding.severity}</span><span class="msg">${escape(finding.message)}</span>${docs}</div>${fixHtml(view, query, analysis, finding, `${about}${index}`)}</div>`;
+      return `<div class="finding"><div class="finding-head"><span class="sev ${finding.severity}">${finding.severity}</span><span class="msg">${escape(finding.message)}</span>${docs}</div>${fixHtml(view, query, analysis, finding, `${about}${index}`)}</div>`;
     })
     .join("");
 }
@@ -234,6 +234,11 @@ const firstRead = (steps: PlanStep[]): PlanStep | undefined => {
     if (found) return found;
   }
   return undefined;
+};
+
+const rowCount = (rows: number) => {
+  const whole = Math.round(rows);
+  return `${whole.toLocaleString("en-US")} ${whole === 1 ? "row" : "rows"}`;
 };
 
 const round = (cost: number) => (cost >= 100 ? Math.round(cost) : Math.round(cost * 100) / 100);
