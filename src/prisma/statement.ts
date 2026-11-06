@@ -30,8 +30,8 @@ export async function recordStatement<T>(statement: Statement, run: () => Promis
   }
 }
 
-// Prisma's adapter errors keep the database's own code and message on `cause`.
-function withDatabaseCode(error: unknown): unknown {
+/** Prisma's adapter errors keep the database's own code and message on `cause`. */
+export function withDatabaseCode(error: unknown): unknown {
   const cause = (error as { cause?: { originalCode?: string; originalMessage?: string } }).cause;
   if (!cause?.originalCode) return error;
   return Object.assign(new Error(cause.originalMessage ?? String(error)), {

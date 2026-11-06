@@ -202,10 +202,7 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     const database = findDatabase(query.database)!;
     const advice = finding(analysis, "full-scan-missing-index")!;
     const trial = await tryIndex(database, query, {
-      table: { name: "qp_post" },
-      columns: [{ name: "title" }],
-      name: "qp_post_title_idx",
-      prisma: advice.fix!.prisma!,
+      name: advice.fix!.index!,
       sql: advice.fix!.sql!,
     });
     if (innodb) expect(trial).toMatchObject({ problem: "not_triable" });

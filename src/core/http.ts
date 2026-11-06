@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { analysisRoute } from "./analysis-http.js";
 import { uiAsset } from "./assets.js";
 import { DEFAULT_BASE } from "./constants.js";
 import { enabled } from "./enabled.js";
@@ -48,6 +49,8 @@ export function createHandler(
       return profile ? json(profile) : json({ error: "not_found" }, 404);
     }
     if (method === "GET" && path === "/api/stream") return stream();
+    const analysis = analysisRoute(request, path);
+    if (analysis) return analysis;
     if (method === "POST" && path === "/api/profiles") return receive(request);
     if (method === "DELETE" && path === "/api/profiles") {
       clearProfiles();

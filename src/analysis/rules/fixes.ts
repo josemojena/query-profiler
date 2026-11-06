@@ -5,6 +5,8 @@ import type { Analyzed } from "./subjects.js";
 export interface Fix {
   kind: string;
   text: string;
+  /** The index it adds, by name: what a trial of it asks for. */
+  index?: string;
   prisma?: string;
   sql?: string;
 }
@@ -29,6 +31,7 @@ export function fixFor(
       return {
         kind,
         text: `Add an index on ${advice.columns.map((part) => part.name).join(", ")} to the ${table} model, then run prisma migrate dev.`,
+        index: advice.name,
         prisma: advice.prisma,
         sql: advice.sql,
       };

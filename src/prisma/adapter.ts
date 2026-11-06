@@ -7,7 +7,7 @@ import {
   type Rows,
   type RunSql,
 } from "../core/index.js";
-import { recordStatement, newTransactionId } from "./statement.js";
+import { newTransactionId, recordStatement, withDatabaseCode } from "./statement.js";
 
 interface SqlQuery {
   sql: string;
@@ -117,7 +117,9 @@ const runner =
   (target: Queryable): RunSql =>
   (sql, params) =>
     unrecorded(async () => {
-      const result = await target.queryRaw(sqlQuery(sql, params));
+      const result = await target.queryRaw(sqlQuery(sql, params)).catch((error: unknown) => {
+        throw withDatabaseCode(error);
+      });
       return { columns: result.columnNames, rows: result.rows } satisfies Rows;
     });
 

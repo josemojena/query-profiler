@@ -40,4 +40,10 @@ export {
 } from "./analyze.js";
 export { createHandler, toListItem, type HandlerOptions } from "./http.js";
 export { stats, type StatementStat, type Stats } from "./stats.js";
-export { DEFAULT_BASE, PARENT_HEADER, TIMING_NAME, TOKEN_HEADER } from "./constants.js";
+export {
+  ANALYSIS_HEADER,
+  DEFAULT_BASE,
+  PARENT_HEADER,
+  TIMING_NAME,
+  TOKEN_HEADER,
+} from "./constants.js";

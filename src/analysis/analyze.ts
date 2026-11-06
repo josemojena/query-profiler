@@ -119,7 +119,7 @@ export function readFindings(
 export async function tryIndex(
   database: Database,
   query: { sql: string; params: unknown[] },
-  advice: IndexAdvice,
+  advice: Pick<IndexAdvice, "name" | "sql">,
 ): Promise<Trial | NoPlan> {
   const { engine } = await engineOf(database);
   if (engine !== "postgres" && engine !== "sqlite")
