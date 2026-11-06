@@ -11,6 +11,7 @@ import type {
   RequestMeta,
   ResponseMeta,
   StackFrame,
+  Warning,
 } from "./profile.js";
 import { redactParams, secretValues } from "./redact.js";
 import { sanitize } from "./sanitize.js";
@@ -23,6 +24,8 @@ export interface ActiveProfile {
   readonly startedAt: number;
   closed: boolean;
   truncated: boolean;
+  /** Queries past MAX_QUERIES, counted but not kept. */
+  unrecorded: number;
   nextId: number;
   /** Values each operation passed under a secret-looking key, to hide them in its SQL. Never stored. */
   secrets: Map<string, Set<string>>;
@@ -47,6 +50,7 @@ export function startProfile(request: RequestMeta, framework: Profile["framework
     startedAt: performance.now(),
     closed: false,
     truncated: false,
+    unrecorded: 0,
     nextId: 1,
     secrets: new Map(),
   };
@@ -89,6 +93,7 @@ export function beginQuery(
 ): QueryRecord | undefined {
   if (active.profile.queries.length >= MAX_QUERIES) {
     active.truncated = true;
+    active.unrecorded += 1;
     return undefined;
   }
   const record: QueryRecord = {
@@ -121,14 +126,31 @@ export function endProfile(active: ActiveProfile, response?: ResponseMeta): Prof
   active.closed = true;
   profile.response = response;
   profile.durationMs = elapsed(active);
-  profile.warnings = analyze(profile);
-  if (active.truncated) profile.warnings.push({ kind: "truncated", queryIds: [] });
-  profile.summary = summarize(profile);
+  profile.warnings = warningsOf(active);
+  profile.summary = summarize(active);
   storeProfile(profile);
   return profile;
 }
 
-function summarize(profile: Profile): ProfileSummary {
+/** A profile still being recorded, as it stands now: its duration and its warnings so far. */
+export function snapshotProfile(active: ActiveProfile): Profile {
+  return {
+    ...active.profile,
+    durationMs: elapsed(active),
+    operations: [...active.profile.operations],
+    queries: [...active.profile.queries],
+    warnings: warningsOf(active),
+    summary: summarize(active),
+  };
+}
+
+function warningsOf(active: ActiveProfile): Warning[] {
+  const warnings = analyze(active.profile);
+  if (active.truncated) warnings.push({ kind: "truncated", queryIds: [] });
+  return warnings;
+}
+
+function summarize({ profile, unrecorded }: ActiveProfile): ProfileSummary {
   const failedQueries = profile.queries.filter((query) => query.error && !query.opId).length;
   const failedOperations = profile.operations.filter((op) => op.error).length;
   return {
@@ -136,6 +158,7 @@ function summarize(profile: Profile): ProfileSummary {
     dbTimeMs: busyMs(profile.queries),
     operationCount: profile.operations.length,
     errorCount: failedQueries + failedOperations,
+    ...(unrecorded ? { unrecordedQueries: unrecorded } : {}),
   };
 }
 

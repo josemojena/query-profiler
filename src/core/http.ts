@@ -61,9 +61,9 @@ export function createHandler(
 }
 
 /**
- * Another process's finished profile, for the profiler that serves the port to show. JSON only and
- * no Origin: a page in a browser cannot send that across origins without a preflight, which this
- * never answers.
+ * Another process's profile, for the profiler that serves the port to show: finished, or a script's
+ * as it runs, sent again as it grows. JSON only and no Origin: a page in a browser cannot send that
+ * across origins without a preflight, which this never answers.
  */
 async function receive(request: Request): Promise<Response> {
   if (request.headers.has("origin")) return json({ error: "forbidden" }, 403);
@@ -73,7 +73,9 @@ async function receive(request: Request): Promise<Response> {
     return json({ error: "too_large" }, 413);
   const profile: unknown = await request.json().catch(() => undefined);
   if (!isProfile(profile)) return json({ error: "bad_request" }, 400);
-  if (!getProfile(profile.token)) storeProfile(profile);
+  // The later one wins: a repeat, or a snapshot that arrives after the end, does not.
+  const stored = getProfile(profile.token);
+  if (!stored || (profile.durationMs ?? 0) > (stored.durationMs ?? 0)) storeProfile(profile);
   return new Response(null, { status: 204 });
 }
 

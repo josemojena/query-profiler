@@ -35,9 +35,12 @@ function script(code: string) {
 }
 
 /** Node running `code` from the repository, as an app's dev command would, with these flags. */
-function run(code: string, flags: string[], env: Record<string, string> = {}) {
-  const child = fork(script(code), {
-    cwd: ROOT,
+const run = (code: string, flags: string[], env: Record<string, string> = {}) =>
+  runFile(script(code), ROOT, flags, env);
+
+function runFile(file: string, cwd: string, flags: string[], env: Record<string, string> = {}) {
+  const child = fork(file, {
+    cwd,
     execArgv: flags,
     // Without the NODE_PATH pnpm gives the test runner; port 0 keeps parallel runs apart.
     env: { PATH: process.env.PATH, NODE_PATH: "", QUERY_PROFILER_PORT: "0", ...env },
@@ -232,4 +235,124 @@ it("lets a second app share the first one's profiler, and take it over when the 
   await vi.waitFor(() => expect(second.output()).toContain(`[query-profiler] ${url}\n`));
   const after = (await fetch(`${origin}/users`)).headers.get("X-Debug-Token")!;
   await vi.waitFor(async () => expect(await tokens(url)).toEqual([after, before]));
+});
+
+// What Prisma records for six counts in a loop, through the profiler's own API: an N+1.
+const SEED = `import { beginOperation, beginQuery, captureOrigin, currentScope, finishOperation, finishQuery } from "query-profiler";
+for (let i = 0; i < 6; i++) {
+  const { profile } = currentScope();
+  const op = beginOperation(profile, { model: "Post", action: "count", origin: captureOrigin() });
+  finishQuery(profile, beginQuery(profile, { sql: 'SELECT count(*) FROM "Post" WHERE "userId" = $1', params: [i], opIds: [op.id] }));
+  finishOperation(profile, op);
+}
+`;
+
+/** Runs a file of an app folder from that folder, as `node --import query-profiler/register seed.mjs`. */
+function runScript(files: Record<string, string>, file: string, env: Record<string, string> = {}) {
+  const dir = appWith(files);
+  return runFile(join(dir, file), dir, PRELOAD, env);
+}
+
+const profileAt = async (url: string, token: string) =>
+  (await (await fetch(`${url}/api/profiles/${token}`)).json()) as {
+    kind: string;
+    request: { url: string };
+    summary: { queryCount: number };
+  };
+
+/** An app serving the profiler on a port of its own, for scripts to find. */
+async function profilerApp() {
+  const port = String(await freePort());
+  const app = run(APP, PRELOAD, { QUERY_PROFILER_PORT: port });
+  await app.port;
+  return { port, url: await profilerUrl(app.output) };
+}
+
+it("sums a script's run up in the terminal when it ends, each warning with its line", async () => {
+  const seed = runScript({ "seed.mjs": SEED }, "seed.mjs");
+  expect(await seed.exit).toBe(0);
+  expect(seed.output()).toMatch(
+    /^\[query-profiler\] script seed\.mjs · 6 queries · [\d.]+ ms in db · 6 operations · 1 warning · [\d.]+ ms · [0-9a-f]{6}\n {2}N\+1 {8}Post\.count, 6 times {2}seed\.mjs:4\n$/,
+  );
+});
+
+it("sends a script's run to the profiler an app serves, and says where to see it", async () => {
+  const { port, url } = await profilerApp();
+  const seed = runScript({ "seed.mjs": SEED }, "seed.mjs", { QUERY_PROFILER_PORT: port });
+  expect(await seed.exit).toBe(0);
+  const token = new RegExp(`${url}/([0-9a-f]{6})\n$`).exec(seed.output())?.[1];
+  expect(await profileAt(url, token!)).toMatchObject({
+    kind: "script",
+    request: { url: "seed.mjs" },
+    summary: { queryCount: 6 },
+  });
+});
+
+it("sends it too when the script ends with process.exit()", async () => {
+  const { port, url } = await profilerApp();
+  const seed = runScript({ "seed.mjs": `${SEED}process.exit(3);` }, "seed.mjs", {
+    QUERY_PROFILER_PORT: port,
+  });
+  expect(await seed.exit).toBe(3);
+  const token = new RegExp(`${url}/([0-9a-f]{6})\n$`).exec(seed.output())?.[1];
+  expect((await profileAt(url, token!)).summary.queryCount).toBe(6);
+});
+
+it("shows a script in the profiler while it still runs", async () => {
+  const { port, url } = await profilerApp();
+  const waiting = `${SEED}process.send("seeded"); process.once("message", () => process.disconnect());`;
+  const seed = runScript({ "seed.mjs": waiting }, "seed.mjs", { QUERY_PROFILER_PORT: port });
+  await seed.port;
+  await vi.waitFor(async () => {
+    const [running] = (await (await fetch(`${url}/api/profiles`)).json()) as {
+      kind: string;
+      summary: { queryCount: number };
+    }[];
+    expect(running).toMatchObject({ kind: "script", summary: { queryCount: 6 } });
+  });
+  seed.child.send("finish");
+  expect(await seed.exit).toBe(0);
+});
+
+it("keeps what a server does before it listens as its startup, apart from its requests", async () => {
+  const server = `${SEED}${APP}`;
+  const app = runScript({ "server.mjs": server }, "server.mjs");
+  const response = await fetch(`http://127.0.0.1:${await app.port}/users`);
+  const url = await profilerUrl(app.output);
+  const profiles = (await (await fetch(`${url}/api/profiles`)).json()) as {
+    token: string;
+    kind: string;
+    request: { url: string };
+  }[];
+  expect(profiles.map((profile) => [profile.kind, profile.request.url])).toEqual([
+    ["api", "/users"],
+    ["startup", "server.mjs"],
+  ]);
+  expect(profiles[0]!.token).toBe(response.headers.get("X-Debug-Token"));
+  expect(app.output()).not.toContain("script");
+});
+
+it("sends each task a worker runs to the profiler an app serves", async () => {
+  const { port, url } = await profilerApp();
+  const worker = `import { profileTask } from "query-profiler/prisma";
+${SEED.split("\n")[0]}
+for (const job of [1, 2])
+  await profileTask(\`send-email \${job}\`, async () => {
+    const { profile } = currentScope();
+    finishQuery(profile, beginQuery(profile, { sql: "SELECT 1" }));
+  });
+`;
+  const run = runScript({ "worker.mjs": worker }, "worker.mjs", { QUERY_PROFILER_PORT: port });
+  expect(await run.exit).toBe(0);
+  expect(run.output()).toBe("");
+  await vi.waitFor(async () => {
+    const profiles = (await (await fetch(`${url}/api/profiles`)).json()) as {
+      kind: string;
+      request: { url: string };
+    }[];
+    expect(profiles.map((profile) => [profile.kind, profile.request.url])).toEqual([
+      ["task", "send-email 2"],
+      ["task", "send-email 1"],
+    ]);
+  });
 });

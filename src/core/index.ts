@@ -1,6 +1,8 @@
 export type * from "./profile.js";
+export { fromRequest } from "./profile.js";
 export type { Scope } from "./context.js";
 export type { ActiveProfile } from "./recorder.js";
+export type { Outside, OutsideOptions, OutsideRecorder } from "./outside.js";
 export { currentScope, enterProfile, enterScope, runInScope, runWithProfile } from "./context.js";
 export {
   MAX_QUERIES,
@@ -9,8 +11,10 @@ export {
   endProfile,
   finishOperation,
   finishQuery,
+  snapshotProfile,
   startProfile,
 } from "./recorder.js";
+export { profileOutside, serveOutside } from "./outside.js";
 export {
   clearProfiles,
   getProfile,
@@ -21,7 +25,7 @@ export {
 } from "./storage.js";
 export { fingerprint, normalizeSql } from "./fingerprint.js";
 export { captureOrigin } from "./origin.js";
-export { formatProfile } from "./format.js";
+export { formatProfile, formatWarnings } from "./format.js";
 export { sanitize } from "./sanitize.js";
 export { enabled } from "./enabled.js";
 export {

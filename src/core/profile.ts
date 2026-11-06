@@ -1,4 +1,18 @@
-export type ProfileKind = "document" | "data" | "action" | "api" | "background";
+/** What a request asked for, or, for work no request started, what ran: a script, a server's startup, a task, or queries between requests. */
+export type ProfileKind =
+  | "document"
+  | "data"
+  | "action"
+  | "api"
+  | "script"
+  | "startup"
+  | "task"
+  | "background";
+
+const WORK_KINDS: ProfileKind[] = ["script", "startup", "task", "background"];
+
+/** Whether a request started the profile, rather than a script, a task or a server's own work. */
+export const fromRequest = (profile: { kind: ProfileKind }) => !WORK_KINDS.includes(profile.kind);
 
 export interface StackFrame {
   file: string;
@@ -8,7 +22,9 @@ export interface StackFrame {
 }
 
 export interface RequestMeta {
+  /** Empty for the work no request started. */
   method: string;
+  /** For the work no request started, its name: the script's file, the task's name, the line that ran it. */
   url: string;
   kind: ProfileKind;
   route?: string;
@@ -78,6 +94,8 @@ export interface ProfileSummary {
   dbTimeMs: number;
   operationCount: number;
   errorCount: number;
+  /** Queries past the limit a profile keeps: counted, not recorded. */
+  unrecordedQueries?: number;
 }
 
 export interface Profile {

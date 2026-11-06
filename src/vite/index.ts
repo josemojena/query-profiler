@@ -1,8 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createRequire } from "node:module";
-import type { createHandler } from "../core/index.js";
+import { enabled, profileOutside, type createHandler } from "../core/index.js";
 import { DEFAULT_BASE } from "../core/constants.js";
 import { sendFetchResponse, toFetchRequest } from "../core/node-http.js";
+import { profilerServer } from "../node/server.js";
 import { toolbarScript } from "../ui/snippet.js";
 import { profileRequests } from "./requests.js";
 import type { Plugin, ViteDevServer } from "vite";
@@ -49,12 +50,27 @@ export function queryProfiler(options: QueryProfilerOptions = {}): Plugin {
       serving = config.command === "serve";
     },
     configureServer(server) {
+      if (enabled()) serveScripts();
       server.middlewares.use(base, (req, res, fail) => {
         serve(server, req, res).catch((error: unknown) => fail(error));
       });
       return () => server.middlewares.use(profileRequests(base, options.log ?? false));
     },
   };
+}
+
+let servingScripts = false;
+
+/**
+ * Scripts and workers run with the preload send their profiles to the profiler's own port: it opens
+ * here too, once, so their runs show next to the app's requests. What the server itself does
+ * between requests (a timer, a queue) is recorded as well.
+ */
+function serveScripts() {
+  if (servingScripts) return;
+  servingScripts = true;
+  profilerServer({ onJoin: () => {} });
+  profileOutside({ framework: { name: "react-router" } });
 }
 
 async function serve(server: ViteDevServer, req: IncomingMessage, res: ServerResponse) {

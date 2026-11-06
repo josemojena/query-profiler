@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Scope } from "./context.js";
 import type { Database } from "./database.js";
+import type { Outside } from "./outside.js";
 import type { Profile } from "./profile.js";
 
 export interface State {
@@ -12,6 +13,8 @@ export interface State {
   /** The connections the profiler may ask about a query, by id. */
   databases?: Map<string, Database>;
   databaseCount?: number;
+  /** Where queries made outside any request go, once the app's dev command set it up. */
+  outside?: Outside;
   limit: number;
 }
 
