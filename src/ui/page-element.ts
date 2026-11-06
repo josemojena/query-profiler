@@ -147,6 +147,7 @@ export class ProfilerPage extends HTMLElement {
         else expanded.delete(id);
         state.expanded = expanded;
       },
+      toQueries: () => (state.tab = "queries"),
     };
   }
 
