@@ -6,7 +6,9 @@ import { asNumber } from "../plan.js";
 // The statistics views are a snapshot inside a transaction; pg_stats shows an ANALYZE made in it.
 const TABLES = (names: string) => `
   SELECT n.nspname, c.relname, c.reltuples::float8, pg_total_relation_size(c.oid)::float8,
-    s.n_live_tup::float8,
+    s.n_live_tup::float8, s.n_mod_since_analyze::float8,
+    current_setting('autovacuum_analyze_threshold')::float8,
+    current_setting('autovacuum_analyze_scale_factor')::float8,
     s.last_analyze IS NOT NULL OR s.last_autoanalyze IS NOT NULL OR EXISTS (
       SELECT 1 FROM pg_stats p WHERE p.schemaname = n.nspname AND p.tablename = c.relname
     ),
@@ -49,6 +51,11 @@ const FOREIGN_KEYS = (names: string) => `
   WHERE c.contype = 'f' AND t.relname IN (${names})
   ORDER BY c.conname`;
 
+const STATISTICS = (names: string) => `
+  SELECT schemaname, tablename, statistics_name, array_to_string(attnames, E'\\x1f')
+  FROM pg_stats_ext
+  WHERE tablename IN (${names})`;
+
 const COLUMNS = (names: string) => `
   SELECT n.nspname, t.relname, a.attname, format_type(a.atttypid, a.atttypmod), NOT a.attnotnull
   FROM pg_attribute a
@@ -61,17 +68,18 @@ const COLUMNS = (names: string) => `
 export async function readPostgresCatalog(run: RunSql, asked: TableName[]): Promise<Table[]> {
   const names = [...new Set(asked.map((table) => table.name))];
   const list = names.map((_, index) => `$${index + 1}`).join(", ");
-  const [tables, indexes, foreignKeys, columns] = await Promise.all(
-    [TABLES, INDEXES, FOREIGN_KEYS, COLUMNS].map((query) => run(query(list), names)),
+  const [tables, indexes, foreignKeys, columns, statistics] = await Promise.all(
+    [TABLES, INDEXES, FOREIGN_KEYS, COLUMNS, STATISTICS].map((query) => run(query(list), names)),
   );
-  const current = tables!.rows[0]?.[6] as string | undefined;
+  const current = tables!.rows[0]?.[9] as string | undefined;
   const of = (row: unknown[], table: Table) => row[0] === table.schema && row[1] === table.name;
   const found = tables!.rows.map((row): Table => ({
     schema: String(row[0]),
     name: String(row[1]),
     ...rowEstimate(row),
-    analyzed: row[5] === true,
+    analyzed: row[8] === true,
     bytes: asNumber(row[3]),
+    ...changes(row),
     columns: [],
     indexes: [],
     foreignKeys: [],
@@ -94,6 +102,9 @@ export async function readPostgresCatalog(run: RunSql, asked: TableName[]): Prom
         parts: keyParts(String(row[11])),
         ...(row[10] === false ? { valid: false } : {}),
       }));
+    table.statistics = statistics!.rows
+      .filter((row) => of(row, table))
+      .map((row) => ({ name: String(row[2]), columns: split(row[3]) }));
     table.foreignKeys = foreignKeys!.rows
       .filter((row) => of(row, table))
       .map((row) => ({
@@ -103,6 +114,20 @@ export async function readPostgresCatalog(run: RunSql, asked: TableName[]): Prom
       }));
   }
   return pickTables(asked, found, current);
+}
+
+// Autovacuum analyzes a table again once threshold + scale factor × rows of it changed.
+function changes(row: unknown[]): Pick<Table, "modified" | "analyzeAfter"> {
+  const modified = asNumber(row[5]);
+  const threshold = asNumber(row[6]);
+  const scale = asNumber(row[7]);
+  const rows = Math.max(asNumber(row[2]) ?? 0, 0);
+  return {
+    ...(modified === undefined ? {} : { modified }),
+    ...(threshold === undefined || scale === undefined
+      ? {}
+      : { analyzeAfter: threshold + scale * rows }),
+  };
 }
 
 // reltuples is -1 until the table is first vacuumed or analyzed (PostgreSQL 14 and later); the

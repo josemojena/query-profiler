@@ -15,7 +15,7 @@ export type Operand =
   | { kind: "param"; positions: number[] }
   | { kind: "literal"; text: string }
   | { kind: "column"; column: ColumnReference }
-  | { kind: "list"; size?: number; positions: number[] }
+  | { kind: "list"; size?: number; positions: number[]; hasNull?: boolean }
   | { kind: "subquery" }
   | { kind: "expression"; text: string; positions: number[] };
 
@@ -59,6 +59,8 @@ export interface Query {
   distinct: boolean;
   /** SELECT * or t.* */
   everyColumn: boolean;
+  /** The SELECT returns only one count(…). */
+  countOnly?: boolean;
   subqueries: Query[];
 }
 
@@ -391,6 +393,13 @@ export function readStatement(sql: string, engine: Engine): Statement {
         kindAt(at) === "star" &&
         (at === list.from || kindAt(at - 1) === "dot" || kindAt(at - 1) === "comma"),
     );
+    const selected = items(list);
+    if (
+      selected.length === 1 &&
+      upper(selected[0]!.from) === "COUNT" &&
+      kindAt(selected[0]!.from + 1) === "open"
+    )
+      result.countOnly = true;
     result.subqueries.push(...subqueriesIn(list, scope));
     filter(parts.get("WHERE"), "where", result, scope);
     const group = parts.get("GROUP");
@@ -699,7 +708,16 @@ export function readStatement(sql: string, engine: Engine): Statement {
         const inner = { from: range.from + 1, to: range.to - 1 };
         return {
           kind: "operand",
-          operand: { kind: "list", size: items(inner).length, positions: paramsIn(inner) },
+          operand: {
+            kind: "list",
+            size: items(inner).length,
+            positions: paramsIn(inner),
+            ...(items(inner).some(
+              (item) => item.to - item.from === 1 && upper(item.from) === "NULL",
+            )
+              ? { hasNull: true }
+              : {}),
+          },
         };
       }
     }

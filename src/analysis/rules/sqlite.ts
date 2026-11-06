@@ -11,4 +11,5 @@ export const SQLITE: Rule[] = [
   ["foreign-key-without-index","foreign-key","sqlite","unindexed","warning","{table}.{columns} references {references} with no index: SQLite does not create one, so a join on it, or a delete in {references}, reads all of {table}.","index","https://www.sqlite.org/foreignkeys.html#fk_indexes"],
   ["temporary-sort","sort","sqlite","temporary & sortable & !limited","info","Sorts through a temporary b-tree: an index on {columns} gives the rows in order.","index"],
   ["temporary-group","group","sqlite","temporary","info","Groups through a temporary b-tree, built for every run."],
+  ["not-in-subquery","condition","sqlite","notInSubquery","warning","NOT IN with a subquery returns no rows at all when the subquery returns a NULL; NOT EXISTS does not.","not-exists"],
 ];

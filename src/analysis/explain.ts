@@ -3,7 +3,7 @@ import { REDACTED } from "../core/redact.js";
 import { parseJson, type Engine, type Plan, type PlanStep } from "./plan.js";
 import { readMariadbPlan } from "./plans/mariadb.js";
 import { readMysqlPlan, readMysqlTree } from "./plans/mysql.js";
-import { readPostgresPlan } from "./plans/postgres.js";
+import { readPostgresPlan, readPostgresTiming } from "./plans/postgres.js";
 import { readSqlitePlan, sqlitePlanText } from "./plans/sqlite.js";
 
 export interface EngineInfo {
@@ -138,6 +138,7 @@ export async function explain(
     generic,
     approximate: !faithful && !generic,
     steps: readPlan(engine, measure, output),
+    ...(engine === "postgres" && measure ? { timing: readPostgresTiming(output) } : {}),
     raw: rawText(engine, measure, output),
   };
 }

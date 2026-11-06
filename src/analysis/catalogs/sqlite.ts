@@ -28,7 +28,7 @@ const COLUMNS = (names: string) => `
   WHERE m.type = 'table' AND m.name IN (${names})
   ORDER BY m.name, c.cid`;
 
-// Each row's stat starts with the table's row count.
+// Each row's stat starts with the rows its index, or its table, holds.
 const STATISTICS = "SELECT tbl, stat FROM sqlite_stat1";
 
 /** Tables, their columns, indexes and foreign keys, from SQLite's schema and pragmas. */
@@ -119,7 +119,8 @@ function foreignKeysOf(rows: unknown[][]): Table["foreignKeys"] {
   }));
 }
 
-// The row count ANALYZE wrote into sqlite_stat1, for the tables it has seen.
+// The row count ANALYZE wrote into sqlite_stat1, for the tables it has seen. Each index has a row,
+// and a partial index's counts only its own rows: the largest is the table's.
 async function analyzed(run: RunSql): Promise<Map<string, number>> {
   const exists = await run("SELECT 1 FROM sqlite_master WHERE name = 'sqlite_stat1'");
   if (!exists.rows.length) return new Map();
@@ -127,7 +128,8 @@ async function analyzed(run: RunSql): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
   for (const [table, stat] of rows) {
     const count = asNumber(String(stat).split(" ")[0]);
-    if (count !== undefined && !counts.has(String(table))) counts.set(String(table), count);
+    if (count !== undefined)
+      counts.set(String(table), Math.max(count, counts.get(String(table)) ?? 0));
   }
   return counts;
 }

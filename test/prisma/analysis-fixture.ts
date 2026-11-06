@@ -28,6 +28,11 @@ export function analysisFixture(engine: Engine): string[] {
     "CREATE INDEX qp_post_views_a ON qp_post (views)",
     "CREATE INDEX qp_post_views_b ON qp_post (views)",
   ];
+  // A partial index, which MySQL and MariaDB do not have.
+  if (engine === "postgres" || engine === "sqlite")
+    tables.push(
+      "CREATE INDEX qp_post_published_idx ON qp_post (created_at) WHERE status = 'published'",
+    );
   if (engine === "mysql" || engine === "mariadb")
     // A FOREIGN KEY clause, since InnoDB ignores REFERENCES written on the column.
     tables[1] = tables[1]!.replace(

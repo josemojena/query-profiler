@@ -10,7 +10,7 @@ import {
 } from "../advisor.js";
 import type { Index, Table, TableName } from "../catalog.js";
 import { allSteps, type Engine, type Plan, type PlanStep } from "../plan.js";
-import type { Condition, Count, Query, Statement } from "../statement.js";
+import type { Condition, Count, Operand, Query, Statement } from "../statement.js";
 import type { Subject, SubjectKind } from "./engine.js";
 
 /** Fewer rows than this, and reading them all is often what the database should do. */
@@ -127,6 +127,10 @@ function planSubjects(context: Context): Analyzed[] {
         ? Math.max(actual / Math.max(estimated, 1), estimated / Math.max(actual, 1))
         : 0;
     const removed = measured?.removedByFilter ?? 0;
+    const buried = table && advice ? buriedIndex(table, wanted) : undefined;
+    const related = table ? relatedColumns(table, identity!) : [];
+    const heapFetches = measured?.heapFetches ?? 0;
+    const batches = hashBatches(step);
     return subject(
       "read",
       {
@@ -161,6 +165,20 @@ function planSubjects(context: Context): Analyzed[] {
         joinBuffer: (step.notes ?? []).some((note) => note.startsWith("Using join buffer")),
         wasteful: removed >= WASTED_ROWS && removed >= WASTE * Math.max(measured?.rows ?? 0, 1),
         considered: (step.possibleIndexes?.length ?? 0) > 0 && !step.index,
+        buried: buried !== undefined,
+        withoutValues: plan?.generic === true || plan?.approximate === true,
+        stale:
+          table !== undefined &&
+          table.analyzed &&
+          table.modified !== undefined &&
+          table.analyzeAfter !== undefined &&
+          table.modified >= table.analyzeAfter,
+        correlated: related.length >= 2,
+        heapVisits:
+          step.label === "Index Only Scan" &&
+          heapFetches >= 1000 &&
+          heapFetches >= 0.1 * (measured?.rows ?? 0),
+        hashSpill: (batches ?? 0) > 1,
         write: written,
       },
       {
@@ -174,6 +192,12 @@ function planSubjects(context: Context): Analyzed[] {
         estimated,
         actual: measured?.rows,
         possible: step.possibleIndexes?.join(", "),
+        buriedIn: buried?.name,
+        leading: buried?.columns[0],
+        modified: table?.modified,
+        related: related.join(", "),
+        heapFetches,
+        batches,
       },
       { advice, step: position, table: identity },
     );
@@ -209,6 +233,39 @@ function planSubjects(context: Context): Analyzed[] {
     return false;
   }
 
+  // The hash a read feeds, before any join: its batches say whether it went to disk.
+  function hashBatches(step: PlanStep): number | undefined {
+    for (let parent = parents.get(step); parent; parent = parents.get(parent)) {
+      if (parent.kind === "join") return undefined;
+      if (parent.label === "Hash") return parent.batches;
+    }
+    return undefined;
+  }
+
+  // Equality filters on several columns of this table, which the planner takes for independent
+  // unless extended statistics cover two of them.
+  function relatedColumns(table: Table, identity: TableName): string[] {
+    const columns = [
+      ...new Set(
+        conditions
+          .filter(
+            (condition) =>
+              condition.kind === "equality" &&
+              !condition.alternative &&
+              condition.clause === "where" &&
+              condition.value.kind !== "column" &&
+              condition.column.table !== undefined &&
+              sameTable(engine, condition.column.table, identity),
+          )
+          .map((condition) => condition.column.column),
+      ),
+    ];
+    const covered = (table.statistics ?? []).some(
+      (statistics) => columns.filter((column) => statistics.columns.includes(column)).length >= 2,
+    );
+    return columns.length >= 2 && !covered ? columns : [];
+  }
+
   // A filter on another table makes its rows few, and this table is reached through the join.
   function filteredElsewhere(table: TableName): boolean {
     return conditions.some(
@@ -240,20 +297,35 @@ function sortAdvice(context: Context): IndexAdvice | undefined {
   });
 }
 
-function conditionSubjects({ statement, params }: Context): Analyzed[] {
+function conditionSubjects({ statement, params, tables, engine }: Context): Analyzed[] {
   return statement.queries.flatMap((query) =>
     query.conditions.map((condition) => {
       const pattern =
         condition.kind === "pattern" ? patternText(condition.value, params) : undefined;
+      const searched =
+        condition.kind === "pattern" ? fullPattern(condition.value, params) : undefined;
       const others = query.conditions.filter(
         (other) => other.alternative && other.column.column !== condition.column.column,
       );
-      const size = condition.value.kind === "list" ? condition.value.size : undefined;
+      const value = condition.value;
+      const size = value.kind === "list" ? value.size : undefined;
+      const valued = value.kind === "param" || value.kind === "list";
+      const table = condition.column.table;
+      const partial = valued
+        ? tables
+            .filter((each) => table && sameTable(engine, each, table))
+            .flatMap((each) => each.indexes)
+            .find((index) => index.where && mentions(index.where, condition.column.column))
+        : undefined;
       return subject(
         "condition",
         {
           leadingWildcard: pattern !== undefined && /^[%_]/.test(pattern),
-          insensitive: /ILIKE$/.test(condition.operator),
+          insensitive: /ILIKE$/.test(condition.operator) || /~\*$/.test(condition.operator),
+          // A trigram index looks up runs of three characters: a shorter run gives it nothing.
+          fewTrigrams:
+            searched !== undefined &&
+            Math.max(0, ...searched.split(/[%_]+/).map((run) => run.length)) < 3,
           wrapped: !usableWrapper(condition.wrapper),
           negation: condition.kind === "negation",
           alternative: condition.alternative,
@@ -262,34 +334,48 @@ function conditionSubjects({ statement, params }: Context): Analyzed[] {
           hugeList: (size ?? 0) >= HUGE_LIST,
           equalsNull:
             ["=", "<>", "!="].includes(condition.operator) &&
-            condition.value.kind === "literal" &&
-            condition.value.text.toUpperCase() === "NULL",
-          notInSubquery: condition.operator === "NOT IN" && condition.value.kind === "subquery",
+            value.kind === "literal" &&
+            value.text.toUpperCase() === "NULL",
+          notInSubquery: condition.operator === "NOT IN" && value.kind === "subquery",
+          nullInList:
+            condition.operator === "NOT IN" &&
+            value.kind === "list" &&
+            (value.hasNull === true ||
+              value.positions.some((position) => params[position - 1] === null)),
+          partialParam: partial !== undefined,
           join: condition.clause === "join",
           having: condition.clause === "having",
           written: query.kind !== "select",
         },
         {
-          table: condition.column.table?.name,
+          table: table?.name,
           expression: condition.expression,
           column: qualified(condition),
           wrapper: condition.wrapper,
           operator: condition.operator,
           size,
+          index: partial?.name,
+          predicate: partial?.where,
         },
-        { table: condition.column.table, column: condition.column.column },
+        { table, column: condition.column.column },
       );
     }),
   );
 }
 
-function querySubject({ statement, params }: Context): Analyzed {
+function querySubject({ statement, params, tables, plan, engine }: Context): Analyzed {
   const query: Query = statement.query;
   const offset = countValue(query.offset, params);
   const random = query.orderBy.some((key) =>
     /^(?:random|rand)\s*\(\s*\)$/i.test(key.expression ?? ""),
   );
   const written = query.kind === "update" || query.kind === "delete";
+  const [only] = statement.tables;
+  const counted = only && tables.find((table) => sameTable(engine, table, only))?.rows;
+  const unfiltered = statement.queries.every((each) => each.conditions.length === 0);
+  const { planningMs, executionMs, jitMs } = plan?.timing ?? {};
+  const tenth = (ms: number | undefined) =>
+    ms === undefined ? undefined : Math.round(ms * 10) / 10;
   return subject(
     "query",
     {
@@ -299,8 +385,30 @@ function querySubject({ statement, params }: Context): Analyzed {
       unfilteredWrite: written && query.conditions.length === 0 && query.tables.length === 1,
       limited: hasLimit(query.limit, params),
       write: written,
+      unordered: query.kind === "select" && query.orderBy.length === 0,
+      // Prisma sends OFFSET 0 when there is no skip.
+      paged: (offset ?? 0) > 0,
+      countsAll:
+        query.countOnly === true &&
+        unfiltered &&
+        statement.tables.length === 1 &&
+        (counted ?? 0) >= SMALL_TABLE,
+      jitHeavy: jitMs !== undefined && executionMs !== undefined && jitMs >= 0.2 * executionMs,
+      planningHeavy:
+        planningMs !== undefined &&
+        executionMs !== undefined &&
+        planningMs >= 5 &&
+        planningMs >= 2 * executionMs,
     },
-    { offset, limit: countValue(query.limit, params), table: query.tables[0]?.table.name },
+    {
+      offset,
+      limit: countValue(query.limit, params),
+      table: only?.name ?? query.tables[0]?.table.name,
+      rows: counted,
+      jitMs: tenth(jitMs),
+      executionMs: tenth(executionMs),
+      planningMs: tenth(planningMs),
+    },
   );
 }
 
@@ -308,10 +416,16 @@ function foreignKeySubjects({ tables, engine, version }: Context): Analyzed[] {
   return tables.flatMap((table) =>
     table.foreignKeys.map((key) => {
       const columns = new Set(key.columns);
+      // A lookup by the key's columns needs a B-tree leading with them, or a hash on just one.
       const indexed = table.indexes.some(
         (index) =>
+          index.valid !== false &&
           !index.expression &&
           !index.where &&
+          (engine === "sqlite" ||
+            index.method === undefined ||
+            /^btree$/i.test(index.method) ||
+            (/^hash$/i.test(index.method) && index.columns.length === 1 && columns.size === 1)) &&
           index.columns.slice(0, columns.size).every((column) => columns.has(column)) &&
           index.columns.length >= columns.size,
       );
@@ -368,7 +482,11 @@ function indexSubjects({ tables }: Context): Analyzed[] {
       );
       return subject(
         "index",
-        { redundant: plain && longer !== undefined, duplicate: plain && same !== undefined },
+        {
+          redundant: plain && longer !== undefined,
+          duplicate: plain && same !== undefined,
+          invalid: index.valid === false,
+        },
         { table: table.name, index: index.name, other: (same ?? longer)?.name },
         { table: { schema: table.schema, name: table.name } },
       );
@@ -394,3 +512,45 @@ const qualified = (condition: Condition) =>
   condition.column.table
     ? `${condition.column.table.name}.${condition.column.column}`
     : condition.column.column;
+
+/** An index that has a wanted column, but after another one: it cannot look the column up. */
+function buriedIndex(table: Table, wanted: { name: string }[]): Index | undefined {
+  const names = new Set(wanted.map((column) => column.name));
+  return table.indexes.find(
+    (index) =>
+      index.valid !== false &&
+      !index.expression &&
+      !index.where &&
+      (index.method === undefined || /^btree$/i.test(index.method)) &&
+      !names.has(index.columns[0] ?? "") &&
+      index.columns.slice(1).some((column) => names.has(column)),
+  );
+}
+
+/** The pattern a LIKE searches for, with the values of the parameters it is built from. */
+function fullPattern(value: Operand, params: unknown[]): string | undefined {
+  if (value.kind === "literal") return value.text.replace(/^'|'$/g, "");
+  if (value.kind === "param") {
+    const param = params[value.positions[0]! - 1];
+    return typeof param === "string" ? param : undefined;
+  }
+  if (value.kind !== "expression") return undefined;
+  let ordinal = 0;
+  const parts: string[] = [];
+  for (const [, text, numbered] of value.text.matchAll(/'((?:[^']|'')*)'|\$(\d+)|\?/g)) {
+    if (text !== undefined) parts.push(text);
+    else {
+      const position = numbered ? Number(numbered) : value.positions[ordinal++];
+      const param = position === undefined ? undefined : params[position - 1];
+      if (typeof param !== "string") return undefined;
+      parts.push(param);
+    }
+  }
+  return parts.join("");
+}
+
+/** Whether a partial index's condition names the column. */
+const mentions = (where: string, column: string) =>
+  new RegExp(`(^|[^\\w])"?${column.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"?([^\\w]|$)`).test(
+    where,
+  );

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { RULES } from "../../src/analysis/analyze.js";
 import { readCatalog } from "../../src/analysis/catalog.js";
-import type { Engine, Plan } from "../../src/analysis/plan.js";
+import type { Table } from "../../src/analysis/catalog.js";
+import type { Engine, Plan, PlanStep } from "../../src/analysis/plan.js";
 import { readPostgresPlan } from "../../src/analysis/plans/postgres.js";
 import {
   appliesTo,
@@ -126,7 +127,7 @@ describe("every rule", () => {
             {
               kind,
               facts: {},
-              values: { wrapper: "lower()", expression: "lower(a)", index: "i" },
+              values: { wrapper: "lower()", expression: "lower(a)", index: "i", related: "a, b" },
               advice: {
                 table: { name: "t" },
                 columns: [{ name: "a" }],
@@ -302,5 +303,192 @@ describe("the expression index fix", () => {
     expect(fix("lower(data)", "mariadb", "11.4.4")!.text).toContain("generated column");
     // now() and the like give another result each time: no index can hold them.
     expect(fix("my_function(data)", "postgres", "18.1")).not.toHaveProperty("sql");
+  });
+});
+
+describe("the facts PostgreSQL's manual adds", () => {
+  const facts = (
+    kind: SubjectKind,
+    context: Partial<Parameters<typeof subjects>[0]> & { sql: string },
+  ) => {
+    const { sql, ...rest } = context;
+    const found = subjects({
+      engine: "postgres",
+      statement: readStatement(sql, "postgres"),
+      tables: [],
+      params: [],
+      ...rest,
+    });
+    return found.filter((subject) => subject.kind === kind);
+  };
+  const table = (extra: Partial<Table> = {}): Table => ({
+    schema: "public",
+    name: "t",
+    rows: 50_000,
+    analyzed: true,
+    columns: [],
+    indexes: [],
+    foreignKeys: [],
+    ...extra,
+  });
+  const plan = (steps: PlanStep[], extra: Partial<Plan> = {}): Plan => ({
+    engine: "postgres",
+    version: "18.1",
+    measured: true,
+    generic: false,
+    approximate: false,
+    steps,
+    raw: "",
+    ...extra,
+  });
+  const read = (extra: Partial<PlanStep> = {}): PlanStep => ({
+    label: "Seq Scan",
+    kind: "read",
+    table: "t",
+    relation: "t",
+    access: "full",
+    rows: 10,
+    children: [],
+    ...extra,
+  });
+
+  it("tells statistics that changed more rows than autovacuum waits for", () => {
+    const [stale] = facts("read", {
+      sql: "SELECT 1 FROM t WHERE a = $1",
+      params: [1],
+      plan: plan([read()]),
+      tables: [table({ modified: 6000, analyzeAfter: 5050 })],
+    });
+    expect(stale!.facts.stale).toBe(true);
+    const [fresh] = facts("read", {
+      sql: "SELECT 1 FROM t WHERE a = $1",
+      params: [1],
+      plan: plan([read()]),
+      tables: [table({ modified: 10, analyzeAfter: 5050 })],
+    });
+    expect(fresh!.facts.stale).toBe(false);
+  });
+
+  it("tells related columns the planner takes for independent, unless extended statistics cover them", () => {
+    const sql = "SELECT 1 FROM t WHERE a = $1 AND b = $2";
+    const [plain] = facts("read", { sql, params: [1, 2], plan: plan([read()]), tables: [table()] });
+    expect(plain!.facts.correlated).toBe(true);
+    const covered = table({ statistics: [{ name: "t_a_b", columns: ["a", "b"] }] });
+    const [known] = facts("read", { sql, params: [1, 2], plan: plan([read()]), tables: [covered] });
+    expect(known!.facts.correlated).toBe(false);
+  });
+
+  it("tells an index-only read that still checks the table, and a hash that went to disk", () => {
+    const covering = read({
+      label: "Index Only Scan",
+      access: "index-only",
+      index: "t_a",
+      lookup: "(a = 1)",
+      measured: { rows: 5000, loops: 1, heapFetches: 5000 },
+    });
+    const [visits] = facts("read", {
+      sql: "SELECT a FROM t WHERE a = 1",
+      plan: plan([covering]),
+      tables: [table()],
+    });
+    expect(visits!.facts.heapVisits).toBe(true);
+    const hashed: PlanStep = {
+      label: "Hash Join (Inner)",
+      kind: "join",
+      children: [
+        read({ table: "u", relation: "u" }),
+        { label: "Hash", kind: "other", batches: 8, children: [read()] },
+      ],
+    };
+    const reads = facts("read", {
+      sql: "SELECT 1 FROM t JOIN u ON u.id = t.id",
+      plan: plan([hashed]),
+      tables: [table()],
+    });
+    expect(reads.map((each) => each.facts.hashSpill)).toEqual([false, true]);
+  });
+
+  it("tells a query that counts every row, pages with no order, or spends its time planning or compiling", () => {
+    const [count] = facts("query", { sql: `SELECT COUNT(*) FROM t`, tables: [table()] });
+    expect(count!.facts.countsAll).toBe(true);
+    const [filtered] = facts("query", {
+      sql: `SELECT COUNT(*) FROM t WHERE a = $1`,
+      params: [1],
+      tables: [table()],
+    });
+    expect(filtered!.facts.countsAll).toBe(false);
+    const [paged] = facts("query", {
+      sql: "SELECT id FROM t LIMIT $1 OFFSET $2",
+      params: ["10", "20"],
+    });
+    expect(paged!.facts).toMatchObject({ paged: true, unordered: true });
+    const [first] = facts("query", {
+      sql: "SELECT id FROM t LIMIT $1 OFFSET $2",
+      params: ["10", "0"],
+    });
+    expect(first!.facts.paged).toBe(false);
+    const [slow] = facts("query", {
+      sql: "SELECT 1",
+      plan: plan([], { timing: { planningMs: 12, executionMs: 3, jitMs: 1 } }),
+    });
+    expect(slow!.facts).toMatchObject({ planningHeavy: true, jitHeavy: true });
+  });
+
+  it("tells a pattern too short for a trigram index, a NOT IN with a NULL, and a parameter on a partial index's column", () => {
+    const [short] = facts("condition", {
+      sql: `SELECT 1 FROM t WHERE name ILIKE ('%' || $1 || '%')`,
+      params: ["ab"],
+    });
+    expect(short!.facts.fewTrigrams).toBe(true);
+    const [long] = facts("condition", {
+      sql: `SELECT 1 FROM t WHERE name ILIKE ('%' || $1 || '%')`,
+      params: ["abc"],
+    });
+    expect(long!.facts.fewTrigrams).toBe(false);
+    const [nulls] = facts("condition", {
+      sql: `SELECT 1 FROM t WHERE id NOT IN ($1, NULL)`,
+      params: [1],
+    });
+    expect(nulls!.facts.nullInList).toBe(true);
+    const [nullParam] = facts("condition", {
+      sql: `SELECT 1 FROM t WHERE id NOT IN ($1, $2)`,
+      params: [1, null],
+    });
+    expect(nullParam!.facts.nullInList).toBe(true);
+    const partial = table({
+      indexes: [
+        {
+          name: "t_open",
+          columns: ["at"],
+          unique: false,
+          primary: false,
+          expression: false,
+          where: "(status = 'open'::text)",
+        },
+      ],
+    });
+    const [onStatus] = facts("condition", {
+      sql: `SELECT 1 FROM t WHERE status = $1`,
+      params: ["open"],
+      tables: [partial],
+    });
+    expect(onStatus!.values).toMatchObject({ index: "t_open" });
+    expect(onStatus!.facts.partialParam).toBe(true);
+  });
+
+  it("tells an index that has the column after another, which cannot look it up", () => {
+    const buriedIn = table({
+      indexes: [
+        { name: "t_b_a", columns: ["b", "a"], unique: false, primary: false, expression: false },
+      ],
+    });
+    const [subject] = facts("read", {
+      sql: "SELECT 1 FROM t WHERE a = $1",
+      params: [1],
+      plan: plan([read()]),
+      tables: [buriedIn],
+    });
+    expect(subject!.facts).toMatchObject({ buried: true, missing: true });
+    expect(subject!.values).toMatchObject({ buriedIn: "t_b_a", leading: "b" });
   });
 });

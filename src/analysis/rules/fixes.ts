@@ -73,6 +73,12 @@ export function fixFor(
   const quote = engine === "mysql" || engine === "mariadb" ? "`" : '"';
   const quoted = (name: string) => `${quote}${name.replaceAll(quote, quote + quote)}${quote}`;
   const table = subject.table?.name ?? "";
+  const target = [
+    engine === "postgres" && subject.table?.schema ? quoted(subject.table.schema) : "",
+    quoted(table),
+  ]
+    .filter(Boolean)
+    .join(".");
   const column = subject.column ?? "";
   switch (kind) {
     case "index": {
@@ -92,9 +98,46 @@ export function fixFor(
         text: "Gather fresh statistics on the table, so the plan counts rows right.",
         sql:
           engine === "mysql" || engine === "mariadb"
-            ? `ANALYZE TABLE ${quoted(table)};`
-            : `ANALYZE ${quoted(table)};`,
+            ? `ANALYZE TABLE ${target};`
+            : `ANALYZE ${target};`,
       };
+    case "vacuum":
+      return {
+        kind,
+        text: "VACUUM marks the pages no write changed since, so an index-only read stops checking them in the table. Autovacuum does it in time; on a table that only grows, run it after loading.",
+        sql: `VACUUM (ANALYZE) ${target};`,
+      };
+    case "statistics": {
+      const related = String(subject.values.related ?? "")
+        .split(", ")
+        .filter(Boolean);
+      if (related.length < 2) return undefined;
+      return {
+        kind,
+        text: `Tell the planner the columns are related, then gather statistics again. ${RAW_MIGRATION}`,
+        sql: `CREATE STATISTICS ${quoted(`${table}_${related.join("_")}_stats`)} (dependencies, mcv) ON ${related.map(quoted).join(", ")} FROM ${target};\nANALYZE ${target};`,
+      };
+    }
+    case "custom-plan":
+      return {
+        kind,
+        text: "Plan with the values every time, for this connection or the app's role, so the partial index applies: or give the index a condition with no parameter.",
+        sql: "SET plan_cache_mode = force_custom_plan;",
+      };
+    case "jit":
+      return {
+        kind,
+        text: "Turn JIT off for the app's role, or raise jit_above_cost so short queries skip it.",
+        sql: "SET jit = off;",
+      };
+    case "rebuild-index": {
+      const index = String(subject.values.index ?? "");
+      return {
+        kind,
+        text: "Build it again, outside any transaction: REINDEX … CONCURRENTLY does not block writes while it runs.",
+        sql: `REINDEX INDEX CONCURRENTLY ${quoted(index)};`,
+      };
+    }
     case "trigram": {
       const name = `${table}_${column}_trgm_idx`;
       return {

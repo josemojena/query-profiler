@@ -6,6 +6,7 @@ import {
   step,
   type Access,
   type Measured,
+  type Plan,
   type PlanStep,
 } from "../plan.js";
 
@@ -22,6 +23,19 @@ const READS: Record<string, Access> = {
 const JOINS = new Set(["Nested Loop", "Hash Join", "Merge Join"]);
 const SORTS = new Set(["Sort", "Incremental Sort"]);
 const GROUPS = new Set(["Aggregate", "Group", "Unique", "WindowAgg", "SetOp"]);
+
+/** Where a measured query's time went: planning, running, and compiling it with JIT. */
+export function readPostgresTiming(output: unknown): Plan["timing"] {
+  const [first] = parseJson(output) as Record<string, unknown>[];
+  if (!first || first["Execution Time"] === undefined) return undefined;
+  const jit = first.JIT as { Timing?: { Total?: unknown } } | undefined;
+  const timing = {
+    planningMs: asNumber(first["Planning Time"]),
+    executionMs: asNumber(first["Execution Time"]),
+    jitMs: asNumber(jit?.Timing?.Total),
+  };
+  return Object.fromEntries(Object.entries(timing).filter(([, value]) => value !== undefined));
+}
 
 /** PostgreSQL's `EXPLAIN (FORMAT JSON)`, estimated or measured, as steps. */
 export function readPostgresPlan(output: unknown): PlanStep[] {
@@ -100,6 +114,13 @@ function toStep(node: Node): PlanStep {
       children,
     );
   if (type === "Limit") return step({ ...common, kind: "limit" }, children);
+  if (type === "Hash") {
+    const batches = asNumber(node["Hash Batches"]);
+    return step(
+      { ...common, kind: "other", batches, onDisk: (batches ?? 0) > 1 ? true : undefined },
+      children,
+    );
+  }
   if (type === "ModifyTable")
     return step(
       {
@@ -133,10 +154,13 @@ function measure(node: Node): Measured | undefined {
   };
   const ms = perLoop("Actual Total Time");
   const removed = perLoop("Rows Removed by Filter");
+  // Heap Fetches, unlike rows and time, is already a total over every loop.
+  const heapFetches = asNumber(node["Heap Fetches"]);
   return {
     rows: perLoop("Actual Rows") ?? 0,
     loops,
     ...(ms === undefined ? {} : { ms }),
     ...(removed === undefined ? {} : { removedByFilter: removed }),
+    ...(heapFetches === undefined ? {} : { heapFetches }),
   };
 }

@@ -49,6 +49,12 @@ export interface Table {
   /** The database has statistics on its data to plan with (ANALYZE). */
   analyzed: boolean;
   bytes?: number;
+  /** Rows changed since its statistics were last gathered (PostgreSQL). */
+  modified?: number;
+  /** The changes after which autovacuum gathers its statistics again (PostgreSQL). */
+  analyzeAfter?: number;
+  /** Extended statistics: columns the planner knows to be related (PostgreSQL's CREATE STATISTICS). */
+  statistics?: { name: string; columns: string[] }[];
   columns: Column[];
   indexes: Index[];
   foreignKeys: ForeignKey[];

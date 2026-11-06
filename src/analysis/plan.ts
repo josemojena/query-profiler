@@ -17,6 +17,8 @@ export interface Measured {
   ms?: number;
   /** Rows it read and threw away, over every loop. */
   removedByFilter?: number;
+  /** Rows an index-only read still had to check in the table, over every loop (PostgreSQL). */
+  heapFetches?: number;
 }
 
 export interface PlanStep {
@@ -46,6 +48,8 @@ export interface PlanStep {
   temporary?: boolean;
   /** It ran out of memory and wrote to disk. */
   onDisk?: boolean;
+  /** The batches a hash was split into to fit in memory: more than one went to disk. */
+  batches?: number;
   /** Anything else the database says about the step, in its words. */
   notes?: string[];
   measured?: Measured;
@@ -61,6 +65,8 @@ export interface Plan {
   generic: boolean;
   /** Planned with stand-ins for parameters that were hidden or cut when recorded. */
   approximate: boolean;
+  /** Where a measured query's time went, when the database says (PostgreSQL). */
+  timing?: { planningMs?: number; executionMs?: number; jitMs?: number };
   steps: PlanStep[];
   /** The database's own answer, as text. */
   raw: string;

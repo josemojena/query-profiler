@@ -163,12 +163,54 @@ describe.each(ENGINES)("%s", (engine, connect) => {
       const { analysis } = await analyze(`SELECT id FROM qp_fresh WHERE kind = ${p(1)}`, [
         "kind 3",
       ]);
-      expect(finding(analysis, "never-analyzed")!.fix!.sql).toMatch(/^ANALYZE ["`]qp_fresh["`];$/);
+      expect(finding(analysis, "never-analyzed")!.fix!.sql).toMatch(
+        /^ANALYZE (?:"public"\.)?["`]qp_fresh["`];$/,
+      );
       const { analysis: analyzed } = await analyze(
         `SELECT id FROM qp_post WHERE id = ${p(1)}`,
         [1],
       );
       expect(rules(analyzed)).not.toContain("never-analyzed");
+    },
+  );
+
+  it.runIf(engine === "postgres")(
+    "finds what PostgreSQL's manual warns of: an index searched past its first column, counting a whole table, paging with no order",
+    async () => {
+      const { analysis: buried } = await analyze(
+        `SELECT id FROM qp_post WHERE created_at > ${p(1)}`,
+        ["2026-01-10"],
+      );
+      expect(finding(buried, "buried-column")!.message).toContain("qp_post_status_created_idx");
+      expect(rules(buried)).not.toContain("full-scan-missing-index");
+      const { analysis: count } = await analyze(`SELECT COUNT(*) FROM qp_post`);
+      expect(finding(count, "count-every-row")!.message).toContain("20,000 rows of qp_post");
+      const { analysis: page } = await analyze(`SELECT id FROM qp_post LIMIT 10 OFFSET 20`);
+      expect(rules(page)).toContain("paging-without-order");
+    },
+  );
+
+  it.runIf(engine === "postgres")(
+    "finds a NOT IN with a NULL, a pattern too short for trigrams, and a parameter against a partial index",
+    async () => {
+      const { analysis: nulls } = await analyze(
+        `SELECT id FROM qp_author WHERE id NOT IN (${p(1)}, NULL)`,
+        [1],
+      );
+      expect(rules(nulls)).toContain("not-in-null");
+      const { analysis: short } = await analyze(
+        `SELECT id FROM qp_author WHERE name ILIKE ('%' || ${p(1)} || '%')`,
+        ["ab"],
+      );
+      expect(rules(short)).toEqual(expect.arrayContaining(["short-pattern"]));
+      expect(rules(short)).not.toContain("insensitive-match");
+      const { analysis: partial } = await analyze(
+        `SELECT id FROM qp_post WHERE status = ${p(1)} AND created_at > ${p(2)}`,
+        ["published", "2026-01-10"],
+      );
+      expect(finding(partial, "partial-index-parameter")!.message).toContain(
+        "qp_post_published_idx",
+      );
     },
   );
 
