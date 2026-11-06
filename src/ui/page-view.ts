@@ -1,8 +1,8 @@
 import type { Profile, ProfileListItem, StatementStat, Stats } from "../core/index.js";
 import { LOGO } from "./brand.js";
 import { count } from "./count.js";
-import { detail, type Detail, type DetailTab } from "./detail.js";
-import { escape, ms, statusTone } from "./format.js";
+import { detail, tabLabel, type Detail, type DetailTab } from "./detail.js";
+import { escape, fromRequest, kindPill, ms, statusTone } from "./format.js";
 import { sessionSection, type SessionView } from "./session.js";
 import { themeSwitch, type Theme } from "./theme.js";
 
@@ -68,8 +68,8 @@ export function renderList(state: PageState): string {
   const item = (entry: ProfileListItem, child: boolean) => {
     const on = entry.token === state.profile?.token && state.view === "requests";
     return `<a href="${escape(`${state.base}/${entry.token}`)}" data-action="go" class="item${child ? " child" : ""}${on ? " on" : ""}">
-      ${child ? `<i class="node"></i>` : ""}<b>${escape(entry.request.method)} ${entry.response?.status ?? "…"}</b> <span class="mono">${escape(entry.request.url)}</span>
-      <div class="sub">${entry.kind} · ${count(entry.summary.queryCount, "query", "queries")} · ${ms(entry.summary.dbTimeMs)}${entry.warningCount ? ` · <i class="dot"></i>${count(entry.warningCount, "warning")}` : ""}</div>
+      ${child ? `<i class="node"></i>` : ""}${kindPill(entry)} <span class="mono">${escape(entry.request.url)}</span>
+      <div class="sub">${fromRequest(entry) ? `${entry.kind} · ` : ""}${count(entry.summary.queryCount, "query", "queries")} · ${ms(entry.summary.dbTimeMs)}${entry.warningCount ? ` · <i class="dot"></i>${count(entry.warningCount, "warning")}` : ""}</div>
     </a>`;
   };
   const calls = (entries: ProfileListItem[]) =>
@@ -92,12 +92,16 @@ function profileView(state: PageState, profile: Profile): string {
   };
   const tabs = TABS.map(
     ([tab, label]) =>
-      `<button class="tab${state.tab === tab ? " on" : ""}" data-action="tab" data-tab="${tab}">${label}${counts[tab] === undefined ? "" : ` (${counts[tab]})`}</button>`,
+      `<button class="tab${state.tab === tab ? " on" : ""}" data-action="tab" data-tab="${tab}">${tabLabel(profile, tab, label)}${counts[tab] === undefined ? "" : ` (${counts[tab]})`}</button>`,
   ).join("");
+  const title = fromRequest(profile)
+    ? `${escape(profile.request.method)} ${escape(profile.request.url)} · <span class="status tone-${statusTone(profile.response?.status)}">${profile.response?.status ?? "…"}</span>`
+    : `${profile.kind} ${escape(profile.request.url)}`;
+  const how = fromRequest(profile) ? profile.kind : "outside any request";
   return `<header class="head">
       <div>
-        <h1>${escape(profile.request.method)} ${escape(profile.request.url)} · <span class="status tone-${statusTone(profile.response?.status)}">${profile.response?.status ?? "…"}</span> · ${ms(profile.durationMs)}</h1>
-        <div class="sub">token <span class="mono">${escape(profile.token)}</span> · ${escape(time)} · ${profile.kind}${parent ? ` · called from <a href="${escape(`${state.base}/${parent.token}`)}" data-action="go">${escape(parent.request.url)}</a>` : ""}</div>
+        <h1>${title} · ${ms(profile.durationMs)}</h1>
+        <div class="sub">token <span class="mono">${escape(profile.token)}</span> · ${escape(time)} · ${how}${parent ? ` · called from <a href="${escape(`${state.base}/${parent.token}`)}" data-action="go">${escape(parent.request.url)}</a>` : ""}</div>
       </div>
       <a class="button" href="${escape(`${state.base}/api/profiles/${profile.token}`)}" download="query-profiler-${escape(profile.token)}.json">Download JSON</a>
     </header>

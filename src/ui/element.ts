@@ -11,6 +11,13 @@ import { render, type Tab, type ViewState } from "./view.js";
 
 const SAVED = "query-profiler:ui";
 const MAX_RECENT = 20;
+// The profiler keeps at most 20 background profiles, which the bar leaves out: asking for that
+// many more still fills its list.
+const RECENT_ASKED = MAX_RECENT + 20;
+
+/** Recent requests, scripts and tasks: work between requests would crowd them out, and stays in the profiler's page. */
+const shownRecent = (items: ProfileListItem[]) =>
+  items.filter((item) => item.kind !== "background").slice(0, MAX_RECENT);
 
 interface Saved {
   open: boolean;
@@ -66,11 +73,11 @@ export class ProfilerToolbar extends HTMLElement {
     const { base } = this.#state;
     const [meta, recent] = await Promise.all([
       getJson<{ root: string }>(`${base}/api/meta`),
-      getJson<ProfileListItem[]>(`${base}/api/profiles?limit=${MAX_RECENT}`),
+      getJson<ProfileListItem[]>(`${base}/api/profiles?limit=${RECENT_ASKED}`),
     ]);
     if (!meta) return;
     this.#state.root = meta.root;
-    this.#state.recent = recent ?? [];
+    this.#state.recent = shownRecent(recent ?? []);
     this.#stopFollowing = followProfiles(`${base}/api/stream`, {
       onProfile: (item) => this.#onProfile(item),
       onResume: () => void this.#catchUp(),
@@ -129,7 +136,7 @@ export class ProfilerToolbar extends HTMLElement {
 
   #onProfile(item: ProfileListItem) {
     const state = this.#state;
-    state.recent = mergeProfiles([item], state.recent, MAX_RECENT);
+    state.recent = shownRecent(mergeProfiles([item], state.recent));
     if (item.token === state.page?.token) state.page = item;
     if (state.page && item.parentToken === state.page.token)
       state.calls = [...state.calls.filter((call) => call.token !== item.token), item];
@@ -143,11 +150,11 @@ export class ProfilerToolbar extends HTMLElement {
   async #catchUp() {
     const { base, page } = this.#state;
     const [recent, calls] = await Promise.all([
-      getJson<ProfileListItem[]>(`${base}/api/profiles?limit=${MAX_RECENT}`),
+      getJson<ProfileListItem[]>(`${base}/api/profiles?limit=${RECENT_ASKED}`),
       page && getJson<ProfileListItem[]>(`${base}/api/profiles?parent=${page.token}`),
     ]);
     const state = this.#state;
-    state.recent = recent ?? [];
+    state.recent = shownRecent(recent ?? []);
     if (calls && page?.token === state.page?.token) state.calls = calls.reverse();
     this.#render();
   }

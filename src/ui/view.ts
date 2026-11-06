@@ -2,8 +2,8 @@ import type { Profile, ProfileListItem } from "../core/index.js";
 import type { AnalysisView } from "./analysis.js";
 import { LOGO } from "./brand.js";
 import { count } from "./count.js";
-import { detail, type DetailTab } from "./detail.js";
-import { escape, ms, statusTone, type Editor } from "./format.js";
+import { detail, tabLabel, type DetailTab } from "./detail.js";
+import { escape, fromRequest, kindPill, ms, type Editor } from "./format.js";
 import { themeSwitch, type Theme } from "./theme.js";
 
 export type Tab = "requests" | DetailTab;
@@ -53,7 +53,7 @@ function strip(state: ViewState): string {
   const { page } = state;
   const sum = totals(state);
   const summary = page
-    ? `<span class="status tone-${statusTone(page.response?.status)}">${escape(page.request.method)} ${page.response?.status ?? "…"}</span>
+    ? `${kindPill(page)}
        <span class="url">${escape(page.request.url)}</span>
        ${state.calls.length ? `<span><b>${state.calls.length}</b> ${state.calls.length === 1 ? "call" : "calls"}</span>` : ""}
        <span><b>${sum.queries}</b> queries</span>
@@ -79,7 +79,7 @@ function pill(state: ViewState): string {
 }
 
 function recent(state: ViewState): string {
-  const head = `<div class="recent-head"><b>Recent requests</b>${state.recent.length ? `<button type="button" class="clear" data-action="clear" title="Remove every stored request">Clear</button>` : ""}</div>`;
+  const head = `<div class="recent-head"><b>Recent</b>${state.recent.length ? `<button type="button" class="clear" data-action="clear" title="Remove every stored request">Clear</button>` : ""}</div>`;
   if (!state.recent.length)
     return `<div class="recent">${head}<div class="empty">No requests yet</div></div>`;
   return `<div class="recent">${head}${state.recent
@@ -87,8 +87,8 @@ function recent(state: ViewState): string {
       (
         item,
       ) => `<button data-action="pick" data-token="${escape(item.token)}" class="${item.token === state.profile?.token ? "on" : ""}">
-        <b>${escape(item.request.method)} ${item.response?.status ?? "…"}</b> ${escape(item.request.url)}
-        <div class="sub">${item.kind} · ${count(item.summary.queryCount, "query", "queries")} · ${ms(item.summary.dbTimeMs)}${item.warningCount ? ` · ${count(item.warningCount, "warning")}` : ""}</div>
+        ${kindPill(item)} ${escape(item.request.url)}
+        <div class="sub">${fromRequest(item) ? `${item.kind} · ` : ""}${count(item.summary.queryCount, "query", "queries")} · ${ms(item.summary.dbTimeMs)}${item.warningCount ? ` · ${count(item.warningCount, "warning")}` : ""}</div>
       </button>`,
     )
     .join("")}</div>`;
@@ -117,7 +117,7 @@ function panel(state: ViewState): string {
   };
   const tabs = TABS.map(
     ([tab, label]) =>
-      `<button class="tab${state.tab === tab ? " on" : ""}" data-action="tab" data-tab="${tab}">${label}${counts[tab] === undefined ? "" : ` (${counts[tab]})`}</button>`,
+      `<button class="tab${state.tab === tab ? " on" : ""}" data-action="tab" data-tab="${tab}">${profile ? tabLabel(profile, tab, label) : label}${counts[tab] === undefined ? "" : ` (${counts[tab]})`}</button>`,
   ).join("");
   const json = profile
     ? `<a href="${escape(`${state.base}/${profile.token}`)}" target="_blank" rel="noopener">Open full profile</a>`
@@ -139,7 +139,7 @@ function requestRow(state: ViewState, item: ProfileListItem, place: Place): stri
     ? `<span class="branch${place === "last call" ? " last" : ""}"><i></i></span>`
     : "";
   return `<tr class="${call ? "child" : "main"}${on ? " on" : ""}" data-action="select" data-token="${escape(item.token)}">
-    <td>${branch}<span class="status tone-${statusTone(item.response?.status)}">${escape(item.request.method)} ${item.response?.status ?? "…"}</span></td>
+    <td>${branch}${kindPill(item)}</td>
     <td><span class="mono">${escape(item.request.url)}</span><div class="sub">${item.kind}${item.warningCount ? ` · <i class="dot"></i>${count(item.warningCount, "warning")}` : ""}</div></td>
     <td>${count(item.summary.queryCount, "query", "queries")}</td>
     <td class="dur">${ms(item.summary.dbTimeMs)}<div class="sub">${ms(item.durationMs)} total</div></td>

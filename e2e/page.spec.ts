@@ -1,7 +1,7 @@
 import { build } from "esbuild";
 import { expect, test, type Page } from "@playwright/test";
 import type { Profile } from "../src/core/index.js";
-import { DATA_REQUEST, PROFILE, PROMOTIONS, listItem } from "./fixture.js";
+import { BACKGROUND, DATA_REQUEST, PROFILE, PROMOTIONS, SCRIPT, listItem } from "./fixture.js";
 import { openStreams, setVisibility, trackStreams } from "./visibility.js";
 
 const ORIGIN = "http://app.test";
@@ -87,6 +87,34 @@ test("opens on the newest page, with its calls under it in the list", async ({ p
   await expect(app.locator(".card.warn")).toContainText("warnings: N+1, slow");
   await expect(app.locator(".tab.on")).toHaveText("Queries (7)");
   await expect(app).toContainText("N+1 ×5");
+});
+
+test("shows a script by what it ran, opens on it over work between requests, with its run", async ({
+  page,
+}) => {
+  const app = await open(page, "/_profiler", [BACKGROUND, SCRIPT, ...PROFILES]);
+  await expect(app.locator("h1")).toContainText("script prisma/seed.ts");
+  await expect(app.locator(".head .sub")).toContainText("outside any request");
+  await expect(app.locator(".item.on .status")).toHaveText("script");
+  await expect(app.locator(".item.on .sub")).toHaveText(/^7 queries · 48\.7 ms/);
+  await expect(app.locator(".item", { hasText: "cleanup.ts:9" }).locator(".status")).toHaveText(
+    "background",
+  );
+  await expect(app.locator(".item", { hasText: "/orders" }).first().locator(".status")).toHaveText(
+    "GET 200",
+  );
+  await app.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(app.locator("dl")).toContainText("Fileprisma/seed.ts");
+  await expect(app.locator("dl")).not.toContainText("Status");
+  await app.getByRole("button", { name: /^Warnings/ }).click();
+  await expect(app.locator(".content")).toContainText(
+    "59,007 queries: the first 7 are here, the rest were only counted.",
+  );
+});
+
+test("opens on work between requests when nothing else is there", async ({ page }) => {
+  const app = await open(page, "/_profiler", [BACKGROUND]);
+  await expect(app.locator("h1")).toContainText("background app/jobs/cleanup.ts:9");
 });
 
 test("hangs a page's calls from its box, the call picked marked", async ({ page }) => {

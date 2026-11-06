@@ -1,4 +1,4 @@
-import type { QueryRecord, StackFrame } from "../core/index.js";
+import type { ProfileKind, ProfileListItem, QueryRecord, StackFrame } from "../core/index.js";
 
 const ENTITIES: Record<string, string> = {
   "&": "&amp;",
@@ -51,3 +51,14 @@ function literal(value: unknown): string {
 
 export const statusTone = (status: number | undefined) =>
   status === undefined ? "muted" : status >= 500 ? "bad" : status >= 400 ? "warn" : "ok";
+
+const WORK_KINDS = new Set<ProfileKind>(["script", "startup", "task", "background"]);
+
+/** Whether a request started the profile, rather than a script, a task or a server's own work. */
+export const fromRequest = (item: { kind: ProfileKind }) => !WORK_KINDS.has(item.kind);
+
+/** What the profile is, in a pill: a request's method and status, in colour, or what ran, in grey. */
+export const kindPill = (item: Pick<ProfileListItem, "kind" | "request" | "response">) =>
+  fromRequest(item)
+    ? `<span class="status tone-${statusTone(item.response?.status)}">${escape(item.request.method)} ${item.response?.status ?? "…"}</span>`
+    : `<span class="status tone-muted">${item.kind}</span>`;
