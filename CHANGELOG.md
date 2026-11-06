@@ -55,6 +55,12 @@
   database of 60,000 posts. **The Express example's seed** runs through the profiled client:
   `pnpm --filter example-express db:seed`.
 
+### Fixed
+
+- With several processes sharing one profiler (a cluster, two apps), each process's profiles
+  arrive in the order they finished: one could get there before an older one and be listed as
+  older.
+
 ### Changed
 
 - `POST /api/profiles` takes a profile again with a token it already has, as a script's grows: the
