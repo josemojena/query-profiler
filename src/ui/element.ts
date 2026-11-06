@@ -1,6 +1,7 @@
 import type { Profile, ProfileListItem } from "../core/index.js";
 import { runnableSql, type Editor } from "./format.js";
 import { formatSql } from "./sql.js";
+import { emptyAnalysis, loadFindings, planAction } from "./analysis.js";
 import { clearAll, getJson } from "./http.js";
 import { followProfiles, mergeProfiles } from "./live.js";
 import { STRIP_HEIGHT, styles } from "./styles.js";
@@ -40,6 +41,7 @@ export class ProfilerToolbar extends HTMLElement {
     tab: "requests",
     height: Math.round(window.innerHeight * 0.4),
     expanded: new Set(),
+    analysis: emptyAnalysis(),
     theme: "dark",
   };
 
@@ -115,6 +117,12 @@ export class ProfilerToolbar extends HTMLElement {
     if (profile) {
       this.#state.profile = profile;
       this.#state.expanded = new Set();
+      const analysis = emptyAnalysis();
+      this.#state.analysis = analysis;
+      void loadFindings(this.#state.base, profile.token).then((findings) => {
+        analysis.findings = findings;
+        this.#render();
+      });
     }
     this.#render();
   }
@@ -178,6 +186,12 @@ export class ProfilerToolbar extends HTMLElement {
     if (!target || target.tagName === "A") return;
     event.stopPropagation();
     const state = this.#state;
+    const where = {
+      base: state.base,
+      token: state.profile?.token,
+      queries: state.profile?.queries ?? [],
+    };
+    if (planAction(target, state.analysis, where, () => this.#render())) return;
     switch (target.dataset.action) {
       case "toggle":
         state.open = !state.open;
