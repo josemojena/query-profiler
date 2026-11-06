@@ -3,7 +3,15 @@ import { createServer as createHttpServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { createServer, type Plugin, type UserConfig, type ViteDevServer } from "vite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { beginQuery, clearProfiles, currentScope, listProfiles } from "../../src/core/index.js";
+import {
+  beginQuery,
+  clearProfiles,
+  currentScope,
+  finishQuery,
+  listProfiles,
+  snapshotProfile,
+  startProfile,
+} from "../../src/core/index.js";
 import { queryProfiler } from "../../src/vite/index.js";
 
 // Stands in for React Router's handler: it answers after Vite's own middleware, and makes a query.
@@ -48,9 +56,15 @@ describe("the Vite plugin", () => {
     let vite: ViteDevServer;
     let http: Server;
     let origin: string;
+    let profilerPort: number;
 
     beforeAll(async () => {
       vi.stubEnv("NODE_ENV", "development");
+      const probe = createHttpServer();
+      await new Promise<void>((resolve) => probe.listen(0, "localhost", resolve));
+      profilerPort = (probe.address() as AddressInfo).port;
+      await new Promise((resolve) => probe.close(resolve));
+      vi.stubEnv("QUERY_PROFILER_PORT", String(profilerPort));
       vite = await createServer({
         configFile: false,
         logLevel: "silent",
@@ -72,6 +86,37 @@ describe("the Vite plugin", () => {
       const response = await fetch(`${origin}/_profiler/api/profiles`);
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual(expect.any(Array));
+    });
+
+    it("opens the profiler's own port too, for scripts to send their runs, shown here with the rest", async () => {
+      const script = snapshotProfile(
+        startProfile({ method: "", url: "prisma/seed.ts", kind: "script" }, { name: "node" }),
+      );
+      const profiler = `http://localhost:${profilerPort}/_profiler`;
+      await vi.waitFor(async () => expect((await fetch(`${profiler}/api/meta`)).ok).toBe(true));
+      const sent = await fetch(`${profiler}/api/profiles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(script),
+      });
+      expect(sent.status).toBe(204);
+      const listed = (await (await fetch(`${origin}/_profiler/api/profiles`)).json()) as {
+        token: string;
+      }[];
+      expect(listed.map((item) => item.token)).toContain(script.token);
+    });
+
+    it("records what the server does between requests in a background profile", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        const scope = currentScope()!;
+        expect(scope.profile.profile.kind).toBe("background");
+        finishQuery(scope.profile, beginQuery(scope.profile, { sql: "SELECT 1" })!);
+        vi.advanceTimersByTime(200);
+        expect(listProfiles()[0]).toMatchObject({ kind: "background", summary: { queryCount: 1 } });
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("serves the bar's code as a module Vite compiles", async () => {

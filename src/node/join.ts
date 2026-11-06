@@ -30,14 +30,21 @@ export function shareProfiler(url: string, onLost: () => void): Shared {
   watch.once("error", lose);
   watch.once("socket", (socket) => socket.unref());
   watch.end();
+  let sending = Promise.resolve();
   return {
     send: (profile) => {
       if (lost) return;
-      fetch(`${url}/api/profiles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
-      }).then((response) => void response.body?.cancel(), lose);
+      const body = JSON.stringify(profile);
+      // One at a time, in order: the profiler lists them as they arrive.
+      sending = sending.then(() =>
+        lost
+          ? undefined
+          : fetch(`${url}/api/profiles`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body,
+            }).then((response) => void response.body?.cancel(), lose),
+      );
     },
   };
 }

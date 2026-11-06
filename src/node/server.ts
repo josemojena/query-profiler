@@ -80,14 +80,31 @@ export function profilerServer(options: ProfilerServerOptions = {}): Server {
   return server;
 }
 
+/**
+ * The profiler another process serves, for one that opens no port of its own (a script): where a
+ * server would have opened it, or joined it.
+ */
+export async function findProfiler(): Promise<string | undefined> {
+  const first = portFromEnvironment();
+  for (let port = first; port && port < first + NEXT_PORTS; port += 1) {
+    const url = `http://localhost:${port}${DEFAULT_BASE}`;
+    const found = await probe(url);
+    if (found === "profiler") return url;
+    if (found === "nothing") return undefined;
+  }
+  return undefined;
+}
+
 /** Whether a query-profiler answers at `url`, to share it instead of taking another port. */
-async function servesProfiler(url: string): Promise<boolean> {
+const servesProfiler = async (url: string) => (await probe(url)) === "profiler";
+
+async function probe(url: string): Promise<"profiler" | "other" | "nothing"> {
   try {
     const response = await fetch(`${url}/api/meta`, { signal: AbortSignal.timeout(PROBE_MS) });
-    const meta: unknown = await response.json();
-    return typeof meta === "object" && meta !== null && "root" in meta;
-  } catch {
-    return false;
+    const meta: unknown = await response.json().catch(() => undefined);
+    return typeof meta === "object" && meta !== null && "root" in meta ? "profiler" : "other";
+  } catch (error) {
+    return (error as Error).name === "TimeoutError" ? "other" : "nothing";
   }
 }
 

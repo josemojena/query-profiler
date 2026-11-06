@@ -7,6 +7,7 @@ import {
   endProfile,
   finishOperation,
   finishQuery,
+  snapshotProfile,
   startProfile,
 } from "../../src/core/recorder.js";
 import { clearProfiles, getProfile, listProfiles, onProfile } from "../../src/core/storage.js";
@@ -100,6 +101,28 @@ describe("a profile", () => {
     const profile = endProfile(active);
     expect(profile.queries).toHaveLength(MAX_QUERIES);
     expect(profile.warnings).toContainEqual({ kind: "truncated", queryIds: [] });
+  });
+
+  it("counts the queries past the limit, so a long script can tell how many it ran", () => {
+    const active = startProfile(request, framework);
+    for (let i = 0; i < MAX_QUERIES + 250; i += 1) beginQuery(active, { sql: "INSERT" });
+    expect(endProfile(active).summary).toMatchObject({
+      queryCount: MAX_QUERIES,
+      unrecordedQueries: 250,
+    });
+  });
+
+  it("shows a profile still being recorded as it stands, without ending or storing it", () => {
+    const active = startProfile(request, framework);
+    for (let i = 0; i < 5; i += 1) finishQuery(active, beginQuery(active, { sql: "SELECT 1" })!);
+    vi.advanceTimersByTime(40);
+    const snapshot = snapshotProfile(active);
+    expect(snapshot).toMatchObject({ durationMs: 40, summary: { queryCount: 5 } });
+    expect(snapshot.warnings.map((warning) => warning.kind)).toContain("n+1");
+    beginQuery(active, { sql: "SELECT 2" });
+    expect(snapshot.queries).toHaveLength(5);
+    expect(active.closed).toBe(false);
+    expect(listProfiles()).toEqual([]);
   });
 
   it("ties a query to every operation it answers (Prisma compacts some into one)", () => {

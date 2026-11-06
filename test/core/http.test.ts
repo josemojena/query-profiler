@@ -106,6 +106,27 @@ describe("the profiler API", () => {
     await reader.cancel();
   });
 
+  it("takes a script's profile again as it grows, and keeps its end over a late copy", async () => {
+    const active = startProfile(
+      { method: "", url: "prisma/seed.ts", kind: "script" },
+      {
+        name: "test",
+      },
+    );
+    beginQuery(active, { sql: "SELECT 1" });
+    const early = { ...structuredClone(active.profile), durationMs: 10 };
+    beginQuery(active, { sql: "SELECT 2" });
+    const finished = endProfile(active);
+    clearProfiles();
+    await send(JSON.stringify(early));
+    expect(listProfiles()[0]!.queries).toHaveLength(1);
+    await send(JSON.stringify({ ...finished, durationMs: 20 }));
+    expect(listProfiles()[0]!.queries).toHaveLength(2);
+    await send(JSON.stringify(early));
+    expect(listProfiles()).toHaveLength(1);
+    expect(listProfiles()[0]!.queries).toHaveLength(2);
+  });
+
   it("takes no profile from a browser page, nor anything that is not one", async () => {
     const body = JSON.stringify(record("/"));
     clearProfiles();

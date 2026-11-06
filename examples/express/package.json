@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "db:setup": "cp -n .env.example .env; prisma db push && prisma generate && tsx --env-file=.env prisma/seed.ts",
+    "db:setup": "cp -n .env.example .env; prisma db push && prisma generate && pnpm db:seed",
+    "db:seed": "tsx --import query-profiler/register --env-file=.env prisma/seed.ts",
     "dev": "tsx watch --import query-profiler/register --env-file=.env src/server.ts",
     "build": "tsc",
     "start": "node --env-file=.env dist/server.js",

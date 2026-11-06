@@ -2,7 +2,15 @@ import { build } from "esbuild";
 import { expect, test, type Page } from "@playwright/test";
 import type { Profile } from "../src/core/index.js";
 import { toolbarScript } from "../src/ui/snippet.js";
-import { DATA_REQUEST, NEXT_PAGE, PROFILE, PROMOTIONS, listItem } from "./fixture.js";
+import {
+  BACKGROUND,
+  DATA_REQUEST,
+  NEXT_PAGE,
+  PROFILE,
+  PROMOTIONS,
+  SCRIPT,
+  listItem,
+} from "./fixture.js";
 import { openStreams, setVisibility, trackStreams } from "./visibility.js";
 
 const ORIGIN = "http://app.test";
@@ -183,6 +191,22 @@ test("starts on the theme the page sets with data-theme, until one is picked", a
   await bar(page).getByRole("button", { name: "Dark", exact: true }).click();
   await page.reload();
   await expect.poll(() => stripColor(page)).toBe(DARK_CHROME);
+});
+
+test("lists scripts in Recent with the rest, and leaves work between requests to the profiler's page", async ({
+  page,
+}) => {
+  await open(page, { profiles: [BACKGROUND, SCRIPT, PROFILE] });
+  await bar(page).locator(".strip").getByRole("button", { name: "Recent (2)" }).click();
+  const recent = bar(page).locator(".recent");
+  await expect(recent.locator(".recent-head")).toHaveText("RecentClear");
+  await expect(
+    recent.locator("button", { hasText: "prisma/seed.ts" }).locator(".status"),
+  ).toHaveText("script");
+  await expect(recent).not.toContainText("cleanup.ts");
+  await recent.locator("button", { hasText: "prisma/seed.ts" }).click();
+  await expect(bar(page).getByRole("button", { name: "Run", exact: true })).toBeVisible();
+  await expect(bar(page).getByRole("button", { name: "Request", exact: true })).toHaveCount(0);
 });
 
 test("clears every stored request from its Recent list, and keeps the page it is on", async ({

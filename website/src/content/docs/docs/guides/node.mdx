@@ -175,7 +175,7 @@ with Prisma against PostgreSQL:
 | Hono      | 4, on `@hono/node-server` 2 |
 
 Before Express 4.18, its body parser loses the request's async context: a route that reads a body
-runs outside its profile, and its queries are lost.
+runs outside its profile, and its queries land in a background profile instead.
 
 HTTP/2 servers (Fastify with `http2: true`, say) are profiled on Node 22.17+ and 24.2+, where Node
 publishes their requests too. Their responses carry no `X-Debug-Token`.
@@ -185,6 +185,11 @@ publishes their requests too. Their responses carry no `X-Debug-Token`.
 When a request comes from another origin, the preload adds `X-Debug-Token` to
 `Access-Control-Expose-Headers`, so a frontend there can read it. If your CORS settings set that
 header themselves (`exposedHeaders` in `cors`), list `X-Debug-Token` there too.
+
+## Scripts and workers
+
+The same preload profiles your seeds, scripts and queue workers, your server's startup, and what it
+does between requests. See [Scripts, workers and jobs](/docs/guides/scripts).
 
 ## How it works
 

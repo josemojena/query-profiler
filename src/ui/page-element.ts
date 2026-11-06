@@ -14,6 +14,12 @@ import { choiceOf, chooseTheme, initialTheme } from "./theme.js";
 
 const LIMIT = 100;
 
+/** What the page opens on: the newest page, script or task, not work between requests, which may run every second. */
+const newest = (list: ProfileListItem[]) => {
+  const roots = list.filter((item) => !item.parentToken);
+  return roots.find((item) => item.kind !== "background") ?? roots[0];
+};
+
 /** The profiler's own page: every request on the left, the one picked on the right, or the stats. */
 export class ProfilerPage extends HTMLElement {
   #root = this.attachShadow({ mode: "open" });
@@ -96,9 +102,7 @@ export class ProfilerPage extends HTMLElement {
     state.view = path === "stats" ? "stats" : "requests";
     if (state.view === "stats") state.stats = await getJson<Stats>(`${state.base}/api/stats`);
     else {
-      const token = /^[0-9a-f]{6}$/.test(path)
-        ? path
-        : state.list.find((item) => !item.parentToken)?.token;
+      const token = /^[0-9a-f]{6}$/.test(path) ? path : newest(state.list)?.token;
       state.profile = token
         ? await getJson<Profile>(`${state.base}/api/profiles/${token}`)
         : undefined;

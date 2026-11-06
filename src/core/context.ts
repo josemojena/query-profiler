@@ -32,7 +32,10 @@ export function enterScope(patch: Omit<Scope, "profile">): void {
   if (scope) state().als.enterWith({ ...scope, ...patch });
 }
 
+/** The request's scope, or, outside any request, the profile for that work if the app set one up. */
 export function currentScope(): Scope | undefined {
   const scope = state().als.getStore();
-  return scope && !scope.profile.closed ? scope : undefined;
+  if (scope && !scope.profile.closed) return scope;
+  const outside = state().outside?.profile();
+  return outside && { profile: outside };
 }

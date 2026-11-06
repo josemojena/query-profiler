@@ -98,3 +98,26 @@ export const NEXT_PAGE: Profile = {
   parentToken: PROFILE.token,
   request: { method: "GET", url: "/orders/7.data" },
 };
+
+const { response: _response, ...noResponse } = PROFILE;
+
+/** A seed run with the preload: no request behind it, and past the queries a profile keeps. */
+export const SCRIPT: Profile = {
+  ...noResponse,
+  token: "5eed00",
+  kind: "script",
+  request: { method: "", url: "prisma/seed.ts" },
+  framework: { name: "node" },
+  warnings: [...PROFILE.warnings, { kind: "truncated", queryIds: [] }],
+  summary: { ...PROFILE.summary, unrecordedQueries: 59_000 },
+};
+
+/** Queries a server made between requests, named after the line that started them. */
+export const BACKGROUND: Profile = {
+  ...SCRIPT,
+  token: "bac0f0",
+  kind: "background",
+  request: { method: "", url: "app/jobs/cleanup.ts:9" },
+  warnings: [],
+  summary: { queryCount: 1, dbTimeMs: 1.2, operationCount: 1, errorCount: 0 },
+};

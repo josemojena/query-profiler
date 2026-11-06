@@ -1,7 +1,22 @@
-import type { OperationRecord, Profile, QueryRecord, StackFrame, Warning } from "../core/index.js";
+import type {
+  OperationRecord,
+  Profile,
+  ProfileKind,
+  QueryRecord,
+  StackFrame,
+  Warning,
+} from "../core/index.js";
 import { clue, explainLink, toolsRow, type AnalysisView } from "./analysis.js";
 import { count } from "./count.js";
-import { editorLink, escape, ms, shortPath, statusTone, type Editor } from "./format.js";
+import {
+  editorLink,
+  escape,
+  fromRequest,
+  ms,
+  shortPath,
+  statusTone,
+  type Editor,
+} from "./format.js";
 import { formatSql, highlightSql } from "./sql.js";
 
 // What a single request shows, in the bar and in the profiler page.
@@ -32,6 +47,10 @@ export function detail(context: Detail, profile: Profile, tab: DetailTab): strin
       return requestTab(context, profile);
   }
 }
+
+/** A tab's name for this profile: the work no request started shows its run, not a request. */
+export const tabLabel = (profile: Pick<Profile, "kind">, tab: string, label: string) =>
+  tab === "request" && !fromRequest(profile) ? "Run" : label;
 
 export const label = (op: OperationRecord) => (op.model ? `${op.model}.${op.action}` : op.action);
 const operationOf = (profile: Profile, query: QueryRecord) =>
@@ -193,15 +212,18 @@ function timelineTab(profile: Profile): string {
     .map((at) => `<span style="left:${at * 100}%">${Math.round(scale * at)} ms</span>`)
     .join("");
   return `<div class="timeline"><div></div><div class="axis">${ticks}</div>${rows.join("")}</div>
-    <div class="hint">Operations and the SQL outside them, over the ${ms(profile.durationMs)} of the request.</div>`;
+    <div class="hint">Operations and the SQL outside them, over the ${ms(profile.durationMs)} of the ${fromRequest(profile) ? "request" : "run"}.</div>`;
 }
 
-const WARNING_TEXT: Record<Warning["kind"], (count: number) => string> = {
+const WARNING_TEXT: Record<Warning["kind"], (count: number, profile: Profile) => string> = {
   "n+1": (count) =>
     `The same statement ran ${count} times: likely an N+1. Load it once with include or a single query.`,
   duplicate: (count) => `The same SQL with the same parameters ran ${count} times.`,
   slow: () => `This query took 100 ms or more.`,
-  truncated: () => `More than 1,000 queries: the rest were not recorded.`,
+  truncated: (_count, { summary }) =>
+    summary.unrecordedQueries
+      ? `${(summary.queryCount + summary.unrecordedQueries).toLocaleString("en-US")} queries: the first ${summary.queryCount.toLocaleString("en-US")} are here, the rest were only counted.`
+      : `More than 1,000 queries: the rest were not recorded.`,
 };
 
 function warningsTab(context: Detail, profile: Profile): string {
@@ -211,7 +233,7 @@ function warningsTab(context: Detail, profile: Profile): string {
       const query = profile.queries.find((q) => q.id === warning.queryIds[0]);
       return `<tr class="warn">
         <td><span class="badge ${warning.kind === "n+1" ? "n1" : warning.kind === "truncated" ? "slow" : warning.kind}">${warning.kind === "n+1" ? "N+1" : warning.kind}</span></td>
-        <td>${escape(WARNING_TEXT[warning.kind](warning.queryIds.length))}${query ? `<div class="sub mono sql clip">${escape(query.sql)}</div>` : ""}</td>
+        <td>${escape(WARNING_TEXT[warning.kind](warning.queryIds.length, profile))}${query ? `<div class="sub mono sql clip">${escape(query.sql)}</div>` : ""}</td>
         ${query ? originCell(context, originOf(profile, query)) : "<td></td>"}
       </tr>`;
     })
@@ -219,9 +241,33 @@ function warningsTab(context: Detail, profile: Profile): string {
   return `<table><thead><tr><th>Kind</th><th>What</th><th>Origin</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+const RUNS: Partial<Record<ProfileKind, { note: string; name: string }>> = {
+  script: { note: "a process that never listened: its whole run", name: "File" },
+  startup: { note: "what the server did before it listened", name: "File" },
+  task: { note: "one run of profileTask()", name: "Task" },
+  background: {
+    note: "queries outside any request, until 200 ms passed with none",
+    name: "Started at",
+  },
+};
+
 function requestTab(context: Detail, profile: Profile): string {
   const json = `${context.base}/api/profiles/${profile.token}`;
-  const rows: [string, string][] = [
+  const run = RUNS[profile.kind];
+  if (run)
+    return terms([
+      ["Kind", `${profile.kind} <span class="sub">(${run.note})</span>`],
+      [run.name, `<span class="mono">${escape(profile.request.url || "–")}</span>`],
+      ["Duration", ms(profile.durationMs)],
+      [
+        "Time in database",
+        `${ms(profile.summary.dbTimeMs)} <span class="sub">(busy time; queries in parallel count once)</span>`,
+      ],
+      ["Started", new Date(profile.startedAt).toLocaleString()],
+      ["Token", `<span class="mono">${escape(profile.token)}</span>`],
+      ["JSON", `<a href="${escape(json)}" target="_blank" rel="noopener">${escape(json)}</a>`],
+    ]);
+  return terms([
     ["Method", escape(profile.request.method)],
     ["URL", `<span class="mono">${escape(profile.request.url)}</span>`],
     [
@@ -241,6 +287,8 @@ function requestTab(context: Detail, profile: Profile): string {
       `<span class="mono">${escape(profile.token)}</span> <span class="sub">(X-Debug-Token)</span>`,
     ],
     ["JSON", `<a href="${escape(json)}" target="_blank" rel="noopener">${escape(json)}</a>`],
-  ];
-  return `<dl>${rows.map(([term, value]) => `<dt>${term}</dt><dd>${value}</dd>`).join("")}</dl>`;
+  ]);
 }
+
+const terms = (rows: [string, string][]) =>
+  `<dl>${rows.map(([term, value]) => `<dt>${term}</dt><dd>${value}</dd>`).join("")}</dl>`;
