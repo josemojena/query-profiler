@@ -34,7 +34,8 @@ terminal sums it up: one line, each warning with the line of code behind it, and
 ```
 
 The link is there when your app's dev server is running: the script finds its profiler and sends
-the run there, so you read it with the same tabs as a request, Explain included.
+the run there, so you read it with the same tabs as a request. **Explain** asks the database through
+your app's connection, so it answers for a script that uses the same database as your app.
 
 - A long script shows in the profiler while it still runs, and grows there as it goes.
 - A script that ends with `process.exit()` gets there too.
