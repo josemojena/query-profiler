@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Scope } from "./context.js";
+import type { Database } from "./database.js";
 import type { Profile } from "./profile.js";
 
 export interface State {
@@ -8,6 +9,9 @@ export interface State {
   listeners: Set<(profile: Profile) => void>;
   /** Optional: a state made by an older copy of the package in the same process has none. */
   clearListeners?: Set<() => void>;
+  /** The connections the profiler may ask about a query, by id. */
+  databases?: Map<string, Database>;
+  databaseCount?: number;
   limit: number;
 }
 

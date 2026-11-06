@@ -2,7 +2,13 @@ import { readFileSync } from "node:fs";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { endProfile, runWithProfile, startProfile, type Profile } from "../../src/core/index.js";
+import {
+  endProfile,
+  findDatabase,
+  runWithProfile,
+  startProfile,
+  type Profile,
+} from "../../src/core/index.js";
 import { profilePrisma, withProfiler } from "../../src/prisma/index.js";
 import { TEST_MARIADB_URL, TEST_MYSQL_URL, TEST_SQLITE_URL } from "./database.js";
 import { PrismaClient as MySqlClient } from "./fixture-mysql/generated/client.js";
@@ -21,10 +27,10 @@ const sqlite = () =>
     withProfiler({ adapter: new PrismaBetterSqlite3({ url: TEST_SQLITE_URL }) }),
   ) as unknown as MySqlClient;
 
-const DATABASES: [string, () => MySqlClient][] = [
-  ["MySQL", () => new MySqlClient(withProfiler({ adapter: mariadb(TEST_MYSQL_URL) }))],
-  ["MariaDB", () => new MySqlClient(withProfiler({ adapter: mariadb(TEST_MARIADB_URL) }))],
-  ["SQLite", sqlite],
+const DATABASES: [string, () => MySqlClient, string][] = [
+  ["MySQL", () => new MySqlClient(withProfiler({ adapter: mariadb(TEST_MYSQL_URL) })), "mysql"],
+  ["MariaDB", () => new MySqlClient(withProfiler({ adapter: mariadb(TEST_MARIADB_URL) })), "mysql"],
+  ["SQLite", sqlite, "sqlite"],
 ];
 
 async function profiled(fn: () => Promise<unknown>): Promise<Profile> {
@@ -40,7 +46,7 @@ async function profiled(fn: () => Promise<unknown>): Promise<Profile> {
 
 const firstWords = (profile: Profile) => profile.queries.map((query) => query.sql.split(" ")[0]);
 
-describe.each(DATABASES)("%s through Prisma's adapter", (_name, connect) => {
+describe.each(DATABASES)("%s through Prisma's adapter", (_name, connect, provider) => {
   const prisma = profilePrisma(connect());
   let userId = 0;
 
@@ -137,5 +143,25 @@ describe.each(DATABASES)("%s through Prisma's adapter", (_name, connect) => {
         await prisma.order.count({ where: { userId: user.id } });
     });
     expect(profile.warnings).toMatchObject([{ kind: "n+1" }]);
+  });
+
+  it("links each statement to its connection, which the profiler can ask without recording it", async () => {
+    const [query] = (await profiled(() => prisma.user.findMany())).queries;
+    expect(query!.database).toEqual({ id: expect.stringMatching(/#\d+$/), provider });
+    const database = findDatabase(query!.database)!;
+    const asked = await profiled(async () => {
+      expect((await database.run("SELECT ? AS n", [7])).rows).toEqual([[7]]);
+    });
+    expect(asked.queries).toEqual([]);
+  });
+
+  it("undoes everything done in a rolled back transaction", async () => {
+    const [query] = (await profiled(() => prisma.user.findMany())).queries;
+    await findDatabase(query!.database)!.rolledBack(async (run) => {
+      await run("INSERT INTO `User` (email) VALUES (?)", ["b@example.test"]);
+      const { rows } = await run("SELECT COUNT(*) FROM `User`");
+      expect(Number(rows[0]![0])).toBe(2);
+    });
+    expect(await prisma.user.count()).toBe(1);
   });
 });

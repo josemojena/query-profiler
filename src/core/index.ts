@@ -25,6 +25,13 @@ export { formatProfile } from "./format.js";
 export { sanitize } from "./sanitize.js";
 export { enabled } from "./enabled.js";
 export {
+  findDatabase,
+  registerDatabase,
+  type Database,
+  type Rows,
+  type RunSql,
+} from "./database.js";
+export {
   analyze,
   busyMs,
   isTransactionControl,
