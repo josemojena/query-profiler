@@ -119,4 +119,28 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     );
     isPlan(await planOf({ ...query!, params: asText }));
   });
+
+  it.runIf(engine === "mysql")(
+    "reads the plan in JSON format version 2, MySQL 9.5's default",
+    async () => {
+      const query = await ordersOfUser();
+      const database = findDatabase(query.database)!;
+      const plan = await database.rolledBack(async (run) => {
+        await run("SET explain_json_format_version = 2");
+        try {
+          return await explain(database, query, { run });
+        } finally {
+          await run("SET explain_json_format_version = DEFAULT");
+        }
+      });
+      isPlan(plan);
+      expect(plan.raw).toContain('"operation"');
+      const read = allSteps(plan.steps).find((step) => step.kind === "read")!;
+      expect(read).toMatchObject({
+        relation: "Order",
+        access: "index",
+        index: "Order_userId_fkey",
+      });
+    },
+  );
 });

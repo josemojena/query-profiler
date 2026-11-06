@@ -115,7 +115,7 @@ export async function explain(
   const params = generic
     ? []
     : query.params.map((param, index) => standIn(engine, param, counts.has(index + 1)));
-  const sql = explainSql(engine, query.sql.trim().replace(/;$/, ""), { measure, generic });
+  const sql = explainSql(engine, query.sql.trim().replace(/;$/, ""), { measure, generic, version });
   const { rows } = options.run
     ? await options.run(sql, params)
     : measure
@@ -146,7 +146,7 @@ export async function explain(
 function explainSql(
   engine: Engine,
   sql: string,
-  { measure, generic }: { measure: boolean; generic: boolean },
+  { measure, generic, version }: { measure: boolean; generic: boolean; version: string },
 ): string {
   switch (engine) {
     case "postgres": {
@@ -154,7 +154,10 @@ function explainSql(
       return `EXPLAIN (${options.filter(Boolean).join(", ")}) ${sql}`;
     }
     case "mysql":
-      return measure ? `EXPLAIN ANALYZE ${sql}` : `EXPLAIN FORMAT=JSON ${sql}`;
+      // The tree, asked for by name from 8.0.21: 9.5 can make another format the default.
+      return measure
+        ? `EXPLAIN ANALYZE${atLeast(version, "8.0.21") ? " FORMAT=TREE" : ""} ${sql}`
+        : `EXPLAIN FORMAT=JSON ${sql}`;
     case "mariadb":
       return measure ? `ANALYZE FORMAT=JSON ${sql}` : `EXPLAIN FORMAT=JSON ${sql}`;
     case "sqlite":

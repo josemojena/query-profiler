@@ -191,3 +191,32 @@ describe("MySQL's measured hash join", () => {
     ]);
   });
 });
+
+describe("MySQL's JSON format version 2, the default from 9.5", () => {
+  it("reads the tree of iterators: reads with their index and lookup, the hash join's table, sorts and limits", () => {
+    expect(reads(readMysqlPlan(json("mysql-v2-join")))).toMatchObject([
+      {
+        table: "a",
+        access: "index-only",
+        index: "qp_a_email",
+        lookup: "email='author5@example.test'",
+        rows: 1,
+      },
+      { table: "p", access: "index-only", index: "qp_p_a", lookup: "a_id=a.id" },
+    ]);
+    const sorted = readMysqlPlan(json("mysql-v2-scan-sort"));
+    expect(outline(sorted)).toEqual(["Limit: 10 row(s)", "  Sort", "    Table scan on qp_p"]);
+    expect(sorted[0]!.children[0]).toMatchObject({ kind: "sort", keys: ["qp_p.views DESC"] });
+    expect(reads(sorted)[0]).toMatchObject({
+      access: "full",
+      relation: "qp_p",
+      filter: "((qp_p.title = 'Post 42') or (qp_p.views > 490))",
+      rows: 4202,
+    });
+    const hashed = reads(readMysqlPlan(json("mysql-v2-hash")));
+    expect(hashed.map((read) => [read.table, read.notes])).toEqual([
+      ["p", undefined],
+      ["a", ["Using join buffer (hash join)"]],
+    ]);
+  });
+});

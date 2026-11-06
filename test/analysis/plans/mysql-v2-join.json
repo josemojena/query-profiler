@@ -1,0 +1,38 @@
+{
+  "query": "/* select#1 */ select `p`.`id` AS `id` from `query_profiler_test`.`qp_a` `a` join `query_profiler_test`.`qp_p` `p` where ((`p`.`a_id` = `a`.`id`) and (`a`.`email` = 'author5@example.test'))",
+  "inputs": [
+    {
+      "covering": true,
+      "operation": "Covering index lookup on a using qp_a_email (email='author5@example.test')",
+      "index_name": "qp_a_email",
+      "table_name": "a",
+      "access_type": "index",
+      "schema_name": "query_profiler_test",
+      "used_columns": ["id", "email"],
+      "estimated_rows": 1,
+      "lookup_condition": "email='author5@example.test'",
+      "index_access_type": "index_lookup",
+      "estimated_total_cost": 1.1
+    },
+    {
+      "covering": true,
+      "operation": "Covering index lookup on p using qp_p_a (a_id=a.id)",
+      "index_name": "qp_p_a",
+      "table_name": "p",
+      "access_type": "index",
+      "schema_name": "query_profiler_test",
+      "used_columns": ["id", "a_id"],
+      "estimated_rows": 4.067763805389404,
+      "lookup_condition": "a_id=a.id",
+      "index_access_type": "index_lookup",
+      "estimated_total_cost": 1.4101438490410143
+    }
+  ],
+  "join_type": "inner join",
+  "operation": "Nested loop inner join",
+  "query_type": "select",
+  "access_type": "join",
+  "estimated_rows": 4.067763805389404,
+  "join_algorithm": "nested_loop",
+  "estimated_total_cost": 2.5101438490410146
+}

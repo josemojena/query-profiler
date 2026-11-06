@@ -25,11 +25,107 @@ const ACCESS: Record<string, Access> = {
   unique_subquery: "unique",
 };
 
-/** MySQL's `EXPLAIN FORMAT=JSON` (format version 1, the default), as steps. */
+/**
+ * MySQL's `EXPLAIN FORMAT=JSON`, as steps: format version 1 (query_block), the default up to 9.4,
+ * or version 2 (a tree of iterators), the default from 9.5. Told apart by shape, since a server can
+ * set either.
+ */
 export function readMysqlPlan(output: unknown): PlanStep[] {
   const parsed = parseJson(output) as Json;
-  return block(parsed.query_block as Json | undefined);
+  if (parsed.query_block) return block(parsed.query_block as Json);
+  // From 9.2 the root iterator sits under query_plan; before, its fields are the root's own.
+  const root = (parsed.query_plan as Json | undefined) ?? parsed;
+  return root.operation ? [mergeFilters(iterator(root))] : [];
 }
+
+// A version 2 iterator: its operation is the line EXPLAIN ANALYZE's tree prints, its inputs its
+// children, and its estimates are per loop.
+function iterator(node: Json): PlanStep {
+  const operation = String(node.operation ?? "");
+  const children = ((node.inputs as Json[] | undefined) ?? []).map(iterator);
+  const estimates = {
+    rows: asNumber(node.estimated_rows),
+    cost: asNumber(node.estimated_total_cost),
+    measured: iteratorMeasured(node),
+  };
+  switch (node.access_type) {
+    case "table":
+    case "index":
+      return step(
+        {
+          ...estimates,
+          label: operation,
+          kind: "read",
+          table: asText(node.alias) ?? asText(node.table_name),
+          relation: asText(node.table_name),
+          access: iteratorAccess(node, operation),
+          index: asText(node.index_name),
+          lookup:
+            asText(node.lookup_condition) ?? (node.ranges as string[] | undefined)?.join(" OR "),
+          // The table a hash join reads into its hash says so in its heading.
+          notes: [
+            node.heading === "Hash" && "Using join buffer (hash join)",
+            node.multi_range_read === true && "Using MRR",
+          ].filter((note): note is string => typeof note === "string"),
+        },
+        children,
+      );
+    case "filter":
+      return step(
+        { ...estimates, label: "Filter", kind: "other", filter: asText(node.condition) },
+        children,
+      );
+    case "join":
+      return step(
+        {
+          ...estimates,
+          label: operation,
+          kind: "join",
+          lookup: (node.hash_condition as string[] | undefined)?.join(" AND "),
+        },
+        children,
+      );
+    case "sort":
+      return step(
+        {
+          ...estimates,
+          label: "Sort",
+          kind: "sort",
+          keys: node.sort_fields as string[] | undefined,
+        },
+        children,
+      );
+    case "limit":
+      return step({ ...estimates, label: operation, kind: "limit" }, children);
+    default:
+      return { ...treeStep(operation), ...defined(estimates), children };
+  }
+}
+
+function iteratorAccess(node: Json, operation: string): Access {
+  if (node.access_type === "table") return "full";
+  const covering = node.covering === true;
+  if (/^(?:covering )?index scan on/i.test(operation)) return "index-full";
+  if (node.index_access_type === "index_lookup" && /^single-row/i.test(operation)) return "unique";
+  return covering ? "index-only" : "index";
+}
+
+function iteratorMeasured(node: Json): PlanStep["measured"] {
+  const loops = asNumber(node.actual_loops);
+  if (loops === undefined) return undefined;
+  const rows = asNumber(node.actual_rows) ?? 0;
+  const last = asNumber(node.actual_last_row_ms);
+  return {
+    rows: Math.round(rows * loops * 100) / 100,
+    loops,
+    ...(last === undefined ? {} : { ms: Math.round(last * loops * 1000) / 1000 }),
+  };
+}
+
+const defined = <T extends object>(fields: T): Partial<T> =>
+  Object.fromEntries(
+    Object.entries(fields).filter(([, value]) => value !== undefined),
+  ) as Partial<T>;
 
 function block(node: Json | undefined): PlanStep[] {
   if (!node) return [];
@@ -209,5 +305,8 @@ function mergeFilters(current: PlanStep): PlanStep {
     rows: kept ?? read.measured.rows,
     removedByFilter: Math.max(0, read.measured.rows - (kept ?? read.measured.rows)),
   };
-  return { ...read, filter: current.filter, ...(measured ? { measured } : {}) };
+  // The filter's estimate is the rows kept; the read's own, the rows it reads.
+  const estimates =
+    current.rows === undefined ? {} : { rows: current.rows, rowsRead: read.rows ?? current.rows };
+  return { ...read, filter: current.filter, ...estimates, ...(measured ? { measured } : {}) };
 }

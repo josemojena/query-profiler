@@ -1,0 +1,32 @@
+{
+  "query": "/* select#1 */ select `a`.`id` AS `id` from `query_profiler_test`.`qp_a` `a` join `query_profiler_test`.`qp_p` `p` where (`p`.`title` = `a`.`name`)",
+  "inputs": [
+    {
+      "operation": "Table scan on p",
+      "table_name": "p",
+      "access_type": "table",
+      "schema_name": "query_profiler_test",
+      "used_columns": ["title"],
+      "estimated_rows": 4202,
+      "estimated_total_cost": 0.2866831738491618
+    },
+    {
+      "heading": "Hash",
+      "operation": "Table scan on a",
+      "table_name": "a",
+      "access_type": "table",
+      "schema_name": "query_profiler_test",
+      "used_columns": ["id", "name"],
+      "estimated_rows": 1099,
+      "estimated_total_cost": 116.9
+    }
+  ],
+  "join_type": "inner join",
+  "operation": "Inner hash join (p.title = a.`name`)",
+  "query_type": "select",
+  "access_type": "join",
+  "estimated_rows": 461799.80688135326,
+  "hash_condition": ["(p.title = a.`name`)"],
+  "join_algorithm": "hash",
+  "estimated_total_cost": 462189.74480743415
+}
