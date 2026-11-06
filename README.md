@@ -261,20 +261,34 @@ profiler or the bar empties its lists too; the bar keeps the page it is on.
 A custom server that runs Vite in middleware mode, as React Router's templates for Express do, gets
 the same: the plugin's middleware runs inside Vite's.
 
+## Query analysis
+
+Open a query in the Queries tab and press **Explain ›**: the profiler asks your database for the
+query's plan, and reads it with rules written from each engine's manual (PostgreSQL, MySQL, MariaDB,
+SQLite). Each finding comes with its fix, such as the `@@index` line for `schema.prisma`, and on
+PostgreSQL and SQLite **Try this index** creates it in a transaction that is rolled back, to show
+whether the database would use it. **Measure it** runs a read the same way, to show the rows and time
+each step really had. No AI, and nothing leaves your machine: the plan comes from your database's own
+planner. See [Query analysis](https://query-profiler.dev/docs/concepts/query-analysis) and
+[every rule](https://query-profiler.dev/docs/reference/rules).
+
 ## HTTP API
 
 Under `/_profiler`, answering only `localhost`, only in development: on the dev server for React
 Router, and on the profiler's own port for a Node server. `/_profiler`,
 `/_profiler/:token` and `/_profiler/stats` are the page; the rest is JSON:
 
-| Route                                         | Returns                                                                                         |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `GET /api/profiles?url=&kind=&parent=&limit=` | Profiles, newest first, without their records                                                   |
-| `GET /api/profiles/:token`                    | One profile, whole                                                                              |
-| `GET /api/stream`                             | Server-sent events: one `profile` per finished request, and `clear` when the storage is emptied |
-| `GET /api/meta`                               | Where paths are shown from                                                                      |
-| `POST /api/profiles`                          | Takes another process's finished profile, as JSON; refuses a request with an `Origin`           |
-| `DELETE /api/profiles`                        | Empties the storage                                                                             |
+| Route                                           | Returns                                                                                         |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `GET /api/profiles?url=&kind=&parent=&limit=`   | Profiles, newest first, without their records                                                   |
+| `GET /api/profiles/:token`                      | One profile, whole                                                                              |
+| `GET /api/stream`                               | Server-sent events: one `profile` per finished request, and `clear` when the storage is emptied |
+| `GET /api/meta`                                 | Where paths are shown from                                                                      |
+| `POST /api/profiles`                            | Takes another process's finished profile, as JSON; refuses a request with an `Origin`           |
+| `DELETE /api/profiles`                          | Empties the storage                                                                             |
+| `GET /api/profiles/:token/findings`             | What each query's SQL shows without asking the database                                         |
+| `GET /api/profiles/:token/queries/:id/analysis` | The query's plan, tables and findings; `?measure=1` to measure it. Needs `X-Query-Profiler`     |
+| `POST /api/profiles/:token/queries/:id/trial`   | Tries an index the analysis suggested, by its name. Needs `X-Query-Profiler`                    |
 
 `createHandler()` is a plain Fetch handler (`Request` → `Response`), so any framework can mount it.
 Every profiled response carries `X-Debug-Token`.

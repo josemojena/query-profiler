@@ -1,0 +1,57 @@
+---
+// The rules, read from the package's own tables, so this page always lists what the profiler checks.
+import { COMMON } from "../../../../src/analysis/rules/common.ts";
+import { MARIADB } from "../../../../src/analysis/rules/mariadb.ts";
+import { MYSQL } from "../../../../src/analysis/rules/mysql.ts";
+import { POSTGRES } from "../../../../src/analysis/rules/postgres.ts";
+import { SQLITE } from "../../../../src/analysis/rules/sqlite.ts";
+
+interface Props {
+  engine: "common" | "postgres" | "mysql" | "mariadb" | "sqlite";
+}
+
+const TABLES = { common: COMMON, postgres: POSTGRES, mysql: MYSQL, mariadb: MARIADB, sqlite: SQLITE };
+const SUBJECTS: Record<string, string> = {
+  read: "a table read",
+  sort: "a sort",
+  group: "a grouping",
+  condition: "a condition",
+  query: "the query",
+  "foreign-key": "a foreign key",
+  index: "an index",
+};
+
+const { engine } = Astro.props;
+const rules = TABLES[engine];
+// {table} and the like stand for what the finding names: shown as such.
+const parts = (message: string) => message.split(/(\{\w+\})/).filter(Boolean);
+---
+
+<table>
+  <thead>
+    <tr><th scope="col">Rule</th><th scope="col">Looks at</th><th scope="col">Severity</th><th scope="col">Says</th></tr>
+  </thead>
+  <tbody>
+    {
+      rules.map(([id, subject, engines, , severity, message, , docs]) => (
+        <tr>
+          <td>
+            <code>{id}</code>
+            {engines.includes("@") && <div><small>{engines}</small></div>}
+          </td>
+          <td>{SUBJECTS[subject]}</td>
+          <td>{severity}</td>
+          <td>
+            {parts(message).map((part) => (/^\{\w+\}$/.test(part) ? <var>{part.slice(1, -1)}</var> : part))}
+            {docs && (
+              <>
+                {" "}
+                <a href={docs}>Manual</a>
+              </>
+            )}
+          </td>
+        </tr>
+      ))
+    }
+  </tbody>
+</table>

@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- **Query analysis.** Every query the database can be asked about has **Explain ›** in the Queries
+  tab, of the bar and of `/_profiler`. It opens the query's tools, in a row of their own under it:
+  - **Explain plan**: the database's estimated plan, read into the same steps for every engine
+    (a table read in full, an index used, a sort, a temporary table), the tables' indexes, and what
+    the rules find, most severe first, each with its fix: the `@@index` line for `schema.prisma`,
+    the SQL, or the change to the query.
+  - **Measure it**: a read run in a transaction that is rolled back, with the rows and time each
+    step really had. Never a write, a locking read, or SQLite, which does not measure plans.
+  - **Try this index**, on PostgreSQL and SQLite: the suggested index created in a transaction that
+    is rolled back, and the plan asked again, to show whether the database uses it and the cost
+    without it and with it.
+- **Rules from each engine's manual**, each linking to the section that backs it and tested against
+  the real engine: PostgreSQL 13 to 18, MySQL 8.0 to 9.x (and its JSON format version 2, the default
+  from 9.5), MariaDB 10.6 to 11.x, and SQLite. See every rule at
+  https://query-profiler.dev/docs/reference/rules.
+- **Hints under a closed row** from the SQL and its values alone, with no database: a `%` first,
+  `ILIKE`, a function on a filtered column, a deep `OFFSET`, a `NOT IN` with a `NULL`… They do not
+  count as warnings.
+- **Three new routes**: `GET /api/profiles/:token/findings`, `GET
+  /api/profiles/:token/queries/:id/analysis` and `POST /api/profiles/:token/queries/:id/trial`. The
+  two that ask the database need the `X-Query-Profiler` header.
+- **The React Router example** has a `/problems` page with a query for each common problem, on a
+  database of 60,000 posts.
+
 ## 0.3.0
 
 One way for each kind of app, with no profiler code in your server: the Vite plugin for React
