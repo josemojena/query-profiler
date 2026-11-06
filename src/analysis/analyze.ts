@@ -13,6 +13,7 @@ import {
   type Severity,
   type SubjectKind,
 } from "./rules/engine.js";
+import { MARIADB } from "./rules/mariadb.js";
 import { MYSQL } from "./rules/mysql.js";
 import { POSTGRES } from "./rules/postgres.js";
 import { SQLITE } from "./rules/sqlite.js";
@@ -57,7 +58,7 @@ export interface Trial {
 }
 
 /** Every rule the analysis knows, in the order they are checked. */
-export const RULES: Rule[] = [...COMMON, ...POSTGRES, ...MYSQL, ...SQLITE];
+export const RULES: Rule[] = [...COMMON, ...POSTGRES, ...MYSQL, ...MARIADB, ...SQLITE];
 
 const COMPILED = RULES.map(([id, subject, engines, when, severity, message, fix, docs]) => ({
   id,

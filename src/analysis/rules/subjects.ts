@@ -13,6 +13,11 @@ import { allSteps, type Engine, type Plan, type PlanStep } from "../plan.js";
 import type { Condition, Count, Operand, Query, Statement } from "../statement.js";
 import type { Subject, SubjectKind } from "./engine.js";
 
+// What MySQL and MariaDB say when the constants alone show no row can match.
+const IMPOSSIBLE =
+  /Impossible (?:WHERE|HAVING)(?: noticed after reading const tables)?|no matching row in const table|const row not found|unique row not found|No matching min\/max row|Zero limit|No matching rows after partition pruning/i;
+const TEXT_TYPE = /char|text|enum|set/i;
+
 /** Fewer rows than this, and reading them all is often what the database should do. */
 export const SMALL_TABLE = 1000;
 export const DEEP_OFFSET = 1000;
@@ -352,6 +357,7 @@ function conditionSubjects({ statement, params, tables, engine }: Context): Anal
             (value.hasNull === true ||
               value.positions.some((position) => params[position - 1] === null)),
           partialParam: partial !== undefined,
+          numberOnString: numberOnText(condition, tables, engine, params),
           join: condition.clause === "join",
           having: condition.clause === "having",
           written: query.kind !== "select",
@@ -383,6 +389,13 @@ function querySubject({ statement, params, tables, plan, engine }: Context): Ana
   const counted = only && tables.find((table) => sameTable(engine, table, only))?.rows;
   const unfiltered = statement.queries.every((each) => each.conditions.length === 0);
   const { planningMs, executionMs, jitMs } = plan?.timing ?? {};
+  const reason = plan
+    ? allSteps(plan.steps)
+        .flatMap((step) => [step.label, ...(step.notes ?? [])])
+        .map((text) => IMPOSSIBLE.exec(text)?.[0])
+        .find((found) => found !== undefined)
+    : undefined;
+  const unstable = unstableOrder(query, tables, engine);
   const tenth = (ms: number | undefined) =>
     ms === undefined ? undefined : Math.round(ms * 10) / 10;
   return subject(
@@ -403,6 +416,8 @@ function querySubject({ statement, params, tables, plan, engine }: Context): Ana
         statement.tables.length === 1 &&
         (counted ?? 0) >= SMALL_TABLE,
       jitHeavy: jitMs !== undefined && executionMs !== undefined && jitMs >= 0.2 * executionMs,
+      impossible: reason !== undefined,
+      unstableOrder: unstable,
       planningHeavy:
         planningMs !== undefined &&
         executionMs !== undefined &&
@@ -414,6 +429,8 @@ function querySubject({ statement, params, tables, plan, engine }: Context): Ana
       limit: countValue(query.limit, params),
       table: only?.name ?? query.tables[0]?.table.name,
       rows: counted,
+      reason,
+      keys: query.orderBy.map((key) => key.column?.column ?? key.expression).join(", "),
       jitMs: tenth(jitMs),
       executionMs: tenth(executionMs),
       planningMs: tenth(planningMs),
@@ -563,3 +580,63 @@ const mentions = (where: string, column: string) =>
   new RegExp(`(^|[^\\w])"?${column.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"?([^\\w]|$)`).test(
     where,
   );
+
+/**
+ * ORDER BY columns of one table that no unique key covers, with the columns an equality fixes:
+ * rows can share them, and their order between pages is not fixed.
+ */
+function unstableOrder(query: Query, tables: Table[], engine: Engine): boolean {
+  const keys = query.orderBy.map((key) => key.column);
+  const owner = keys[0]?.table;
+  if (
+    !keys.length ||
+    !owner ||
+    keys.some((key) => !key?.table || !sameTable(engine, key.table, owner))
+  )
+    return false;
+  const table = tables.find((candidate) => sameTable(engine, candidate, owner));
+  if (!table) return false;
+  const fixed = query.conditions
+    .filter(
+      (condition) =>
+        condition.kind === "equality" &&
+        !condition.alternative &&
+        condition.value.kind !== "column" &&
+        condition.column.table !== undefined &&
+        sameTable(engine, condition.column.table, owner),
+    )
+    .map((condition) => condition.column.column);
+  const known = new Set([...keys.map((key) => key!.column), ...fixed]);
+  return !table.indexes.some(
+    (index) =>
+      (index.unique || index.primary) &&
+      index.valid !== false &&
+      !index.where &&
+      !index.expression &&
+      index.columns.every((column) => known.has(column)),
+  );
+}
+
+/** A text column compared with a number, which makes the engine convert every row to compare. */
+function numberOnText(
+  condition: Condition,
+  tables: Table[],
+  engine: Engine,
+  params: unknown[],
+): boolean {
+  const owner = condition.column.table;
+  if (!owner || !["equality", "range", "negation"].includes(condition.kind)) return false;
+  const column = tables
+    .find((table) => sameTable(engine, table, owner))
+    ?.columns.find((each) => each.name.toLowerCase() === condition.column.column.toLowerCase());
+  if (!column || !TEXT_TYPE.test(column.type)) return false;
+  const value = condition.value;
+  const numeric = (param: unknown) => typeof param === "number" || typeof param === "bigint";
+  if (value.kind === "literal") return /^-?\d+(?:\.\d+)?$/.test(value.text);
+  if (value.kind === "param" || value.kind === "list")
+    return (
+      value.positions.length > 0 &&
+      value.positions.every((position) => numeric(params[position - 1]))
+    );
+  return false;
+}

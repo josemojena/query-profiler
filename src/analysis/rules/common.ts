@@ -7,8 +7,8 @@ import type { Rule } from "./engine.js";
 export const COMMON: Rule[] = [
   ["full-scan-missing-index", "read", "*", "full & missing & !buried & !joinBuffer & !small & !inner & !write", "problem", "Reads every row of {table} to find the ones it wants: no index has {columns}.", "index"],
   ["full-scan-small-table", "read", "*", "full & missing & !buried & small & !inner", "info", "Reads all {rows} rows of {table}: cheap at this size, but no index has {columns}, so it will read every row as the table grows.", "index"],
-  ["full-scan-index-skipped", "read", "*", "full & served & !broad & !small & !measured & !unanalyzed & !stale", "warning", "Reads every row of {table} although an index leads with {columns}: the database expects many rows to match, or the condition does not match how the index is built (a cast, a collation, an operator class).", "analyze"],
-  ["full-scan-index-skipped-small","read","*","full & served & small","info","Reads all {rows} rows of {table} instead of its index on {columns}: with this few rows that is cheaper, and it will switch to the index as the table grows."],
+  ["full-scan-index-skipped", "read", "postgres mysql mariadb", "full & served & !broad & !small & !measured & !unanalyzed & !stale", "warning", "Reads every row of {table} although an index leads with {columns}: the database expects many rows to match, or the condition does not match how the index is built (a cast, a collation, an operator class).", "analyze"],
+  ["full-scan-index-skipped-small","read","postgres mysql mariadb","full & served & small","info","Reads all {rows} rows of {table} instead of its index on {columns}: with this few rows that is cheaper, and it will switch to the index as the table grows."],
   ["join-without-index", "read", "*", "inner & (full | indexFull) & missing & !buried", "problem", "Reads {table} again for every row it is joined with: no index has {columns}.", "index"],
   ["write-scan","read","*","write & full & missing & !small","problem","Reads every row of {table} to find the rows to change: no index has {columns}.","index"],
   ["full-index-scan","read","*","indexFull & !inner & filtered & !small & !limited","warning","Reads every entry of the index {index} on {table}: none starts with the columns it filters on, {columns}.","index"],
@@ -18,7 +18,7 @@ export const COMMON: Rule[] = [
   ["sort-without-index","sort","*","sortable & limited","warning","Sorts every matching row to return the first ones: an index on {columns} gives them in order and stops at the limit.","index"],
   ["sort-on-disk", "sort", "*", "onDisk", "warning", "The sort outgrew its memory and wrote to disk.", "sort-memory"],
   ["function-on-column", "condition", "*", "wrapped & !having", "warning", "{wrapper} on {column} hides the column from its index: compare the column itself, or index the same expression.", "expression-index"],
-  ["or-across-columns","condition","*","mixedOr & !join","info","OR between {column} and other columns: an index on one column cannot find the rows of the other side."],
+  ["or-across-columns","condition","postgres mysql mariadb","mixedOr & !join","info","OR between {column} and other columns: an index on one column cannot find the rows of the other side."],
   ["long-in-list", "condition", "*", "longList & !hugeList", "info", "IN with {size} values on {column}: each value is its own lookup, and every new length is a new SQL text for the database to plan."],
   ["huge-in-list", "condition", "*", "hugeList", "warning", "IN with {size} values on {column}: lists this long usually come from loading a relation for many parent rows, and they grow with the page.", "join-strategy"],
   ["equals-null","condition","*","equalsNull","problem","{column} {operator} NULL is never true: NULL is compared with IS NULL or IS NOT NULL."],
@@ -32,4 +32,5 @@ export const COMMON: Rule[] = [
   ["buried-join", "read", "mysql mariadb sqlite", "inner & (full | indexFull) & buried", "problem", "Reads {table} again for every joined row: the index {buriedIn} has {columns}, but after {leading}, so it cannot look them up.", "index"],
   ["paging-without-order", "query", "*", "paged & unordered", "warning", "Skips {offset} rows with no ORDER BY: the rows come in no fixed order, so pages can repeat or miss rows."],
   ["full-scan-broad-filter","read","*","full & served & broad & !small","info","Reads every row of {table}: about {share}% of them match, so its index on {columns} would not save reads."],
+  ["unstable-order","query","*","unstableOrder & paged","warning","Pages through {table} ordered by {keys}, which several rows can share: rows with the same values can land on either page, so pages can repeat or miss rows. Add a unique column, such as id, last in the order."],
 ];

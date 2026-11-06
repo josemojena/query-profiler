@@ -163,8 +163,9 @@ describe.each(ENGINES)("%s", (engine, connect) => {
       const { analysis } = await analyze(`SELECT id FROM qp_fresh WHERE kind = ${p(1)}`, [
         "kind 3",
       ]);
+      // SQLite gathers statistics with PRAGMA optimize, which leaves tables it deems fine alone.
       expect(finding(analysis, "never-analyzed")!.fix!.sql).toMatch(
-        /^ANALYZE (?:"public"\.)?["`]qp_fresh["`];$/,
+        engine === "sqlite" ? /^PRAGMA optimize;$/ : /^ANALYZE (?:"public"\.)?["`]qp_fresh["`];$/,
       );
       const { analysis: analyzed } = await analyze(
         `SELECT id FROM qp_post WHERE id = ${p(1)}`,
@@ -214,6 +215,34 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     },
   );
 
+  it("finds pages ordered by a column several rows share, which can repeat or miss rows", async () => {
+    const { analysis: shared } = await analyze(
+      `SELECT id FROM qp_post ORDER BY views LIMIT 10 OFFSET 20`,
+    );
+    expect(finding(shared, "unstable-order")!.message).toContain("ordered by views");
+    const { analysis: unique } = await analyze(
+      `SELECT id FROM qp_post ORDER BY views, id LIMIT 10 OFFSET 20`,
+    );
+    expect(rules(unique)).not.toContain("unstable-order");
+  });
+
+  it.runIf(innodb)(
+    "finds a text column compared with a number, and a condition no row can match",
+    async () => {
+      const { analysis: numeric } = await analyze(
+        `SELECT id FROM qp_post WHERE title = ${p(1)}`,
+        [42],
+      );
+      expect(rules(numeric)).toContain("number-on-string");
+      const { analysis: text } = await analyze(`SELECT id FROM qp_post WHERE title = ${p(1)}`, [
+        "42",
+      ]);
+      expect(rules(text)).not.toContain("number-on-string");
+      const { analysis: never } = await analyze(`SELECT id FROM qp_post WHERE 1 = 0`);
+      expect(finding(never, "impossible-condition")!.message).toMatch(/^Impossible WHERE/);
+    },
+  );
+
   it.skipIf(engine === "sqlite")("measures the rows a read threw away", async () => {
     const { analysis } = await analyze(
       `SELECT id FROM qp_post WHERE title = ${p(1)}`,
@@ -233,7 +262,10 @@ describe.each(ENGINES)("%s", (engine, connect) => {
         `SELECT p.id FROM qp_author a JOIN qp_post p ON p.title = a.name WHERE a.email = ${p(1)}`,
         ["author5@example.test"],
       );
-      expect(finding(analysis, "join-buffer")).toMatchObject({
+      // MariaDB's own rule says how its block join reads the table again for every bufferful.
+      expect(
+        finding(analysis, engine === "mariadb" ? "join-buffer-scan" : "join-buffer"),
+      ).toMatchObject({
         table: "qp_post",
         fix: { prisma: "@@index([title])" },
       });
