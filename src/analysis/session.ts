@@ -1,7 +1,7 @@
 import type { Database, Profile, QueryRecord } from "../core/index.js";
 import { analyzeQuery, type Analysis, type Finding } from "./analyze.js";
 import { statementKind } from "./explain.js";
-import { allSteps } from "./plan.js";
+import { allSteps, type Engine } from "./plan.js";
 import type { Severity } from "./rules/engine.js";
 
 /** One statement shape of the session: every query with the same SQL but its values. */
@@ -52,6 +52,8 @@ export interface TableUse {
 }
 
 export interface SessionAnalysis {
+  /** The stored requests it adds up. */
+  requests: number;
   /** Statement shapes in the session. */
   shapes: number;
   analyzed: number;
@@ -59,6 +61,8 @@ export interface SessionAnalysis {
   skipped: number;
   /** Shapes the database refused to plan, with what it said. */
   failed: { sql: string; message: string }[];
+  /** The databases that answered, once each. */
+  databases: { engine: Engine; version: string }[];
   indexes: IndexPick[];
   rules: RuleSum[];
   tables: TableUse[];
@@ -104,11 +108,19 @@ export async function analyzeSession(
     }
   };
   await Promise.all(Array.from({ length: AT_ONCE }, worker));
+  const databases = new Map(
+    analyzed.map(({ analysis: { engine, version } }) => [
+      `${engine} ${version}`,
+      { engine, version },
+    ]),
+  );
   return {
+    requests: profiles.length,
     shapes: groups.size,
     analyzed: analyzed.length,
     skipped,
     failed,
+    databases: [...databases.values()],
     indexes: indexPicks(analyzed),
     rules: ruleSums(analyzed),
     tables: tableUses(analyzed),

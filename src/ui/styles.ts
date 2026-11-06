@@ -249,6 +249,27 @@ h2 { font-size: 14px; margin: 28px 0 6px; }
 .calls a { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--ink); }
 .page .tabs { padding: 0; margin-top: 16px; }
 .content { padding-top: 4px; }
+/* The session's analysis, on top of Stats: flat, like a query's tools. */
+.session-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.analyze { color: var(--accent); font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+.analyze:hover { text-decoration: underline; }
+.analyze:disabled { color: var(--ink-3); cursor: default; text-decoration: none; }
+.session .lead { color: var(--ink-2); font-size: 12.5px; max-width: 90ch; }
+.session .lead b { color: var(--ink); font-weight: 650; }
+.session h3 { font-size: 13px; margin: 22px 0 4px; }
+.session .h { font-size: 11.5px; font-weight: 650; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; margin: 18px 0 2px; }
+.session .badge { margin-left: 0; }
+.session td.n { width: 1%; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.session .link { color: var(--accent); }
+.session .link:hover { text-decoration: underline; }
+.session .on-table { color: var(--ink-2); font-size: 12px; margin-left: 8px; }
+.session .acts { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 4px; font-size: 12px; }
+.session .routes { color: var(--ink-2); }
+.session .line { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: baseline; margin-top: 6px; font-size: 12.5px; }
+.session .line .mono { white-space: pre-wrap; word-break: break-word; }
+.shape { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: baseline; padding: 7px 0; margin-top: 6px; border-top: 1px solid var(--line); font-size: 12px; }
+.shape .sql { cursor: auto; color: var(--ink-2); }
+.shape .sub { margin: 0; white-space: nowrap; }
 @media (max-width: 800px) {
   .app { grid-template-columns: 1fr; }
   .side { position: static; height: auto; }

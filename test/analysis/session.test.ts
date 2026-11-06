@@ -104,7 +104,14 @@ describe("the session's analysis", () => {
       },
     );
     expect(asked.sort()).toEqual(["a", "b", "c"]);
-    expect(session).toMatchObject({ shapes: 3, analyzed: 3, skipped: 0, failed: [] });
+    expect(session).toMatchObject({
+      requests: 2,
+      shapes: 3,
+      analyzed: 3,
+      skipped: 0,
+      failed: [],
+      databases: [{ engine: "postgres", version: "18.1" }],
+    });
     expect(session.indexes).toHaveLength(1);
     expect(session.indexes[0]).toMatchObject({
       columns: ["authorId", "createdAt"],
@@ -135,10 +142,12 @@ describe("the session's analysis", () => {
       },
     );
     expect(session).toMatchObject({
+      requests: 1,
       shapes: 2,
       analyzed: 0,
       skipped: 1,
       failed: [{ message: 'column "nope" does not exist' }],
+      databases: [],
     });
   });
 });
