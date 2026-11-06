@@ -332,6 +332,29 @@ it("keeps what a server does before it listens as its startup, apart from its re
   expect(app.output()).not.toContain("script");
 });
 
+it("says it shares the open profiler when a server that joined it before listening starts to listen", async () => {
+  const { port, url } = await profilerApp();
+  // Queries before listening, then it waits to be told to listen.
+  const server = `${SEED}import { createServer } from "node:http";
+process.once("message", () => {
+  const server = createServer((_request, response) => response.end("ok"));
+  server.listen(0, "127.0.0.1", () => process.send(server.address().port));
+});
+`;
+  const app = runScript({ "server.mjs": server }, "server.mjs", { QUERY_PROFILER_PORT: port });
+  const kinds = async () =>
+    ((await (await fetch(`${url}/api/profiles`)).json()) as { kind: string }[]).map(
+      (profile) => profile.kind,
+    );
+  await vi.waitFor(async () => expect(await kinds()).toContain("script"));
+  app.child.send("listen");
+  await app.port;
+  await vi.waitFor(() =>
+    expect(app.output()).toContain(`[query-profiler] ${url} (shared with another process)`),
+  );
+  await vi.waitFor(async () => expect(await kinds()).toEqual(["startup"]));
+});
+
 it("sends each task a worker runs to the profiler an app serves", async () => {
   const { port, url } = await profilerApp();
   const worker = `import { profileTask } from "query-profiler/prisma";

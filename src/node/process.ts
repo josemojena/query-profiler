@@ -107,7 +107,9 @@ export function profileProcess(): void {
     listened = true;
     clearInterval(stream);
     outside.serve();
-    if (!shared) open();
+    // Already sharing one, found while it was starting: it says where, as on joining.
+    if (shared) console.log(`[query-profiler] ${shared.url} (shared with another process)`);
+    else open();
   };
   subscribe(LISTENING, onListening);
 }
