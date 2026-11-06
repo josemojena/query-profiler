@@ -1,4 +1,4 @@
-import type { Database } from "../core/index.js";
+import type { Database, RunSql } from "../core/index.js";
 import { REDACTED } from "../core/redact.js";
 import { parseJson, type Engine, type Plan, type PlanStep } from "./plan.js";
 import { readMariadbPlan } from "./plans/mariadb.js";
@@ -13,7 +13,7 @@ export interface EngineInfo {
 
 /** Why a query has no plan, or no measured one, in words for the person looking at it. */
 export interface NoPlan {
-  problem: "not_explainable" | "not_measurable";
+  problem: "not_explainable" | "not_measurable" | "not_triable";
   message: string;
 }
 
@@ -75,12 +75,12 @@ export function statementKind(sql: string): "read" | "write" | undefined {
 
 /**
  * The database's plan for a recorded query: estimated, or, for a read, run and measured inside a
- * transaction that is rolled back.
+ * transaction that is rolled back. `run` asks inside a transaction already open.
  */
 export async function explain(
   database: Database,
   query: { sql: string; params: unknown[] },
-  options: { measure?: boolean } = {},
+  options: { measure?: boolean; run?: RunSql } = {},
 ): Promise<Plan | NoPlan> {
   const { engine, version } = await engineOf(database);
   const kind = statementKind(query.sql);
@@ -107,9 +107,11 @@ export async function explain(
     ? []
     : query.params.map((param, index) => standIn(engine, param, counts.has(index + 1)));
   const sql = explainSql(engine, query.sql.trim().replace(/;$/, ""), { measure, generic });
-  const { rows } = measure
-    ? await database.rolledBack((run) => run(sql, params))
-    : await database.run(sql, params);
+  const { rows } = options.run
+    ? await options.run(sql, params)
+    : measure
+      ? await database.rolledBack((run) => run(sql, params))
+      : await database.run(sql, params);
   const output =
     engine === "sqlite"
       ? rows
