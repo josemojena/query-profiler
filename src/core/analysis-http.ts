@@ -73,10 +73,10 @@ async function sessionRoute(request: Request): Promise<Response> {
   return json(await analyzeSession(listProfiles(), (query) => findDatabase(query.database)));
 }
 
-// The same SQL with the same values always gives the same findings.
+// The same SQL with the same values and rows always gives the same findings.
 function findingsOf(query: QueryRecord): Finding[] {
   if (!query.database) return [];
-  const key = `${query.database.provider}\u0000${query.sql}\u0000${JSON.stringify(query.params)}`;
+  const key = `${query.database.provider}\u0000${query.sql}\u0000${JSON.stringify(query.params)}\u0000${query.rows}`;
   const known = remembered.get(key);
   if (known) return known;
   const findings = readFindings(query, query.database.provider);

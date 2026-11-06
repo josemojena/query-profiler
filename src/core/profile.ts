@@ -76,6 +76,10 @@ export interface QueryRecord {
   startMs: number;
   /** From the client sending the query to the database answering, not execution time alone. */
   durationMs?: number;
+  /** The rows it returned. */
+  rows?: number;
+  /** The rows a write changed, when it returned none. */
+  changedRows?: number;
   error?: RecordError;
   origin?: StackFrame[];
 }

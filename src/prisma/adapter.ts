@@ -98,10 +98,14 @@ function queries(
 ): Queryable {
   const statement = (query: SqlQuery) => ({ sql: query.sql, params: query.args, txId, database });
   return {
-    queryRaw: (query) => recordStatement(statement(query), () => target.queryRaw(query)),
-    executeRaw: (query) => recordStatement(statement(query), () => target.executeRaw(query)),
+    queryRaw: (query) => recordStatement(statement(query), () => target.queryRaw(query), returned),
+    executeRaw: (query) =>
+      recordStatement(statement(query), () => target.executeRaw(query), changed),
   };
 }
+
+const returned = (result: ResultSet) => ({ rows: result.rows.length });
+const changed = (count: number) => ({ changedRows: count });
 
 const sqlQuery = (sql: string, params: unknown[] = []): SqlQuery => ({
   sql,

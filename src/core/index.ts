@@ -1,7 +1,7 @@
 export type * from "./profile.js";
 export { fromRequest } from "./profile.js";
 export type { Scope } from "./context.js";
-export type { ActiveProfile } from "./recorder.js";
+export type { ActiveProfile, RowCount } from "./recorder.js";
 export type { Outside, OutsideOptions, OutsideRecorder } from "./outside.js";
 export { currentScope, enterProfile, enterScope, runInScope, runWithProfile } from "./context.js";
 export {

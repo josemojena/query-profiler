@@ -115,9 +115,19 @@ export function beginQuery(
   return record;
 }
 
-export function finishQuery(active: ActiveProfile, record: QueryRecord, error?: unknown) {
+/** What a statement gave back: the rows it returned, or the rows a write changed. */
+export type RowCount = Pick<QueryRecord, "rows" | "changedRows">;
+
+export function finishQuery(
+  active: ActiveProfile,
+  record: QueryRecord,
+  error?: unknown,
+  count: RowCount = {},
+) {
   record.durationMs = round(elapsed(active) - record.startMs);
   if (error !== undefined) record.error = toError(error);
+  if (count.rows !== undefined) record.rows = count.rows;
+  if (count.changedRows !== undefined) record.changedRows = count.changedRows;
 }
 
 export function endProfile(active: ActiveProfile, response?: ResponseMeta): Profile {

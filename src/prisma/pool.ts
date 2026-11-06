@@ -5,6 +5,7 @@ import {
   registerDatabase,
   runInScope,
   type DatabaseReference,
+  type RowCount,
   type RunSql,
 } from "../core/index.js";
 import type { Pool, PoolClient } from "pg";
@@ -92,23 +93,39 @@ const rolledBack = <T>(pool: Pool, fn: (run: RunSql) => Promise<T>): Promise<T> 
     }
   });
 
-function watch(query: QueryFn, args: unknown[], settle: (error?: unknown) => void) {
+function watch(
+  query: QueryFn,
+  args: unknown[],
+  settle: (error?: unknown, count?: RowCount) => void,
+) {
   const last = args.length - 1;
   const callback = args[last];
   if (typeof callback === "function") {
-    args[last] = (error: unknown, ...rest: unknown[]) => {
-      settle(error ?? undefined);
-      return callback(error, ...rest);
+    args[last] = (error: unknown, result: unknown, ...rest: unknown[]) => {
+      settle(error ?? undefined, error ? undefined : countOf(result));
+      return callback(error, result, ...rest);
     };
     return query(...args);
   }
   const result = query(...args);
   if (result instanceof Promise)
     result.then(
-      () => settle(),
+      (answer: unknown) => settle(undefined, countOf(answer)),
       (error: unknown) => settle(error),
     );
   return result;
+}
+
+// pg's rowCount is the rows a write changed, or a SELECT returned; a write with RETURNING has rows.
+function countOf(result: unknown): RowCount | undefined {
+  if (!result || typeof result !== "object" || Array.isArray(result)) return undefined;
+  const { command, rows, rowCount } = result as {
+    command?: string;
+    rows?: unknown[];
+    rowCount?: number | null;
+  };
+  if (command === "SELECT" || rows?.length) return { rows: rows?.length ?? 0 };
+  return typeof rowCount === "number" ? { changedRows: rowCount } : undefined;
 }
 
 function readStatement(args: unknown[]): { sql: string; params: unknown[] } | undefined {

@@ -5,6 +5,7 @@ import {
   finishQuery,
   runInScope,
   type DatabaseReference,
+  type RowCount,
 } from "../core/index.js";
 import { linkOperations, readStamp } from "./stamp.js";
 
@@ -15,14 +16,21 @@ export interface Statement {
   database?: DatabaseReference;
 }
 
-/** Records one statement around `run`, unless a layer above is already recording it. */
-export async function recordStatement<T>(statement: Statement, run: () => Promise<T>): Promise<T> {
+/**
+ * Records one statement around `run`, and the rows `count` reads in its result, unless a layer
+ * above is already recording it.
+ */
+export async function recordStatement<T>(
+  statement: Statement,
+  run: () => Promise<T>,
+  count?: (result: T) => RowCount,
+): Promise<T> {
   const scope = currentScope();
   if (!scope || scope.recording) return run();
   const finish = beginStatement(statement);
   try {
     const result = await runInScope({ recording: true }, run);
-    finish?.();
+    finish?.(undefined, count?.(result));
     return result;
   } catch (error) {
     finish?.(withDatabaseCode(error));
@@ -45,7 +53,7 @@ export function beginStatement({
   params,
   txId,
   database,
-}: Statement): ((error?: unknown) => void) | undefined {
+}: Statement): ((error?: unknown, count?: RowCount) => void) | undefined {
   const scope = currentScope();
   if (!scope || scope.recording) return undefined;
   const { sql, stamp } = readStamp(rawSql);
@@ -57,7 +65,7 @@ export function beginStatement({
     database,
     origin: stamp || scope.opId ? undefined : (scope.origin ?? captureOrigin()),
   });
-  return record && ((error) => finishQuery(scope.profile, record, error));
+  return record && ((error, count) => finishQuery(scope.profile, record, error, count));
 }
 
 /** A transaction id for the current request, or none outside one. */

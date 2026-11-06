@@ -44,6 +44,30 @@ afterAll(async () => {
 });
 
 describe("capturing a request's database work", () => {
+  it("counts the rows each statement returned, and the rows each write changed", async () => {
+    const profile = await profiled(async () => {
+      await prisma.user.createMany({
+        data: [{ email: "b@example.test" }, { email: "c@example.test" }],
+      });
+      await prisma.user.findMany(); // three users
+      await prisma.order.updateMany({ data: { status: "shipped" } });
+      await pool.query('SELECT id FROM "User"');
+      await pool.query('UPDATE "Order" SET status = $1', ["paid"]);
+      await pool.query('UPDATE "User" SET password = $1 RETURNING id', ["x"]);
+    });
+    const counts = profile.queries
+      .filter((query) => !/^(BEGIN|COMMIT)/.test(query.sql))
+      .map(({ rows, changedRows }) => ({ rows, changedRows }));
+    expect(counts).toEqual([
+      { rows: undefined, changedRows: 2 },
+      { rows: 3, changedRows: undefined },
+      { rows: undefined, changedRows: 1 },
+      { rows: 3, changedRows: undefined },
+      { rows: undefined, changedRows: 1 },
+      { rows: 3, changedRows: undefined },
+    ]);
+  });
+
   it("records a Prisma operation and the SQL it ran, without the stamp", async () => {
     const profile = await profiled(async () => {
       await prisma.order.findMany({ where: { status: "paid" } }); // findMany-call

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RULES } from "../../src/analysis/analyze.js";
+import { RULES, readFindings } from "../../src/analysis/analyze.js";
 import { readCatalog } from "../../src/analysis/catalog.js";
 import type { Table } from "../../src/analysis/catalog.js";
 import type { Engine, Plan, PlanStep } from "../../src/analysis/plan.js";
@@ -580,5 +580,30 @@ describe("a full read that keeps many rows", () => {
       values: { share: 67 },
     });
     expect(facts(600).facts.broad).toBe(false);
+  });
+});
+
+describe("the rows a query returned", () => {
+  const rules = (sql: string, rows: number) =>
+    readFindings({ sql, params: [], rows }, "postgres").map((finding) => finding.rule);
+
+  it("flag a read with no limit that returned a thousand rows or more", () => {
+    const [finding] = readFindings(
+      { sql: 'SELECT "id", "title" FROM "Post" WHERE "createdAt" >= $1', params: [], rows: 1600 },
+      "postgres",
+    ).filter((each) => each.rule === "many-rows");
+    expect(finding).toMatchObject({
+      severity: "warning",
+      message:
+        "Returned 1,600 rows with no limit: if the page shows fewer, take or a cursor reads only those.",
+    });
+  });
+
+  it("leave a read with a limit, a smaller one, and a write alone", () => {
+    expect(rules('SELECT "id" FROM "Post" LIMIT $1', 5000)).not.toContain("many-rows");
+    expect(rules('SELECT "id" FROM "Post"', 999)).not.toContain("many-rows");
+    expect(rules('UPDATE "Post" SET "views" = 0 WHERE "published" = true', 5000)).not.toContain(
+      "many-rows",
+    );
   });
 });

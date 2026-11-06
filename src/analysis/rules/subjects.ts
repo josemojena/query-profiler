@@ -21,6 +21,8 @@ const TEXT_TYPE = /char|text|enum|set/i;
 /** Fewer rows than this, and reading them all is often what the database should do. */
 export const SMALL_TABLE = 1000;
 export const DEEP_OFFSET = 1000;
+/** A read with no limit that returned this many rows or more is likely loading more than it shows. */
+export const MANY_ROWS = 1000;
 // MySQL estimates an IN list of more than 200 values from statistics instead of the index itself.
 export const LONG_LIST = 200;
 export const HUGE_LIST = 1000;
@@ -48,6 +50,8 @@ export interface Context {
   plan?: Plan;
   tables: Table[];
   params: unknown[];
+  /** The rows the query returned, when it ran. */
+  returned?: number;
 }
 
 /** Everything the rules look at in one query, each with its facts and values. */
@@ -378,7 +382,7 @@ function conditionSubjects({ statement, params, tables, engine }: Context): Anal
   );
 }
 
-function querySubject({ statement, params, tables, plan, engine }: Context): Analyzed {
+function querySubject({ statement, params, tables, plan, engine, returned }: Context): Analyzed {
   const query: Query = statement.query;
   const offset = countValue(query.offset, params);
   const random = query.orderBy.some((key) =>
@@ -402,6 +406,7 @@ function querySubject({ statement, params, tables, plan, engine }: Context): Ana
     "query",
     {
       deepOffset: (offset ?? 0) >= DEEP_OFFSET,
+      manyRows: (returned ?? 0) >= MANY_ROWS,
       randomOrder: random,
       everyColumn: query.everyColumn,
       unfilteredWrite: written && query.conditions.length === 0 && query.tables.length === 1,
@@ -429,6 +434,7 @@ function querySubject({ statement, params, tables, plan, engine }: Context): Ana
       limit: countValue(query.limit, params),
       table: only?.name ?? query.tables[0]?.table.name,
       rows: counted,
+      returned,
       reason,
       keys: query.orderBy.map((key) => key.column?.column ?? key.expression).join(", "),
       jitMs: tenth(jitMs),
