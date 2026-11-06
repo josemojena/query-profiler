@@ -1,11 +1,15 @@
 import { step, type Access, type PlanStep } from "../plan.js";
 
-// SCAN or SEARCH, the table (older versions say "TABLE t AS alias"), and how.
-const READ = /^(SCAN|SEARCH) (?:TABLE )?(\S+)(?: AS (\S+))?(?: USING (.+))?$/;
-// An automatic index has no name: what follows INDEX is its lookup.
+// SCAN or SEARCH, the table (older versions say "TABLE t AS alias"), EXISTS for a semi join
+// (3.51 and later), how, and the side of an outer join (3.39 and later).
+const READ =
+  /^(SCAN|SEARCH) (?:TABLE )?(\S+)(?: AS (\S+))?(?: (EXISTS))?(?: USING (.+?))?(?: ((?:LEFT|RIGHT|FULL)-JOIN))?$/;
 const INDEX = /^(AUTOMATIC (?:PARTIAL )?)?(COVERING )?INDEX(?: ([^\s(]\S*))?(?: \((.*)\))?$/;
 const PRIMARY_KEY = /^(INTEGER )?PRIMARY KEY(?: \((.*)\))?$/;
 const TEMP_TREE = /^USE TEMP B-TREE FOR (.+)$/;
+// The query's own sort, whole or in part; the other temporary b-trees group, remove duplicates or
+// order an aggregate's input, as group_concat(ORDER BY).
+const QUERY_SORT = /^(?:RIGHT PART OF |LAST (?:\d+ )?TERMS? OF )?ORDER BY$/;
 
 /** SQLite's `EXPLAIN QUERY PLAN` rows (id, parent, notused, detail), as steps. */
 export function readSqlitePlan(rows: unknown[][]): PlanStep[] {
@@ -22,10 +26,11 @@ export function readSqlitePlan(rows: unknown[][]): PlanStep[] {
 function detailStep(detail: string): PlanStep {
   const read = READ.exec(detail);
   if (read) {
-    const [, verb, name, alias, using] = read;
-    const how: How = using
-      ? readUsing(verb!, using)
-      : { access: verb === "SCAN" ? "full" : "index" };
+    const [, verb, name, alias, exists, using, join] = read;
+    // A SEARCH that names no index says nothing of how it finds its rows.
+    const how: How = using ? readUsing(verb!, using) : verb === "SCAN" ? { access: "full" } : {};
+    const notes = [...(how.notes ?? []), ...[exists, join].filter((note) => note !== undefined)];
+    if (notes.length) how.notes = notes;
     // A name Prisma qualified (main.Order) keeps the schema in the plan.
     return step({ label: detail, kind: "read", table: alias ?? name!.split(".").at(-1), ...how });
   }
@@ -33,7 +38,7 @@ function detailStep(detail: string): PlanStep {
   if (temp)
     return step({
       label: detail,
-      kind: /ORDER BY/.test(temp) ? "sort" : "group",
+      kind: QUERY_SORT.test(temp) ? "sort" : "group",
       temporary: true,
     });
   return step({ label: detail, kind: "other" });
@@ -56,10 +61,10 @@ function readUsing(verb: string, using: string): How {
   }
   const primary = PRIMARY_KEY.exec(using);
   if (primary) {
+    // rowid=? is one row, or one of an IN list's: SQLite prints both the same.
     const [, integer, lookup] = primary;
-    const single = /^\w+=\?$/.test(lookup ?? "");
     return {
-      access: verb === "SCAN" ? "full" : single ? "unique" : "index",
+      access: verb === "SCAN" ? "full" : "index",
       index: integer ? "INTEGER PRIMARY KEY" : "PRIMARY KEY",
       lookup,
     };

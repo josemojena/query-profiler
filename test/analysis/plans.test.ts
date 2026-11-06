@@ -112,7 +112,7 @@ describe("SQLite's plan", () => {
       "  SCAN Order",
       "USE TEMP B-TREE FOR ORDER BY",
     ]);
-    expect(steps[0]).toMatchObject({ access: "unique", lookup: "rowid=?" });
+    expect(steps[0]).toMatchObject({ access: "index", lookup: "rowid=?" });
     expect(steps[2]).toMatchObject({ kind: "sort", temporary: true });
   });
 
@@ -120,6 +120,29 @@ describe("SQLite's plan", () => {
     const automatic = reads(readSqlitePlan(rows("sqlite-automatic-index")))[1];
     expect(automatic).toMatchObject({ table: "a", access: "automatic-index", lookup: "total=?" });
     expect(automatic!.index).toBeUndefined();
+  });
+
+  it("reads 3.39's outer join and 3.51's EXISTS marks, an aggregate's sort, and a partial sort", () => {
+    // From SQLite 3.53.
+    const steps = readSqlitePlan([
+      [3, 0, 0, "SCAN a USING COVERING INDEX a_x"],
+      [16, 0, 0, "SEARCH b USING AUTOMATIC COVERING INDEX (a_id=?) LEFT-JOIN"],
+      [18, 0, 0, "SEARCH c EXISTS USING AUTOMATIC PARTIAL COVERING INDEX (a_id=?)"],
+      [20, 0, 0, "USE TEMP B-TREE FOR group_concat(ORDER BY)"],
+      [21, 0, 0, "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"],
+      [22, 0, 0, "SEARCH d USING INTEGER PRIMARY KEY (rowid=?)"],
+      [23, 0, 0, "SEARCH e"],
+    ]);
+    expect(steps.map((step) => [step.kind, step.table, step.access, step.notes])).toEqual([
+      ["read", "a", "index-full", undefined],
+      ["read", "b", "automatic-index", ["LEFT-JOIN"]],
+      ["read", "c", "automatic-index", ["EXISTS"]],
+      ["group", undefined, undefined, undefined],
+      ["sort", undefined, undefined, undefined],
+      // An IN list on the rowid prints the same as one row.
+      ["read", "d", "index", undefined],
+      ["read", "e", undefined, undefined],
+    ]);
   });
 
   it("draws the plan the way the sqlite3 shell prints it", () => {
