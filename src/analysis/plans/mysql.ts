@@ -117,8 +117,9 @@ function table(node: Json): PlanStep {
   );
 }
 
+// The step, its estimate (cost and rows per loop), and what running it measured.
 const TREE_LINE =
-  /^(\s*)-> (.*?)(?:\s+\(cost=[^)]*\))?(?:\s+\(actual time=([\d.e+-]+)\.\.([\d.e+-]+) rows=([\d.e+-]+) loops=(\d+)\)|\s+\(never executed\))?\s*$/;
+  /^(\s*)-> (.*?)(?:\s+\(cost=[\d.e+-]+(?:\.\.[\d.e+-]+)? rows=([\d.e+-]+)\))?(?:\s+\(actual time=([\d.e+-]+)\.\.([\d.e+-]+) rows=([\d.e+-]+) loops=(\d+)\)|\s+\(never executed\))?\s*$/;
 
 /** MySQL's `EXPLAIN ANALYZE`: the query run and measured, as a tree of text lines. */
 export function readMysqlTree(text: string): PlanStep[] {
@@ -127,9 +128,10 @@ export function readMysqlTree(text: string): PlanStep[] {
   for (const line of text.split("\n")) {
     const match = TREE_LINE.exec(line);
     if (!match) continue;
-    const [, indent, label, , end, rows, loops] = match;
+    const [, indent, label, estimate, , end, rows, loops] = match;
     const depth = indent!.length;
     const current = treeStep(label!);
+    if (estimate !== undefined) current.rows = Number(estimate);
     if (loops !== undefined) {
       const times = Number(loops);
       current.measured = {

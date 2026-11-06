@@ -77,6 +77,24 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     },
   );
 
+  it.runIf(engine === "postgres" || engine === "sqlite")(
+    "keeps each key part's direction and operator class, so (email) and (email DESC) differ",
+    async () => {
+      const table = engine === "postgres" ? '"User"' : "`User`";
+      const other = engine === "postgres" ? "email text_pattern_ops" : "email DESC";
+      const indexes = await database.rolledBack(async (run) => {
+        await run(`CREATE INDEX qp_email_other ON ${table} (${other})`);
+        const [user] = await readCatalog(run, engine, [{ name: "User" }]);
+        return user!.indexes;
+      });
+      expect(indexes.find((index) => index.name === "User_email_key")!.parts).toEqual(["email"]);
+      expect(indexes.find((index) => index.name === "qp_email_other")).toMatchObject({
+        columns: ["email"],
+        parts: [other],
+      });
+    },
+  );
+
   it.runIf(engine === "postgres")(
     "tells a table never analyzed from one with statistics",
     async () => {

@@ -9,7 +9,8 @@ const TABLES = (names: string) => `
   WHERE TABLE_NAME IN (${names}) AND TABLE_TYPE = 'BASE TABLE'`;
 
 const INDEXES = (names: string) => `
-  SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, NON_UNIQUE, COLUMN_NAME, INDEX_TYPE, SUB_PART
+  SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, NON_UNIQUE, COLUMN_NAME, INDEX_TYPE, SUB_PART,
+    COLLATION
   FROM information_schema.STATISTICS
   WHERE TABLE_NAME IN (${names})
   ORDER BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`;
@@ -85,6 +86,11 @@ function groupIndexes(rows: unknown[][]): Index[] {
         ? { prefix: Object.fromEntries(prefixed.map((row) => [String(row[4]), asNumber(row[6])!])) }
         : {}),
       method: String(first![5]),
+      // COLLATION is D for a descending key part.
+      parts: parts.map(
+        (row) =>
+          `${row[4] === null ? EXPRESSION : String(row[4])}${row[6] ? `(${String(row[6])})` : ""}${row[7] === "D" ? " DESC" : ""}`,
+      ),
     };
   });
 }

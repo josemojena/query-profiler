@@ -123,7 +123,7 @@ const PATTERNS = new Set(["LIKE", "ILIKE", "GLOB", "REGEXP", "RLIKE", "SIMILAR"]
 const NEGATABLE = new Set(["IN", "LIKE", "ILIKE", "BETWEEN", "SIMILAR", "REGEXP", "RLIKE", "GLOB"]);
 const EQUALITIES = new Set(["=", "==", "IN", "IS NOT DISTINCT FROM"]);
 const RANGES = new Set(["<", "<=", ">", ">=", "BETWEEN"]);
-const NEGATIONS = new Set(["<>", "!=", "IS DISTINCT FROM", "IS NOT NULL"]);
+const NEGATIONS = new Set(["<>", "!=", "IS DISTINCT FROM"]);
 const FLIPPED: Record<string, string> = { "<": ">", "<=": ">=", ">": "<", ">=": "<=" };
 const JOIN_WORDS = new Set([
   "NATURAL",
@@ -838,6 +838,8 @@ export function readStatement(sql: string, engine: Engine): Statement {
 
 function kindOf(operator: string, negated: boolean): ConditionKind {
   if (operator === "IS NULL") return negated ? "negation" : "null";
+  // A B-tree index finds the rows that are not NULL as a range.
+  if (operator === "IS NOT NULL") return negated ? "null" : "range";
   if (negated || operator.startsWith("NOT ") || NEGATIONS.has(operator)) return "negation";
   if (EQUALITIES.has(operator)) return "equality";
   if (RANGES.has(operator)) return "range";

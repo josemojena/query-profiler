@@ -182,3 +182,99 @@ describe("a rule's message", () => {
     expect(fill("{missing} stays", {})).toBe("{missing} stays");
   });
 });
+
+describe("the facts of a measured read", () => {
+  const read = (rows: number, loops: number, estimated: number, limit = false) => {
+    const sql = `SELECT id FROM t WHERE a = $1${limit ? " LIMIT 10" : ""}`;
+    const plan: Plan = {
+      engine: "mysql",
+      version: "8.4.3",
+      measured: true,
+      generic: false,
+      approximate: false,
+      steps: [
+        {
+          label: "ALL",
+          kind: "read",
+          table: "t",
+          access: "full",
+          rows: estimated,
+          measured: { rows, loops },
+          children: [],
+        },
+      ],
+      raw: "",
+    };
+    const [subject] = subjects({
+      engine: "mysql",
+      statement: readStatement(sql, "postgres"),
+      plan,
+      tables: [],
+      params: [1],
+    });
+    return subject!.facts;
+  };
+
+  it("compares the estimate per loop with what each loop found", () => {
+    expect(read(20_000, 100, 200).misestimated).toBe(false);
+    expect(read(20_000, 100, 2).misestimated).toBe(true);
+    expect(read(0, 0, 500).misestimated).toBe(false);
+  });
+
+  it("does not compare under a LIMIT, which stops the reading early", () => {
+    expect(read(10, 1, 5000, true).misestimated).toBe(false);
+  });
+});
+
+describe("the facts of a table's indexes", () => {
+  it("sees an index as a duplicate only when its key parts match, direction and operator class too", async () => {
+    const catalog = (definitions: string[]) =>
+      readCatalog(
+        async (query) => {
+          if (query.includes("pg_class c"))
+            return { columns: [], rows: [["public", "t", 10, 8192, 10, true, "public"]] };
+          if (query.includes("pg_index ix"))
+            return {
+              columns: [],
+              rows: definitions.map((definition, at) => [
+                "public",
+                "t",
+                `t_${at}`,
+                false,
+                false,
+                "btree",
+                null,
+                "email",
+                null,
+                false,
+                at !== 2,
+                definition,
+              ]),
+            };
+          return { columns: [], rows: [] };
+        },
+        "postgres",
+        [{ name: "t" }],
+      );
+    const tables = await catalog([
+      "CREATE INDEX t_0 ON public.t USING btree (email)",
+      "CREATE INDEX t_1 ON public.t USING btree (email text_pattern_ops)",
+      "CREATE INDEX t_2 ON public.t USING btree (email)",
+    ]);
+    const found = subjects({
+      engine: "postgres",
+      statement: readStatement("SELECT 1 FROM t", "postgres"),
+      tables,
+      params: [],
+    });
+    const flags = found
+      .filter((each) => each.kind === "index")
+      .map((each) => [each.values.index, each.facts.duplicate]);
+    // t_2 failed to build (invalid): it is neither a duplicate nor what makes one.
+    expect(flags).toEqual([
+      ["t_0", false],
+      ["t_1", false],
+      ["t_2", false],
+    ]);
+  });
+});

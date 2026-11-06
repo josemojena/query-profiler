@@ -20,6 +20,13 @@ export interface Index {
   where?: string;
   /** btree, hash, gin… (PostgreSQL), BTREE, FULLTEXT… (MySQL). */
   method?: string;
+  /**
+   * Each key part as the database defines it, with its direction, collation or operator class:
+   * two indexes are the same only when these are.
+   */
+  parts?: string[];
+  /** False for an index PostgreSQL could not finish building: it is kept, and never used. */
+  valid?: boolean;
 }
 
 export interface ForeignKey {

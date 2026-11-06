@@ -36,6 +36,20 @@ describe("PostgreSQL's plan", () => {
     expect(materialize!.measured).toMatchObject({ rows: 90, loops: 3 });
   });
 
+  it("takes an index scan with no condition for a read of every entry, for their order", () => {
+    const [scan] = readPostgresPlan([
+      {
+        Plan: {
+          "Node Type": "Index Scan",
+          "Relation Name": "Post",
+          Alias: "Post",
+          "Index Name": "Post_pkey",
+        },
+      },
+    ]);
+    expect(scan).toMatchObject({ access: "index-full", index: "Post_pkey" });
+  });
+
   it("marks a sort that ran out of memory and went to disk", () => {
     const [sort] = readPostgresPlan(json("postgres-sort-on-disk"));
     expect(sort).toMatchObject({ kind: "sort", keys: ["g DESC"], onDisk: true });
@@ -65,6 +79,8 @@ describe("MySQL's plan", () => {
   it("reads EXPLAIN ANALYZE's tree, with each filter on the read it checks", () => {
     const steps = readMysqlTree(captured("mysql-analyze.txt"));
     expect(steps[0]).toMatchObject({ kind: "limit", measured: { rows: 1, loops: 1 } });
+    // The estimate per loop, from (cost=… rows=…), next to what ran.
+    expect(allSteps(steps).find((step) => step.table === "u")!.rows).toBe(1);
     expect(allSteps(steps).find((step) => step.kind === "sort")!.keys).toEqual(["o.total DESC"]);
     expect(reads(steps)).toMatchObject([
       { table: "u", access: "index-full", index: "User_email_key" },

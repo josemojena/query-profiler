@@ -48,7 +48,9 @@ function toStep(node: Node): PlanStep {
         kind: "read",
         table: text("Alias") ?? text("Relation Name"),
         relation: text("Relation Name"),
-        access: READS[type],
+        // An index scan with no condition reads every entry, for their order.
+        access:
+          type.startsWith("Index") && node["Index Cond"] === undefined ? "index-full" : READS[type],
         index: text("Index Name") ?? bitmap?.index,
         lookup: text("Index Cond") ?? bitmap?.lookup,
         filter: text("Filter"),

@@ -24,7 +24,7 @@ const INDEXES = (names: string) => `
       FROM generate_series(1, ix.indnkeyatts) k),
     (SELECT string_agg(pg_get_indexdef(ix.indexrelid, k, true), E'\\x1f' ORDER BY k)
       FROM generate_series(ix.indnkeyatts + 1, ix.indnatts) k),
-    0 = ANY (ix.indkey::int2[]), ix.indisvalid
+    0 = ANY (ix.indkey::int2[]), ix.indisvalid, pg_get_indexdef(ix.indexrelid)
   FROM pg_index ix
   JOIN pg_class i ON i.oid = ix.indexrelid
   JOIN pg_class t ON t.oid = ix.indrelid
@@ -81,7 +81,7 @@ export async function readPostgresCatalog(run: RunSql, asked: TableName[]): Prom
       .filter((row) => of(row, table))
       .map((row) => ({ name: String(row[2]), type: String(row[3]), nullable: row[4] === true }));
     table.indexes = indexes!.rows
-      .filter((row) => of(row, table) && row[10] !== false)
+      .filter((row) => of(row, table))
       .map((row) => ({
         name: String(row[2]),
         columns: split(row[7]).map(unquote),
@@ -91,6 +91,8 @@ export async function readPostgresCatalog(run: RunSql, asked: TableName[]): Prom
         expression: row[9] === true,
         ...(typeof row[6] === "string" ? { where: row[6] } : {}),
         method: String(row[5]),
+        parts: keyParts(String(row[11])),
+        ...(row[10] === false ? { valid: false } : {}),
       }));
     table.foreignKeys = foreignKeys!.rows
       .filter((row) => of(row, table))
@@ -110,6 +112,28 @@ function rowEstimate(row: unknown[]): { rows?: number } {
   const live = asNumber(row[4]);
   const rows = estimate !== undefined && estimate >= 0 ? estimate : live;
   return rows === undefined ? {} : { rows };
+}
+
+/** The key parts of CREATE INDEX … USING method (a, b DESC, c text_pattern_ops) …, as written. */
+export function keyParts(definition: string): string[] {
+  const start = definition.search(/ USING \w+ \(/);
+  if (start < 0) return [];
+  const open = definition.indexOf("(", start);
+  const parts: string[] = [];
+  let depth = 0;
+  let from = open + 1;
+  for (let index = open; index < definition.length; index += 1) {
+    const char = definition[index];
+    if (char === "(") depth += 1;
+    else if (char === ")" && --depth === 0) {
+      parts.push(definition.slice(from, index).trim());
+      break;
+    } else if (char === "," && depth === 1) {
+      parts.push(definition.slice(from, index).trim());
+      from = index + 1;
+    }
+  }
+  return parts;
 }
 
 /** A column name as pg_get_indexdef prints it ("userId"), without its quotes. */

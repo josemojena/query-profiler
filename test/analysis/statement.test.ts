@@ -57,6 +57,10 @@ describe("Prisma's SQL", () => {
       "User.password IS NULL null (or)",
       "User.id NOT IN negation",
     ]);
+    // A B-tree index finds the rows that are not NULL as a range.
+    expect(conditions(readStatement(`SELECT 1 FROM t WHERE a IS NOT NULL`, "postgres"))).toEqual([
+      "t.a IS NOT NULL range",
+    ]);
     expect(statement.longestList).toBe(3);
   });
 

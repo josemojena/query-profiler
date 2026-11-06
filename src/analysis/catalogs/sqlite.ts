@@ -8,7 +8,7 @@ const TABLES = (names: string) => `
   SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${names})`;
 
 const INDEXES = (names: string) => `
-  SELECT m.name, l.name, l."unique", l.origin, s.sql, x.seqno, x.name, x.key
+  SELECT m.name, l.name, l."unique", l.origin, s.sql, x.seqno, x.name, x.key, x."desc", x.coll
   FROM sqlite_master m
   JOIN pragma_index_list(m.name) l
   JOIN pragma_index_xinfo(l.name) x
@@ -81,6 +81,10 @@ function groupIndexes(rows: unknown[][]): Index[] {
       unique: Number(first![2]) === 1,
       primary: first![3] === "pk",
       expression: parts.some((row) => row[6] === null),
+      parts: parts.map(
+        (row) =>
+          `${row[6] === null ? EXPRESSION : String(row[6])}${row[9] && row[9] !== "BINARY" ? ` COLLATE ${String(row[9])}` : ""}${Number(row[8]) === 1 ? " DESC" : ""}`,
+      ),
       ...(where ? { where } : {}),
     };
   });

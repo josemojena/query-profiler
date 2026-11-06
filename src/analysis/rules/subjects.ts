@@ -8,7 +8,7 @@ import {
   writeAdvice,
   type IndexAdvice,
 } from "../advisor.js";
-import type { Table, TableName } from "../catalog.js";
+import type { Index, Table, TableName } from "../catalog.js";
 import { allSteps, type Engine, type Plan, type PlanStep } from "../plan.js";
 import type { Condition, Count, Query, Statement } from "../statement.js";
 import type { Subject, SubjectKind } from "./engine.js";
@@ -108,17 +108,19 @@ function planSubjects(context: Context): Analyzed[] {
       conditions,
       orderBy: statement.query.orderBy,
       params: context.params,
-      existing: table?.indexes ?? [],
+      existing: (table?.indexes ?? []).filter((index) => index.valid !== false),
       joins: inner || filteredElsewhere(identity),
     };
     const wanted = input ? wantedColumns(input) : [];
     const advice = input && table ? adviseIndex(input) : undefined;
     const rows = table?.rows ?? step.rowsRead ?? step.rows;
     const measured = step.measured;
+    // Estimates are per loop; what ran is measured over every loop.
     const estimated = step.rows;
+    const actual = measured && measured.loops > 0 ? measured.rows / measured.loops : undefined;
     const ratio =
-      measured && estimated !== undefined
-        ? Math.max(measured.rows / Math.max(estimated, 1), estimated / Math.max(measured.rows, 1))
+      actual !== undefined && estimated !== undefined
+        ? Math.max(actual / Math.max(estimated, 1), estimated / Math.max(actual, 1))
         : 0;
     const removed = measured?.removedByFilter ?? 0;
     return subject(
@@ -138,7 +140,7 @@ function planSubjects(context: Context): Analyzed[] {
         measured: measured !== undefined,
         misestimated:
           ratio >= MISESTIMATE &&
-          Math.max(measured?.rows ?? 0, estimated ?? 0) >= SMALL_TABLE / 10 &&
+          Math.max(actual ?? 0, estimated ?? 0) >= SMALL_TABLE / 10 &&
           !stopsEarly(step),
         manyLoops: (measured?.loops ?? 0) >= MANY_LOOPS,
         inner,
@@ -180,11 +182,16 @@ function planSubjects(context: Context): Analyzed[] {
     return siblings.filter((sibling) => sibling.kind === "read").indexOf(step) > 0;
   }
 
-  // Under a LIMIT, or in a semi or anti join (EXISTS, NOT EXISTS), the database stops reading once
-  // it has what it needs: fewer rows than estimated is no misestimate.
+  // Under a LIMIT, in a semi or anti join (EXISTS, NOT EXISTS), or on a merge join's inner side,
+  // the database stops reading once it has what it needs: fewer rows than estimated is no
+  // misestimate. MySQL's and MariaDB's JSON have no LIMIT step: the query's own LIMIT stands in.
   function stopsEarly(step: PlanStep): boolean {
-    for (let parent = parents.get(step); parent; parent = parents.get(parent))
+    if (limited && !steps.some((each) => each.kind === "limit")) return true;
+    let child = step;
+    for (let parent = parents.get(child); parent; child = parent, parent = parents.get(parent)) {
       if (parent.kind === "limit" || /semi|anti/i.test(parent.label)) return true;
+      if (/^merge join/i.test(parent.label) && parent.children.indexOf(child) > 0) return true;
+    }
     return false;
   }
 
@@ -214,7 +221,7 @@ function sortAdvice(context: Context): IndexAdvice | undefined {
     conditions: statement.queries.flatMap((query) => query.conditions),
     orderBy: statement.query.orderBy,
     params: context.params,
-    existing: table.indexes,
+    existing: table.indexes.filter((index) => index.valid !== false),
   });
 }
 
@@ -315,22 +322,31 @@ function foreignKeySubjects({ tables, engine }: Context): Analyzed[] {
 function indexSubjects({ tables }: Context): Analyzed[] {
   return tables.flatMap((table) =>
     table.indexes.map((index) => {
-      const comparable = (other: (typeof table.indexes)[number]) =>
+      // Key parts with their direction and operator class: (a) and (a DESC), or (title) and
+      // (title text_pattern_ops), serve different queries.
+      const parts = (of: Index) => of.parts ?? of.columns;
+      const comparable = (other: Index) =>
         other !== index &&
+        other.valid !== false &&
         !other.expression &&
         !other.where &&
         (other.method ?? "") === (index.method ?? "");
-      const plain = !index.expression && !index.where && !index.unique && !index.primary;
+      const plain =
+        index.valid !== false &&
+        !index.expression &&
+        !index.where &&
+        !index.unique &&
+        !index.primary;
       const longer = table.indexes.find(
         (other) =>
           comparable(other) &&
-          other.columns.length > index.columns.length &&
-          index.columns.every((column, at) => other.columns[at] === column),
+          parts(other).length > parts(index).length &&
+          parts(index).every((part, at) => parts(other)[at] === part),
       );
       const same = table.indexes.find(
         (other) =>
           comparable(other) &&
-          other.columns.join("\u0000") === index.columns.join("\u0000") &&
+          parts(other).join("\u0000") === parts(index).join("\u0000") &&
           (other.primary || other.unique || other.name < index.name),
       );
       return subject(

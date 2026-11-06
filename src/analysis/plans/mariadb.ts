@@ -115,7 +115,7 @@ function table(node: Json): PlanStep {
           : Math.round(((rowsRead * filtered) / 100) * 100) / 100,
       rowsRead,
       cost: asNumber(node.cost),
-      notes: [asText(node.index_condition) && "Using index condition"].filter(
+      notes: [asText(node.index_condition) && "Using index condition", asText(node.message)].filter(
         (note): note is string => typeof note === "string",
       ),
       measured: measure(node),
