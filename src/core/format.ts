@@ -1,8 +1,15 @@
-import { relative } from "node:path";
+import { isAbsolute, relative, sep } from "node:path";
 import { fromRequest, type Profile, type QueryRecord, type Warning } from "./profile.js";
 
 const SHOWN_WARNINGS = 5;
 const WARNING_NAMES = { "n+1": "N+1", duplicate: "duplicate", slow: "slow", truncated: "" };
+
+/** A file as typed from the working directory (`prisma/seed.ts`), or whole when it is outside it. */
+export function shownPath(file: string): string {
+  if (!isAbsolute(file)) return file;
+  const path = relative(process.cwd(), file);
+  return path === ".." || path.startsWith(`..${sep}`) ? file : path;
+}
 
 const count = (n: number, one: string, many = `${one}s`) =>
   `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
@@ -54,7 +61,7 @@ function describe(profile: Profile, warning: Warning): [string, string, string] 
       ? `${Math.round(query?.durationMs ?? 0)} ms`
       : count(warning.queryIds.length, "time");
   const frame = (operation?.origin ?? query?.origin)?.[0];
-  const line = frame ? `${relative(process.cwd(), frame.file)}:${frame.line}` : "";
+  const line = frame ? `${shownPath(frame.file)}:${frame.line}` : "";
   return [WARNING_NAMES[warning.kind], `${name}, ${amount}`, line];
 }
 

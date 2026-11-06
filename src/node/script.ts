@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { isAbsolute, relative } from "node:path";
-import { formatProfile, formatWarnings, type Profile } from "../core/index.js";
+import { formatProfile, formatWarnings, shownPath, type Profile } from "../core/index.js";
 
 const SEND_TIMEOUT_MS = 2000;
 const SERVER = new URL("./server.js", import.meta.url).href;
@@ -14,10 +13,7 @@ const sent = url && (await fetch(url + "/api/profiles", { method: "POST", header
 if (sent?.ok) process.stdout.write(url);`;
 
 /** The file this process runs, as typed from the working directory: `prisma/seed.ts`. */
-export function scriptName(file = process.argv[1]): string {
-  if (!file) return "";
-  return isAbsolute(file) ? relative(process.cwd(), file) : file;
-}
+export const scriptName = (file = process.argv[1]) => (file ? shownPath(file) : "");
 
 /** What a script did, for the terminal once it ends: its line, its warnings, and where to see it. */
 export function scriptReport(profile: Profile, profilerUrl?: string): string {

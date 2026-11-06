@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { formatProfile, formatWarnings } from "../../src/core/format.js";
+import { formatProfile, formatWarnings, shownPath } from "../../src/core/format.js";
 import type { Profile } from "../../src/core/profile.js";
 
 it("sums a profile up in one line", () => {
@@ -86,4 +86,10 @@ it("says a call once, when each statement it runs is flagged on its own", () => 
     summary: { queryCount: 18 },
   } as unknown as Profile;
   expect(formatWarnings(profile)).toEqual(["N+1        User.create, 6 times  prisma/seed.ts:6"]);
+});
+
+it("shows a file from the working directory, and whole when it is outside it", () => {
+  expect(shownPath(`${process.cwd()}/prisma/seed.ts`)).toBe("prisma/seed.ts");
+  expect(shownPath("/elsewhere/report.ts")).toBe("/elsewhere/report.ts");
+  expect(shownPath("scripts/backfill.js")).toBe("scripts/backfill.js");
 });

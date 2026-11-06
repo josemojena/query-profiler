@@ -1,4 +1,4 @@
-import { relative } from "node:path";
+import { shownPath } from "./format.js";
 import type { Profile, ProfileKind } from "./profile.js";
 import { endProfile, startProfile, type ActiveProfile } from "./recorder.js";
 import { state } from "./state.js";
@@ -104,5 +104,5 @@ const running = ({ profile }: ActiveProfile) =>
 function firstLine({ profile }: ActiveProfile): string {
   const frame = [...profile.operations, ...profile.queries].find((record) => record.origin?.length)
     ?.origin?.[0];
-  return frame ? `${relative(process.cwd(), frame.file)}:${frame.line}` : "";
+  return frame ? `${shownPath(frame.file)}:${frame.line}` : "";
 }

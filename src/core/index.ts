@@ -25,7 +25,7 @@ export {
 } from "./storage.js";
 export { fingerprint, normalizeSql } from "./fingerprint.js";
 export { captureOrigin } from "./origin.js";
-export { formatProfile, formatWarnings } from "./format.js";
+export { formatProfile, formatWarnings, shownPath } from "./format.js";
 export { sanitize } from "./sanitize.js";
 export { enabled } from "./enabled.js";
 export {
