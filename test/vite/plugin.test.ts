@@ -7,6 +7,7 @@ import {
   beginQuery,
   clearProfiles,
   currentScope,
+  finishQuery,
   listProfiles,
   snapshotProfile,
   startProfile,
@@ -103,6 +104,19 @@ describe("the Vite plugin", () => {
         token: string;
       }[];
       expect(listed.map((item) => item.token)).toContain(script.token);
+    });
+
+    it("records what the server does between requests in a background profile", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        const scope = currentScope()!;
+        expect(scope.profile.profile.kind).toBe("background");
+        finishQuery(scope.profile, beginQuery(scope.profile, { sql: "SELECT 1" })!);
+        vi.advanceTimersByTime(200);
+        expect(listProfiles()[0]).toMatchObject({ kind: "background", summary: { queryCount: 1 } });
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("serves the bar's code as a module Vite compiles", async () => {

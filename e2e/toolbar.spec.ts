@@ -204,6 +204,9 @@ test("lists scripts in Recent with the rest, and leaves work between requests to
     recent.locator("button", { hasText: "prisma/seed.ts" }).locator(".status"),
   ).toHaveText("script");
   await expect(recent).not.toContainText("cleanup.ts");
+  await recent.locator("button", { hasText: "prisma/seed.ts" }).click();
+  await expect(bar(page).getByRole("button", { name: "Run", exact: true })).toBeVisible();
+  await expect(bar(page).getByRole("button", { name: "Request", exact: true })).toHaveCount(0);
 });
 
 test("clears every stored request from its Recent list, and keeps the page it is on", async ({

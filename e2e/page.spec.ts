@@ -110,6 +110,8 @@ test("shows a script by what it ran, opens on it over work between requests, wit
   await expect(app.locator(".content")).toContainText(
     "59,007 queries: the first 7 are here, the rest were only counted.",
   );
+  await app.getByRole("button", { name: "Timeline" }).click();
+  await expect(app.locator(".content")).toContainText("of the run.");
 });
 
 test("opens on work between requests when nothing else is there", async ({ page }) => {

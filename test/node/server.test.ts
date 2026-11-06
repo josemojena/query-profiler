@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { beginQuery, clearProfiles, currentScope, listProfiles } from "../../src/core/index.js";
 import { state } from "../../src/core/state.js";
 import { profileRequests } from "../../src/node/requests.js";
-import { profilerServer } from "../../src/node/server.js";
+import { findProfiler, profilerServer } from "../../src/node/server.js";
 import { http2Channels, http2Get } from "./http2.js";
 
 const servers: Server[] = [];
@@ -132,6 +132,23 @@ describe("the profiler on a port of its own", () => {
     const url = await start(port);
     expect(Number(new URL(url).port)).toBeGreaterThan(port);
     expect((await fetch(url)).status).toBe(200);
+  });
+});
+
+describe("finding the profiler from a script", () => {
+  it("finds the one another process serves, past a port another program keeps", async () => {
+    const port = await freePort();
+    await holder(port);
+    const url = await start(port + 1);
+    vi.stubEnv("QUERY_PROFILER_PORT", String(port));
+    expect(await findProfiler()).toBe(url);
+  });
+
+  it("finds none where nothing listens, without trying further ports", async () => {
+    const port = await freePort();
+    await start(port + 1);
+    vi.stubEnv("QUERY_PROFILER_PORT", String(port));
+    expect(await findProfiler()).toBeUndefined();
   });
 });
 
