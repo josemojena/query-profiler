@@ -1,4 +1,5 @@
 import type { OperationRecord, Profile, QueryRecord, StackFrame, Warning } from "../core/index.js";
+import { clue, explainLink, toolsRow, type AnalysisView } from "./analysis.js";
 import { count } from "./count.js";
 import { editorLink, escape, ms, shortPath, statusTone, type Editor } from "./format.js";
 import { formatSql, highlightSql } from "./sql.js";
@@ -13,6 +14,8 @@ export interface Detail {
   editor: Editor;
   /** Query rows opened to show their whole SQL. */
   expanded: ReadonlySet<string>;
+  /** What the analysis found, and the plans asked for. */
+  analysis: AnalysisView;
 }
 
 export function detail(context: Detail, profile: Profile, tab: DetailTab): string {
@@ -110,16 +113,16 @@ function queriesTab(context: Detail, profile: Profile): string {
               )
               .join("")
           : "";
-      return `<tr class="${row.repeated || kinds.has("duplicate") ? "warn" : ""}">
+      return `<tr class="${row.repeated || kinds.has("duplicate") ? "warn" : ""}${expanded ? " open" : ""}">
         <td class="num">${index + 1}</td>
         <td>
           <div class="sql mono ${expanded ? "formatted" : "clip"}" data-action="expand" data-id="${escape(first.id)}">${expanded ? highlightSql(formatSql(first.sql)) : escape(first.sql)}${badges}</div>
-          <div class="sub">${escape(what)}${detail ? ` · ${detail}` : ""}${first.error ? ` · <span class="badge error">${escape(first.error.code ?? "")}</span> ${escape(first.error.message)}` : ""}</div>
-          ${expanded ? `<div class="actions"><button data-action="copy" data-id="${escape(first.id)}">Copy runnable SQL</button></div>` : ""}
+          ${expanded ? "" : clue(context.analysis, first)}
+          <div class="meta"><div class="sub">${escape(what)}${detail ? ` · ${detail}` : ""}${first.error ? ` · <span class="badge error">${escape(first.error.code ?? "")}</span> ${escape(first.error.message)}` : ""}</div>${expanded ? "" : explainLink(first)}</div>
         </td>
         <td class="dur">${row.repeated ? `${row.queries.length} × ${ms(average)}` : `<b>${ms(first.durationMs)}</b>`}<div class="meter ${tone}" style="width:${Math.max(4, ((row.repeated ? average : (first.durationMs ?? 0)) / longest) * 100)}%"></div></td>
         ${originCell(context, originOf(profile, first))}
-      </tr>${children}`;
+      </tr>${expanded ? toolsRow(context.analysis, first, row.queries.length) : ""}${children}`;
     })
     .join("");
   return `<table><thead><tr><th>#</th><th>SQL · operation</th><th>Duration</th><th>Origin</th></tr></thead><tbody>${rows}</tbody></table>`;

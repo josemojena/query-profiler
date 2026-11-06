@@ -1,0 +1,4 @@
+[
+  [3, 0, 216, "SCAN o"],
+  [5, 0, 45, "SEARCH u USING INTEGER PRIMARY KEY (rowid=?)"]
+]

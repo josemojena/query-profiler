@@ -2,6 +2,7 @@ import type { Profile, ProfileListItem, Stats } from "../core/index.js";
 import type { Editor } from "./format.js";
 import type { DetailTab } from "./detail.js";
 import { runnableSql } from "./format.js";
+import { emptyAnalysis, loadFindings, planAction } from "./analysis.js";
 import { clearAll, getJson } from "./http.js";
 import { followProfiles, mergeProfiles } from "./live.js";
 import { renderList, renderPage, type PageState } from "./page-view.js";
@@ -20,6 +21,7 @@ export class ProfilerPage extends HTMLElement {
     root: "",
     editor: "vscode",
     expanded: new Set(),
+    analysis: emptyAnalysis(),
     list: [],
     filter: "",
     view: "requests",
@@ -97,6 +99,13 @@ export class ProfilerPage extends HTMLElement {
         ? await getJson<Profile>(`${state.base}/api/profiles/${token}`)
         : undefined;
       state.expanded = new Set();
+      const analysis = emptyAnalysis();
+      state.analysis = analysis;
+      if (state.profile)
+        void loadFindings(state.base, state.profile.token).then((findings) => {
+          analysis.findings = findings;
+          this.#render();
+        });
     }
     this.#render();
   }
@@ -110,6 +119,17 @@ export class ProfilerPage extends HTMLElement {
     const target = (event.target as Element).closest<HTMLElement>("[data-action]");
     if (!target) return;
     const state = this.#state;
+    const where = {
+      base: state.base,
+      token: state.profile?.token,
+      expand: (id: string, open: boolean) => {
+        const expanded = new Set(state.expanded);
+        if (open) expanded.add(id);
+        else expanded.delete(id);
+        state.expanded = expanded;
+      },
+    };
+    if (planAction(target, state.analysis, where, () => this.#render())) return;
     switch (target.dataset.action) {
       case "go": {
         const mouse = event as MouseEvent;

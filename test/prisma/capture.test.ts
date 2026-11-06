@@ -1,5 +1,12 @@
 import { readFileSync } from "node:fs";
-import { endProfile, runWithProfile, startProfile, type Profile } from "../../src/core/index.js";
+import {
+  endProfile,
+  findDatabase,
+  runWithProfile,
+  startProfile,
+  type Database,
+  type Profile,
+} from "../../src/core/index.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
@@ -173,5 +180,61 @@ describe("capturing a request's database work", () => {
     expect(await prisma.user.count()).toBe(1);
     expect((await pool.query("SELECT 1 AS one")).rows).toEqual([{ one: 1 }]);
     expect(before.queries).toEqual([]);
+  });
+});
+
+describe("the connection behind each query", () => {
+  async function databases(): Promise<[Database, Database]> {
+    const { queries } = await profiled(async () => {
+      await prisma.user.findMany();
+      await pool.query("SELECT 1");
+    });
+    return [findDatabase(queries[0]!.database)!, findDatabase(queries[1]!.database)!];
+  }
+
+  it("links each statement to the connection that ran it: Prisma's adapter, or the pool", async () => {
+    const { queries } = await profiled(async () => {
+      await prisma.user.findMany();
+      await pool.query("SELECT 1");
+    });
+    const connection = { id: expect.stringMatching(/^postgres#\d+$/), provider: "postgres" };
+    expect(queries.map((query) => query.database)).toEqual([connection, connection]);
+    expect(queries[0]!.database!.id).not.toBe(queries[1]!.database!.id);
+  });
+
+  it("lets the profiler ask that connection, without recording what it asks", async () => {
+    for (const database of await databases()) {
+      const asked = await profiled(async () => {
+        expect(await database.run("SELECT $1::int AS n", [7])).toEqual({
+          columns: ["n"],
+          rows: [[7]],
+        });
+        await database.rolledBack((run) => run("SELECT 1"));
+      });
+      expect(asked.queries).toEqual([]);
+    }
+  });
+
+  it("undoes everything done in a rolled back transaction, and frees its connection", async () => {
+    for (const database of await databases()) {
+      await database.rolledBack(async (run) => {
+        await run('INSERT INTO "User" (email) VALUES ($1)', ["b@example.test"]);
+        await run("CREATE TABLE qp_rolled_back (id int)");
+        expect((await run('SELECT count(*)::int FROM "User"')).rows).toEqual([[2]]);
+      });
+      expect(await prisma.user.count()).toBe(1);
+      const table = await pool.query("SELECT to_regclass('qp_rolled_back') AS found");
+      expect(table.rows).toEqual([{ found: null }]);
+    }
+  });
+
+  it("forgets Prisma's connection once Prisma disconnects", async () => {
+    const other = new PrismaClient(
+      withProfiler({ adapter: new PrismaPg({ connectionString: TEST_DATABASE_URL }) }),
+    );
+    const [query] = (await profiled(() => other.user.count())).queries;
+    expect(findDatabase(query!.database)?.id).toBe(query!.database!.id);
+    await other.$disconnect();
+    expect(findDatabase(query!.database)?.id).not.toBe(query!.database!.id);
   });
 });

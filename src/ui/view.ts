@@ -1,4 +1,5 @@
 import type { Profile, ProfileListItem } from "../core/index.js";
+import type { AnalysisView } from "./analysis.js";
 import { LOGO } from "./brand.js";
 import { count } from "./count.js";
 import { detail, type DetailTab } from "./detail.js";
@@ -25,6 +26,7 @@ export interface ViewState {
   tab: Tab;
   height: number;
   expanded: ReadonlySet<string>;
+  analysis: AnalysisView;
   theme: Theme;
 }
 

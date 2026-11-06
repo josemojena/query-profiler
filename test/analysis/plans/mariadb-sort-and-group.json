@@ -1,0 +1,23 @@
+{
+  "query_block": {
+    "select_id": 1,
+    "cost": 0.0110178,
+    "filesort": {
+      "sort_key": "count(0) desc",
+      "temporary_table": {
+        "nested_loop": [
+          {
+            "table": {
+              "table_name": "Order",
+              "access_type": "ALL",
+              "loops": 1,
+              "rows": 1,
+              "cost": 0.0110178,
+              "filtered": 100
+            }
+          }
+        ]
+      }
+    }
+  }
+}

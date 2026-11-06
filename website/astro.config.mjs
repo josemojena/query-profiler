@@ -50,6 +50,7 @@ export default defineConfig({
             "docs/concepts/the-bar",
             "docs/concepts/profiler-page",
             "docs/concepts/warnings",
+            "docs/concepts/query-analysis",
             "docs/concepts/security",
           ],
         },
@@ -58,6 +59,7 @@ export default defineConfig({
           items: [
             "docs/reference/entry-points",
             "docs/reference/http-api",
+            "docs/reference/rules",
             "docs/reference/compatibility",
             "docs/changelog",
           ],

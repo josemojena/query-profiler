@@ -113,6 +113,60 @@ table.requests tr.child td:first-child { position: relative; padding-left: 36px;
 tr.child.on .branch i { background: var(--accent); border-color: var(--accent); }
 .actions { margin-top: 6px; display: flex; gap: 12px; }
 .actions button { color: var(--accent); font-size: 12px; }
+.actions button.on { font-weight: 650; }
+
+/* What the SQL alone shows, under a closed row, and the way into its plan. */
+.clue { display: flex; align-items: baseline; gap: 6px; margin-top: 5px; font-size: 12px; color: var(--warn); }
+.clue::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--warn-mark); transform: translateY(-1px); }
+.clue.info { color: var(--ink-2); }
+.clue.info::before { background: var(--ink-3); }
+.clue.problem { color: var(--bad); }
+.clue.problem::before { background: var(--bad-mark); }
+.clue .more { color: var(--ink-3); }
+.meta { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.explain-link { color: var(--accent); font-weight: 600; font-size: 12.5px; white-space: nowrap; margin-top: 3px; }
+.explain-link:hover, .qtabs .link:hover, .tools .link:hover { text-decoration: underline; }
+tr.open > td { border-bottom: 0; }
+
+/* A query's tools: a row of their own, the table's whole width. Flat: lines and text, no boxes. */
+tr.tools > td { padding: 2px 8px 20px; border-bottom: 1px solid var(--line); }
+.qtabs { display: flex; align-items: baseline; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 1; }
+.qtab { padding: 8px 0 9px; margin-right: 22px; color: var(--ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 600; }
+.qtab:hover { color: var(--ink); }
+.qtab.on { color: var(--ink); border-color: var(--accent); }
+.qtab small { font-weight: 400; color: var(--ink-3); margin-left: 6px; font-size: 12px; }
+.qtabs .spacer { flex: 1; }
+.qtabs .link { color: var(--accent); font-size: 12.5px; margin-left: 18px; }
+.qtabs .close { color: var(--ink-2); font-size: 12.5px; margin-left: 18px; }
+.tools .link { color: var(--accent); }
+.tools .link:disabled { color: var(--ink-3); cursor: default; text-decoration: none; }
+.said { display: flex; justify-content: space-between; gap: 12px; margin: 14px 0 6px; color: var(--ink-2); font-size: 12px; }
+.said b { color: var(--ink); font-weight: 650; }
+.tools .h { font-size: 11.5px; font-weight: 650; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 2px; }
+.tools .badge { margin-left: 0; }
+.badge.problem { background: var(--bad-soft); color: var(--bad); }
+.badge.warning { background: var(--warn-soft); color: var(--warn); }
+.badge.info, .badge.plain { background: var(--chrome); color: var(--ink-2); }
+.badge.index { background: var(--ok-soft); color: var(--ok); }
+.step { display: grid; grid-template-columns: auto auto 1fr auto; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.step:last-child { border-bottom: 0; }
+.step.flagged .what b { text-decoration: underline wavy var(--warn-mark); text-underline-offset: 3px; }
+.step .tree { color: var(--ink-3); font-size: 12px; }
+.step .detail { color: var(--ink-2); margin-left: 4px; }
+.step .rows { color: var(--ink-3); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.find { display: grid; grid-template-columns: 76px 1fr auto; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.find:last-child { border-bottom: 0; }
+.find .what { display: grid; gap: 5px; }
+.find .fix { color: var(--ink-2); font-size: 12.5px; }
+.find .line { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: baseline; font-size: 12.5px; }
+.find .line .mono { color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+.find .docs { color: var(--accent); font-size: 12px; white-space: nowrap; }
+.tried { color: var(--ok); font-size: 12.5px; }
+.tried.unused, .tried.failed { color: var(--warn); }
+.tried .sub { color: inherit; opacity: .85; margin: 0; }
+.fold { margin-top: 12px; color: var(--ink-2); font-size: 12.5px; }
+.fold b { color: var(--ink); font-weight: 650; }
+.raw-plan { margin: 6px 0 8px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 11.5px; line-height: 1.5; white-space: pre; overflow-x: auto; max-height: 360px; }
 
 .timeline { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; column-gap: 12px; row-gap: 8px; padding-top: 12px; }
 .axis { position: relative; height: 18px; color: var(--ink-3); font-size: 11.5px; }

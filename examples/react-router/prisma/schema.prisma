@@ -8,16 +8,25 @@ datasource db {
 }
 
 model User {
-  id     Int     @id @default(autoincrement())
-  email  String  @unique
-  posts  Post[]
+  id    Int    @id @default(autoincrement())
+  email String @unique
+  name  String @default("")
+  posts Post[]
 }
 
+// No index on authorId on purpose: PostgreSQL does not create one for a foreign key, and the
+// profiler says so. (published) is the start of (published, createdAt): the profiler flags it.
 model Post {
-  id       Int    @id @default(autoincrement())
-  title    String
-  authorId Int
-  author   User   @relation(fields: [authorId], references: [id])
+  id        Int      @id @default(autoincrement())
+  title     String
+  published Boolean  @default(false)
+  views     Int      @default(0)
+  createdAt DateTime @default(now())
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@index([published])
+  @@index([published, createdAt])
 }
 
 model Product {

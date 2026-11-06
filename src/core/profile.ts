@@ -38,10 +38,21 @@ export interface OperationRecord {
   queryIds: string[];
 }
 
+/** The SQL a database speaks, as Prisma's driver adapters name it. */
+export type Provider = "postgres" | "mysql" | "sqlite";
+
+export interface DatabaseReference {
+  /** The connection, in the process that recorded the query. */
+  id: string;
+  provider: Provider;
+}
+
 export interface QueryRecord {
   id: string;
   opId?: string;
   txId?: string;
+  /** The connection that ran it, to ask the database about it later. */
+  database?: DatabaseReference;
   sql: string;
   params: unknown[];
   fingerprint: string;

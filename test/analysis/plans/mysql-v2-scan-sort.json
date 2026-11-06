@@ -1,0 +1,40 @@
+{
+  "limit": 10,
+  "query": "/* select#1 */ select `query_profiler_test`.`qp_p`.`id` AS `id` from `query_profiler_test`.`qp_p` where ((`query_profiler_test`.`qp_p`.`title` = 'Post 42') or (`query_profiler_test`.`qp_p`.`views` > 490)) order by `query_profiler_test`.`qp_p`.`views` desc limit 10",
+  "inputs": [
+    {
+      "inputs": [
+        {
+          "inputs": [
+            {
+              "operation": "Table scan on qp_p",
+              "table_name": "qp_p",
+              "access_type": "table",
+              "schema_name": "query_profiler_test",
+              "used_columns": ["id", "title", "views"],
+              "estimated_rows": 4202,
+              "estimated_total_cost": 581.2
+            }
+          ],
+          "condition": "((qp_p.title = 'Post 42') or (qp_p.views > 490))",
+          "operation": "Filter: ((qp_p.title = 'Post 42') or (qp_p.views > 490))",
+          "access_type": "filter",
+          "estimated_rows": 4202,
+          "estimated_total_cost": 581.2
+        }
+      ],
+      "operation": "Sort: qp_p.views DESC, limit input to 10 row(s) per chunk",
+      "access_type": "sort",
+      "sort_fields": ["qp_p.views DESC"],
+      "estimated_rows": 4202,
+      "per_chunk_limit": 10,
+      "estimated_total_cost": 581.2
+    }
+  ],
+  "operation": "Limit: 10 row(s)",
+  "query_type": "select",
+  "access_type": "limit",
+  "limit_offset": 0,
+  "estimated_rows": 10,
+  "estimated_total_cost": 581.2
+}

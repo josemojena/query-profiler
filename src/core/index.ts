@@ -25,6 +25,13 @@ export { formatProfile } from "./format.js";
 export { sanitize } from "./sanitize.js";
 export { enabled } from "./enabled.js";
 export {
+  findDatabase,
+  registerDatabase,
+  type Database,
+  type Rows,
+  type RunSql,
+} from "./database.js";
+export {
   analyze,
   busyMs,
   isTransactionControl,
@@ -33,4 +40,10 @@ export {
 } from "./analyze.js";
 export { createHandler, toListItem, type HandlerOptions } from "./http.js";
 export { stats, type StatementStat, type Stats } from "./stats.js";
-export { DEFAULT_BASE, PARENT_HEADER, TIMING_NAME, TOKEN_HEADER } from "./constants.js";
+export {
+  ANALYSIS_HEADER,
+  DEFAULT_BASE,
+  PARENT_HEADER,
+  TIMING_NAME,
+  TOKEN_HEADER,
+} from "./constants.js";

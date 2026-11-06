@@ -1,0 +1,5 @@
+[
+  [3, 0, 216, "SCAN b"],
+  [9, 0, 0, "BLOOM FILTER ON a (total=?)"],
+  [18, 0, 53, "SEARCH a USING AUTOMATIC COVERING INDEX (total=?)"]
+]

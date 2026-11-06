@@ -1,3 +1,4 @@
+import { emptyAnalysis } from "../../src/ui/analysis.js";
 import {
   analyze,
   fingerprint,
@@ -64,6 +65,7 @@ const state = (profile: Profile | undefined, patch: Partial<ViewState> = {}): Vi
   height: 300,
   theme: "dark",
   expanded: new Set(),
+  analysis: emptyAnalysis(),
   ...patch,
 });
 

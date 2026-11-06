@@ -1,0 +1,35 @@
+---
+title: Analysis rules
+description: Every rule the query analysis checks, for every engine and for each one, with the manual behind it.
+---
+
+import Rules from "../../../../components/docs/Rules.astro";
+
+The rules [query analysis](/docs/concepts/query-analysis) applies to a query's plan, its SQL and
+the tables it reads. Each one runs on the engines it names; a version after `@` is the first it
+applies to, and `@<` the first it no longer does. Words in _italics_ stand for what the finding
+names: a table, a column, an index, a number.
+
+A severity says how much it costs: **problem** for what reads far more than the query needs,
+**warning** for what costs more than it should or can go wrong, **info** for what is fine today and
+worth knowing.
+
+## Every engine
+
+<Rules engine="common" />
+
+## PostgreSQL
+
+<Rules engine="postgres" />
+
+## MySQL
+
+<Rules engine="mysql" />
+
+## MariaDB
+
+<Rules engine="mariadb" />
+
+## SQLite
+
+<Rules engine="sqlite" />

@@ -5,6 +5,7 @@ import type {
   OperationRecord,
   Profile,
   ProfileSummary,
+  DatabaseReference,
   QueryRecord,
   RecordError,
   RequestMeta,
@@ -82,6 +83,7 @@ export function beginQuery(
     params?: unknown[];
     opIds?: string[];
     txId?: string;
+    database?: DatabaseReference;
     origin?: StackFrame[];
   },
 ): QueryRecord | undefined {
@@ -93,6 +95,7 @@ export function beginQuery(
     id: `q_${active.nextId++}`,
     opId: query.opIds?.[0],
     txId: query.txId,
+    database: query.database,
     sql: query.sql,
     params: sanitize(
       redactParams(query.sql, query.params ?? [], secretsOf(active, query.opIds)),

@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import pg from "pg";
+import { dropAnalysisFixture } from "./analysis-fixture.js";
 import {
   TEST_DATABASE_URL,
   TEST_MARIADB_URL,
@@ -48,6 +49,15 @@ export default async function setup() {
       throw new Error(`Refusing to use "${url}": not a _test database`);
     const schema = path.join(import.meta.dirname, fixture, "prisma.config.ts");
     const env = { ...process.env, DATABASE_URL: url.replace(/^mariadb:/, "mysql:") };
+    // db push drops tables its schema lacks, and refuses when they hold rows: the analysis tests'
+    // tables, if a run stopped before removing them. A database not created yet has none.
+    try {
+      execFileSync("npx", ["prisma", "db", "execute", "--config", schema, "--stdin"], {
+        input: dropAnalysisFixture().join(";\n"),
+        stdio: "pipe",
+        env,
+      });
+    } catch {}
     execFileSync("npx", ["prisma", "db", "push", "--config", schema], {
       stdio: "pipe",
       env,

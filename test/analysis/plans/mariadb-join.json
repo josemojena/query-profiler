@@ -1,0 +1,37 @@
+{
+  "query_block": {
+    "select_id": 1,
+    "cost": 0.00345856,
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "u",
+          "access_type": "const",
+          "possible_keys": ["PRIMARY", "User_email_key"],
+          "key": "User_email_key",
+          "key_length": "766",
+          "used_key_parts": ["email"],
+          "ref": ["const"],
+          "rows": 1,
+          "filtered": 100,
+          "using_index": true
+        }
+      },
+      {
+        "table": {
+          "table_name": "o",
+          "access_type": "ref",
+          "possible_keys": ["Order_userId_fkey"],
+          "key": "Order_userId_fkey",
+          "key_length": "4",
+          "used_key_parts": ["userId"],
+          "ref": ["const"],
+          "loops": 1,
+          "rows": 1,
+          "cost": 0.00345856,
+          "filtered": 100
+        }
+      }
+    ]
+  }
+}

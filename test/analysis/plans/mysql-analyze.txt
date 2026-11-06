@@ -1,0 +1,8 @@
+-> Limit: 5 row(s)  (actual time=0.0627..0.0628 rows=1 loops=1)
+    -> Sort: o.total DESC, limit input to 5 row(s) per chunk  (actual time=0.0626..0.0626 rows=1 loops=1)
+        -> Stream results  (cost=0.7 rows=1) (actual time=0.0517..0.0531 rows=1 loops=1)
+            -> Nested loop inner join  (cost=0.7 rows=1) (actual time=0.0505..0.0518 rows=1 loops=1)
+                -> Covering index scan on u using User_email_key  (cost=0.35 rows=1) (actual time=0.00558..0.00604 rows=1 loops=1)
+                -> Filter: (o.total > 1)  (cost=0.35 rows=1) (actual time=0.00608..0.00667 rows=1 loops=1)
+                    -> Index lookup on o using Order_userId_fkey (userId=u.id)  (cost=0.35 rows=1) (actual time=0.00508..0.00558 rows=1 loops=1)
+

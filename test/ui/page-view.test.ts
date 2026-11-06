@@ -1,3 +1,4 @@
+import { emptyAnalysis } from "../../src/ui/analysis.js";
 import { toListItem, type Profile, type ProfileListItem } from "../../src/core/index.js";
 import { describe, expect, it } from "vitest";
 import { renderPage, tree, type PageState } from "../../src/ui/page-view.js";
@@ -36,6 +37,7 @@ const state = (patch: Partial<PageState> = {}): PageState => ({
   root: "/repo",
   editor: "vscode",
   expanded: new Set(),
+  analysis: emptyAnalysis(),
   list,
   filter: "",
   view: "requests",

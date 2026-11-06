@@ -1,4 +1,12 @@
-import { captureOrigin, currentScope, enabled, runInScope } from "../core/index.js";
+import {
+  captureOrigin,
+  currentScope,
+  enabled,
+  registerDatabase,
+  runInScope,
+  type DatabaseReference,
+  type RunSql,
+} from "../core/index.js";
 import type { Pool, PoolClient } from "pg";
 import { beginStatement } from "./statement.js";
 
@@ -17,7 +25,18 @@ export function profilePool<T extends Pool>(pool: T): T {
   const marked = pool as T & { [PATCHED]?: true };
   if (marked[PATCHED]) return pool;
   marked[PATCHED] = true;
-  pool.on("connect", (client) => patchClient(client as Client));
+  const database = registerDatabase({
+    provider: "postgres",
+    run: runner(pool),
+    rolledBack: (fn) => rolledBack(pool, fn),
+  });
+  const reference = { id: database.id, provider: database.provider };
+  const end = pool.end.bind(pool) as QueryFn;
+  pool.end = function (...args: unknown[]) {
+    database.unregister();
+    return end(...args);
+  } as Pool["end"];
+  pool.on("connect", (client) => patchClient(client as Client, reference));
   const query = pool.query.bind(pool) as QueryFn;
   // By the time a pooled client runs raw SQL, its caller is no longer on the stack.
   pool.query = function (...args: unknown[]) {
@@ -28,7 +47,7 @@ export function profilePool<T extends Pool>(pool: T): T {
   return pool;
 }
 
-function patchClient(client: Client) {
+function patchClient(client: Client, database: DatabaseReference) {
   if (client[PATCHED]) return;
   client[PATCHED] = true;
   const query = client.query.bind(client) as QueryFn;
@@ -36,10 +55,42 @@ function patchClient(client: Client) {
     const statement = readStatement(args);
     const finish =
       statement &&
-      beginStatement(statement.sql, statement.params, trackTransaction(client, statement.sql));
+      beginStatement({
+        ...statement,
+        txId: trackTransaction(client, statement.sql),
+        database,
+      });
     return finish ? watch(query, args, finish) : query(...args);
   } as PoolClient["query"];
 }
+
+// What the profiler asks is never one of the app's queries, even inside a request.
+const runner =
+  (target: Pick<Pool, "query">): RunSql =>
+  (sql, params = []) =>
+    runInScope({ recording: true }, async () => {
+      const result = await target.query({ text: sql, values: params, rowMode: "array" });
+      return {
+        columns: result.fields.map((field) => field.name),
+        rows: result.rows as unknown[][],
+      };
+    });
+
+const rolledBack = <T>(pool: Pool, fn: (run: RunSql) => Promise<T>): Promise<T> =>
+  runInScope({ recording: true }, async () => {
+    const client = await pool.connect();
+    const run = runner(client);
+    try {
+      await run("BEGIN");
+      try {
+        return await fn(run);
+      } finally {
+        await run("ROLLBACK");
+      }
+    } finally {
+      client.release();
+    }
+  });
 
 function watch(query: QueryFn, args: unknown[], settle: (error?: unknown) => void) {
   const last = args.length - 1;
