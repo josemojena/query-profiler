@@ -9,6 +9,10 @@
   (`@@index([author_id])`), which Prisma does not accept. It now says `@@index([authorId])`, and
   names the model, from the `schema.prisma` the profiler already reads; so do the trigram and
   `@@fulltext` lines. The SQL keeps the database's names.
+- **Explain sends one catalog query at a time.** It read a table's catalog with several queries at
+  once, which in a rolled back transaction (Measure it, Try this index) all went to one connection.
+  `pg` warned that this stops working in its next major version, and MySQL and SQLite took them in
+  turn anyway.
 
 ## 0.4.0
 

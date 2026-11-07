@@ -1,5 +1,12 @@
 import type { RunSql } from "../../core/index.js";
-import { EXPRESSION, pickTables, type Index, type Table, type TableName } from "../catalog.js";
+import {
+  EXPRESSION,
+  pickTables,
+  type Index,
+  type Table,
+  type TableName,
+  inTurn,
+} from "../catalog.js";
 import { asNumber } from "../plan.js";
 
 // The table-valued pragmas read every table's indexes in one query (SQLite 3.16 and later);
@@ -35,12 +42,12 @@ const STATISTICS = "SELECT tbl, stat FROM sqlite_stat1";
 export async function readSqliteCatalog(run: RunSql, asked: TableName[]): Promise<Table[]> {
   const names = [...new Set(asked.map((table) => table.name))];
   const list = names.map(() => "?").join(", ");
-  const [tables, indexes, foreignKeys, columns] = await Promise.all(
-    [TABLES, INDEXES, FOREIGN_KEYS, COLUMNS].map((query) => run(query(list), names)),
+  const [tables, indexes, foreignKeys, columns] = await inTurn(
+    [TABLES, INDEXES, FOREIGN_KEYS, COLUMNS].map((query) => () => run(query(list), names)),
   );
   const statistics = await analyzed(run);
-  const found = await Promise.all(
-    tables!.rows.map(async ([tableName]): Promise<Table> => {
+  const found = await inTurn(
+    tables!.rows.map(([tableName]) => async (): Promise<Table> => {
       const name = String(tableName);
       const own = (rows: unknown[][]) => rows.filter((row) => row[0] === name);
       const tableColumns = own(columns!.rows);

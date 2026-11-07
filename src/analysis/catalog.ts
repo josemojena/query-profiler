@@ -85,6 +85,16 @@ export function readCatalog(run: RunSql, engine: Engine, tables: TableName[]): P
 
 const key = (table: TableName) => `${table.schema ?? ""}.${table.name}`;
 
+/**
+ * Runs the steps one after another. `run` may be one transaction's, on one connection, which takes
+ * one query at a time: pg queues the others today, and stops doing so in its next major version.
+ */
+export async function inTurn<T>(steps: (() => Promise<T>)[]): Promise<T[]> {
+  const results: T[] = [];
+  for (const step of steps) results.push(await step());
+  return results;
+}
+
 /** For each table asked for, the one found in its schema, or else in the connection's own. */
 export function pickTables<T extends { schema?: string; name: string }>(
   asked: TableName[],

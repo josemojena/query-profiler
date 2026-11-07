@@ -1,5 +1,12 @@
 import type { RunSql } from "../../core/index.js";
-import { EXPRESSION, pickTables, type Index, type Table, type TableName } from "../catalog.js";
+import {
+  EXPRESSION,
+  pickTables,
+  type Index,
+  type Table,
+  type TableName,
+  inTurn,
+} from "../catalog.js";
 import { asNumber } from "../plan.js";
 
 // Only columns MySQL and MariaDB both have: MariaDB has no EXPRESSION in STATISTICS.
@@ -32,8 +39,8 @@ const COLUMNS = (names: string) => `
 export async function readMysqlCatalog(run: RunSql, asked: TableName[]): Promise<Table[]> {
   const names = [...new Set(asked.map((table) => table.name))];
   const list = names.map(() => "?").join(", ");
-  const [tables, indexes, foreignKeys, columns] = await Promise.all(
-    [TABLES, INDEXES, FOREIGN_KEYS, COLUMNS].map((query) => run(query(list), names)),
+  const [tables, indexes, foreignKeys, columns] = await inTurn(
+    [TABLES, INDEXES, FOREIGN_KEYS, COLUMNS].map((query) => () => run(query(list), names)),
   );
   const current = tables!.rows[0]?.[4] as string | undefined;
   const of = (row: unknown[], table: Table) => row[0] === table.schema && row[1] === table.name;
@@ -69,7 +76,7 @@ export async function readMysqlCatalog(run: RunSql, asked: TableName[]): Promise
   }
   const picked = pickTables(asked, found, current);
   // TABLE_ROWS is an estimate MySQL caches for up to a day: a table seeded since looks empty.
-  await Promise.all(picked.map(async (table) => countRows(run, table)));
+  await inTurn(picked.map((table) => () => countRows(run, table)));
   return picked;
 }
 
