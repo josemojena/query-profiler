@@ -92,6 +92,7 @@ function groupIndexes(rows: unknown[][]): Index[] {
         (row) =>
           `${row[6] === null ? EXPRESSION : String(row[6])}${row[9] && row[9] !== "BINARY" ? ` COLLATE ${String(row[9])}` : ""}${Number(row[8]) === 1 ? " DESC" : ""}`,
       ),
+      collations: parts.map((row) => (row[9] ? { name: String(row[9]) } : undefined)),
       ...(where ? { where } : {}),
     };
   });
