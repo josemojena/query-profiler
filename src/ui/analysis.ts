@@ -220,13 +220,16 @@ function stepHtml(step: PlanStep, depth: number, flagged: boolean): string {
     step.temporary ? `<span class="badge plain">temporary</span>` : "",
     step.onDisk ? `<span class="badge problem">on disk</span>` : "",
   ].filter(Boolean);
+  const notes = step.notes?.length
+    ? `<span class="notes">${escape(step.notes.join(" · "))}</span>`
+    : "";
   const measured = step.measured;
   const rows = measured
     ? `${rowCount(measured.rows)}${measured.loops > 1 ? ` · ${measured.loops} loops` : ""}${measured.ms === undefined ? "" : ` · ${ms(measured.ms)}`}`
     : step.rows === undefined
       ? ""
       : `~${rowCount(step.rows)}${step.cost === undefined ? "" : ` · cost ${round(step.cost).toLocaleString("en-US")}`}`;
-  return `<div class="step${flagged ? " flagged" : ""}"><span class="tree mono" style="padding-left:${depth * 14}px">${depth ? "└─" : ""}</span>${accessBadge(step)}<span class="what">${parts.join(" ")}</span><span class="rows">${rows}</span></div>`;
+  return `<div class="step${flagged ? " flagged" : ""}"><span class="tree mono" style="padding-left:${depth * 14}px">${depth ? "└─" : ""}</span>${accessBadge(step)}<span class="what">${parts.join(" ")}${notes}</span><span class="rows">${rows}</span></div>`;
 }
 
 function accessBadge(step: PlanStep): string {

@@ -1,6 +1,7 @@
 import { build } from "esbuild";
 import { expect, test, type Page } from "@playwright/test";
 import type { Analysis, Finding, Trial } from "../src/analysis/analyze.js";
+import type { PlanStep } from "../src/analysis/plan.js";
 import type { Profile } from "../src/core/index.js";
 import { PROFILE, listItem } from "./fixture.js";
 
@@ -304,6 +305,62 @@ test("cannot try an index on MySQL, and says why", async ({ page }) => {
   await expect(app.locator(".find").first()).toContainText(
     "MySQL and MariaDB commit a CREATE INDEX at once",
   );
+});
+
+test("shows the database's notes on a step on a line of their own, under its details", async ({
+  page,
+}) => {
+  const read = (step: Partial<PlanStep>): PlanStep => ({
+    label: "read",
+    kind: "read",
+    access: "index",
+    children: [],
+    ...step,
+  });
+  const { app } = await open(page, {
+    status: 200,
+    body: {
+      ...ANALYSIS,
+      engine: "mariadb",
+      version: "11.4.5",
+      findings: [],
+      plan: {
+        ...ANALYSIS.plan!,
+        engine: "mariadb",
+        version: "11.4.5",
+        measured: true,
+        steps: [
+          read({
+            table: "Post",
+            index: "Post_authorId_idx",
+            lookup: "authorId = 42",
+            notes: ["Using index condition", "Using rowid filter (Post_createdAt_idx)"],
+            children: [
+              read({
+                table: "Comment",
+                index: "Comment_postId_idx",
+                notes: ["Subquery cache: 996 of 1,000 runs answered from the cache"],
+              }),
+              read({ table: "User", access: "unique", index: "PRIMARY" }),
+            ],
+          }),
+        ],
+      },
+    },
+  });
+  await app.getByRole("button", { name: "Explain ›" }).first().click();
+  const steps = app.locator("tr.tools .step");
+  await expect(steps.nth(0).locator(".notes")).toHaveText(
+    "Using index condition · Using rowid filter (Post_createdAt_idx)",
+  );
+  await expect(steps.nth(1).locator(".notes")).toHaveText(
+    "Subquery cache: 996 of 1,000 runs answered from the cache",
+  );
+  await expect(steps.nth(2).locator(".notes")).toHaveCount(0);
+  const details = await steps.nth(0).locator(".detail").first().boundingBox();
+  const notes = await steps.nth(0).locator(".notes").boundingBox();
+  expect(notes!.y).toBeGreaterThanOrEqual(details!.y + details!.height);
+  expect(notes!.x).toBeCloseTo((await steps.nth(0).locator("b").boundingBox())!.x, 0);
 });
 
 test("says what the database answered when it could not plan the query", async ({ page }) => {

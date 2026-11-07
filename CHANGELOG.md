@@ -19,6 +19,10 @@
   The analysis now reads the pragma, and when it is off and the query's tables have foreign keys,
   says so once, with the pragma that turns them back on and `PRAGMA foreign_key_check`
   (`foreign-keys-off`).
+- **Explain shows each step's notes.** MySQL, MariaDB and SQLite add notes to some steps of a plan:
+  `Using index condition`, the index of a rowid filter, how often a subquery cache answered. The
+  profiler read them, but only `explain_query` and the API gave them. Explain plan and Measure it
+  now show them under the step, on a line of their own.
 
 ## 0.4.1
 

@@ -21,8 +21,9 @@ planner, through the same connection your app uses, and the rules run in the pro
    as warnings.
 2. **Explain plan.** Every row the database can be asked about has **Explain ›**. It opens the query
    on its plan, estimated: the query does not run. You see each step (a table read in full, an index
-   used, a sort, a temporary table), the tables' indexes, and the findings, most severe first, each
-   with its fix.
+   used, a sort, a temporary table), with the notes MySQL, MariaDB and SQLite add to it under it
+   (`Using index condition`, a rowid filter's index, how often a subquery cache answered), the
+   tables' indexes, and the findings, most severe first, each with its fix.
 3. **Try this index.** On PostgreSQL and SQLite, which can undo a `CREATE INDEX`, the profiler
    creates the suggested index inside a transaction, asks for the plan again, and rolls everything
    back. It tells you whether the database uses the index, and the plan's cost without it and with
