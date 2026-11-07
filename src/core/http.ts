@@ -1,10 +1,9 @@
-import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
 import { analysisRoute } from "./analysis-http.js";
 import { uiAsset } from "./assets.js";
 import { DEFAULT_BASE } from "./constants.js";
 import { enabled } from "./enabled.js";
 import type { Profile, ProfileListItem } from "./profile.js";
+import { projectRoot } from "./root.js";
 import { stats } from "./stats.js";
 import {
   clearProfiles,
@@ -37,6 +36,8 @@ export function createHandler(
     if (!enabled() || !hosts.includes(url.hostname) || !url.pathname.startsWith(base))
       return new Response("Not found", { status: 404 });
     const path = url.pathname.slice(base.length);
+    // The SDK loads with the first agent that connects, never with the app.
+    if (path === "/mcp") return (await import("./mcp.js")).mcpRoute(request);
     const token = /^\/api\/profiles\/([0-9a-f]+)$/.exec(path)?.[1];
     if (method === "GET" && isPage(path)) return page(base);
     const asset = method === "GET" ? uiAsset(base, path) : undefined;
@@ -168,10 +169,3 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
-
-/** Where paths are shown from: the repository root, or the working directory. */
-function projectRoot(): string {
-  for (let dir = process.cwd(); dir !== dirname(dir); dir = dirname(dir))
-    if (existsSync(join(dir, ".git"))) return dir;
-  return process.cwd();
-}

@@ -50,7 +50,7 @@ export function queryProfiler(options: QueryProfilerOptions = {}): Plugin {
       serving = config.command === "serve";
     },
     configureServer(server) {
-      if (enabled()) serveScripts();
+      if (enabled()) serveScripts((line) => server.config.logger.info(line));
       server.middlewares.use(base, (req, res, fail) => {
         serve(server, req, res).catch((error: unknown) => fail(error));
       });
@@ -63,13 +63,14 @@ let servingScripts = false;
 
 /**
  * Scripts and workers run with the preload send their profiles to the profiler's own port: it opens
- * here too, once, so their runs show next to the app's requests. What the server itself does
- * between requests (a timer, a queue) is recorded as well.
+ * here too, once, so their runs show next to the app's requests, and AI agents reach its MCP there.
+ * What the server itself does between requests (a timer, a queue) is recorded as well.
  */
-function serveScripts() {
+function serveScripts(log: (line: string) => void) {
   if (servingScripts) return;
   servingScripts = true;
-  profilerServer({ onJoin: () => {} });
+  const mcp = (url: string) => log(`[query-profiler] MCP: ${url}/mcp`);
+  profilerServer({ onListening: mcp, onJoin: mcp });
   profileOutside({ framework: { name: "react-router" } });
 }
 

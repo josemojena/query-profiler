@@ -73,6 +73,7 @@ it("profiles the app's requests and serves the profiler on its own port, once th
   const profiles = (await (await fetch(`${url}/api/profiles`)).json()) as { token: string }[];
   expect(profiles.map((profile) => profile.token)).toEqual([token]);
   expect(app.output()).not.toContain("GET /users");
+  expect(app.output()).toContain(`[query-profiler] ${url} · MCP: ${url}/mcp\n`);
 });
 
 it("says where it listens when QUERY_PROFILER_HOST is set", async () => {
@@ -232,7 +233,7 @@ it("lets a second app share the first one's profiler, and take it over when the 
   await vi.waitFor(async () => expect(await tokens(url)).toContain(before));
   first.child.send("close");
   expect(await first.exit).toBe(0);
-  await vi.waitFor(() => expect(second.output()).toContain(`[query-profiler] ${url}\n`));
+  await vi.waitFor(() => expect(second.output()).toContain(`[query-profiler] ${url} · MCP:`));
   const after = (await fetch(`${origin}/users`)).headers.get("X-Debug-Token")!;
   await vi.waitFor(async () => expect(await tokens(url)).toEqual([after, before]));
 });

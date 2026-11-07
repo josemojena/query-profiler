@@ -42,7 +42,9 @@ export function profileProcess(): void {
     shared = undefined;
     own = profilerServer({
       onListening: (url) =>
-        console.log(`[query-profiler] ${url}${host ? ` (listening on ${host})` : ""}`),
+        console.log(
+          `[query-profiler] ${url}${host ? ` (listening on ${host})` : ""} · MCP: ${url}/mcp`,
+        ),
       onJoin: (url) => {
         console.log(`[query-profiler] ${url} (shared with another process)`);
         join(url);

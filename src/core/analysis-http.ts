@@ -1,9 +1,17 @@
-import { analyzeQuery, readFindings, tryIndex, type Finding } from "../analysis/analyze.js";
+import {
+  analyzeQuery,
+  readFindings,
+  tryIndex,
+  type Analysis,
+  type Finding,
+  type Trial,
+} from "../analysis/analyze.js";
+import type { NoPlan } from "../analysis/explain.js";
 import { n1Fixes } from "../analysis/n1.js";
 import { findSchema } from "../analysis/schema.js";
 import { analyzeSession } from "../analysis/session.js";
 import { ANALYSIS_HEADER } from "./constants.js";
-import { findDatabase } from "./database.js";
+import { findDatabase, type Database } from "./database.js";
 import type { Profile, QueryRecord } from "./profile.js";
 import { getProfile, listProfiles } from "./storage.js";
 
@@ -37,35 +45,77 @@ async function answer(
   }
   if (method !== (action === "trial" ? "POST" : "GET")) return json({ error: "not_found" }, 404);
   if (!request.headers.has(ANALYSIS_HEADER)) return json({ error: "forbidden" }, 403);
-  const query = profile.queries.find((each) => each.id === queryId);
-  if (!query) return json({ error: "not_found" }, 404);
-  const database = findDatabase(query.database);
-  if (!database)
-    return json(
-      {
-        error: "no_database",
-        message:
-          "The connection that ran this query is gone, or its database is not one the profiler can ask.",
-      },
-      409,
-    );
-  try {
-    if (action === "analysis") {
-      const measure = new URL(request.url).searchParams.get("measure") === "1";
-      return json(await analyzeQuery(database, query, { measure }));
-    }
-    const body = (await request.json().catch(() => ({}))) as { index?: unknown };
+  if (action === "analysis") {
+    const measure = new URL(request.url).searchParams.get("measure") === "1";
+    return answered(await explainOf(profile, queryId!, measure));
+  }
+  const body = (await request.json().catch(() => ({}))) as { index?: unknown };
+  return answered(await trialOf(profile, queryId!, String(body.index ?? "")));
+}
+
+/** Why the database could not be asked, with the HTTP status that says it. */
+export interface Refusal {
+  error: "not_found" | "no_database" | "no_such_index" | "database_error";
+  message?: string;
+  status: number;
+}
+
+const answered = <T>(result: T | Refusal) =>
+  isRefusal(result)
+    ? json({ error: result.error, message: result.message }, result.status)
+    : json(result);
+
+export const isRefusal = (result: unknown): result is Refusal =>
+  typeof result === "object" && result !== null && "status" in result && "error" in result;
+
+/** A query's plan, tables and findings, asked of the connection that ran it. */
+export async function explainOf(
+  profile: Profile,
+  queryId: string,
+  measure = false,
+): Promise<Analysis | Refusal> {
+  return asked(profile, queryId, (database, query) => analyzeQuery(database, query, { measure }));
+}
+
+/** The plan once an index the analysis suggested exists, in a transaction that is rolled back. */
+export async function trialOf(
+  profile: Profile,
+  queryId: string,
+  index: string,
+): Promise<Trial | NoPlan | Refusal> {
+  return asked(profile, queryId, async (database, query) => {
     const analysis = await analyzeQuery(database, query);
     const fix = analysis.findings.find(
-      (finding) => finding.fix?.index !== undefined && finding.fix.index === body.index,
+      (finding) => finding.fix?.index !== undefined && finding.fix.index === index,
     )?.fix;
-    if (!fix?.index || !fix.sql) return json({ error: "no_such_index" }, 404);
-    return json(await tryIndex(database, query, { name: fix.index, sql: fix.sql }));
+    if (!fix?.index || !fix.sql) return { error: "no_such_index", status: 404 } satisfies Refusal;
+    return tryIndex(database, query, { name: fix.index, sql: fix.sql });
+  });
+}
+
+async function asked<T>(
+  profile: Profile,
+  queryId: string,
+  ask: (database: Database, query: QueryRecord) => Promise<T>,
+): Promise<T | Refusal> {
+  const query = profile.queries.find((each) => each.id === queryId);
+  if (!query) return { error: "not_found", status: 404 };
+  const database = findDatabase(query.database);
+  if (!database)
+    return {
+      error: "no_database",
+      message:
+        "The connection that ran this query is gone, or its database is not one the profiler can ask.",
+      status: 409,
+    };
+  try {
+    return await ask(database, query);
   } catch (error) {
-    return json(
-      { error: "database_error", message: error instanceof Error ? error.message : String(error) },
-      422,
-    );
+    return {
+      error: "database_error",
+      message: error instanceof Error ? error.message : String(error),
+      status: 422,
+    };
   }
 }
 
