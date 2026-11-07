@@ -3,13 +3,13 @@
   "profiles": [
     {
       "schemaVersion": 1,
-      "token": "54273a",
+      "token": "82bcfa",
       "kind": "document",
       "request": {
         "method": "GET",
         "url": "/"
       },
-      "startedAt": 1794003051641,
+      "startedAt": 1794055164415,
       "framework": {
         "name": "react-router"
       },
@@ -24,7 +24,7 @@
             },
             "take": 6
           },
-          "startMs": 2.03,
+          "startMs": 0.69,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -34,7 +34,7 @@
             }
           ],
           "queryIds": ["q_2"],
-          "durationMs": 4.29
+          "durationMs": 2.5
         },
         {
           "id": "op_3",
@@ -45,7 +45,7 @@
               "authorId": 1
             }
           },
-          "startMs": 8.39,
+          "startMs": 4.24,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -61,7 +61,7 @@
             }
           ],
           "queryIds": ["q_9"],
-          "durationMs": 7.41
+          "durationMs": 8.03
         },
         {
           "id": "op_4",
@@ -72,7 +72,7 @@
               "authorId": 2
             }
           },
-          "startMs": 8.42,
+          "startMs": 4.25,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -88,7 +88,7 @@
             }
           ],
           "queryIds": ["q_10"],
-          "durationMs": 7.59
+          "durationMs": 7.89
         },
         {
           "id": "op_5",
@@ -99,7 +99,7 @@
               "authorId": 3
             }
           },
-          "startMs": 8.43,
+          "startMs": 4.26,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -115,7 +115,7 @@
             }
           ],
           "queryIds": ["q_11"],
-          "durationMs": 7.46
+          "durationMs": 13.88
         },
         {
           "id": "op_6",
@@ -126,7 +126,7 @@
               "authorId": 4
             }
           },
-          "startMs": 8.43,
+          "startMs": 4.26,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -142,7 +142,7 @@
             }
           ],
           "queryIds": ["q_12"],
-          "durationMs": 11.5
+          "durationMs": 13.95
         },
         {
           "id": "op_7",
@@ -153,7 +153,7 @@
               "authorId": 5
             }
           },
-          "startMs": 8.44,
+          "startMs": 4.27,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -169,7 +169,7 @@
             }
           ],
           "queryIds": ["q_13"],
-          "durationMs": 11.42
+          "durationMs": 14.84
         },
         {
           "id": "op_8",
@@ -180,7 +180,7 @@
               "authorId": 6
             }
           },
-          "startMs": 8.45,
+          "startMs": 4.27,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -196,78 +196,106 @@
             }
           ],
           "queryIds": ["q_14"],
-          "durationMs": 7.51
+          "durationMs": 13.98
         }
       ],
       "queries": [
         {
           "id": "q_2",
           "opId": "op_1",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT \"public\".\"User\".\"id\", \"public\".\"User\".\"email\", \"public\".\"User\".\"name\" FROM \"public\".\"User\" WHERE 1=1 ORDER BY \"public\".\"User\".\"id\" ASC LIMIT $1 OFFSET $2",
           "params": ["6", "0"],
           "fingerprint": "57057fe8e66a",
-          "startMs": 2.34,
-          "durationMs": 3.88,
+          "startMs": 0.84,
+          "durationMs": 2.28,
           "rows": 6
         },
         {
           "id": "q_9",
           "opId": "op_3",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
           "params": [1, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 8.8,
-          "durationMs": 6.9,
+          "startMs": 4.48,
+          "durationMs": 7.75,
           "rows": 1
         },
         {
           "id": "q_10",
           "opId": "op_4",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
           "params": [2, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 8.93,
-          "durationMs": 7.06,
+          "startMs": 4.53,
+          "durationMs": 7.53,
           "rows": 1
         },
         {
           "id": "q_11",
           "opId": "op_5",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
           "params": [3, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 9.03,
-          "durationMs": 6.83,
+          "startMs": 4.57,
+          "durationMs": 13.51,
           "rows": 1
         },
         {
           "id": "q_12",
           "opId": "op_6",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
           "params": [4, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 9.12,
-          "durationMs": 10.79,
+          "startMs": 4.61,
+          "durationMs": 13.59,
           "rows": 1
         },
         {
           "id": "q_13",
           "opId": "op_7",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
           "params": [5, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 9.2,
-          "durationMs": 10.62,
+          "startMs": 4.65,
+          "durationMs": 14.42,
           "rows": 1
         },
         {
           "id": "q_14",
           "opId": "op_8",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
           "params": [6, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 9.27,
-          "durationMs": 6.67,
+          "startMs": 4.68,
+          "durationMs": 13.56,
           "rows": 1
         }
       ],
@@ -280,25 +308,25 @@
       ],
       "summary": {
         "queryCount": 7,
-        "dbTimeMs": 14.99,
+        "dbTimeMs": 16.87,
         "operationCount": 7,
         "errorCount": 0
       },
       "response": {
         "status": 200
       },
-      "durationMs": 23.14
+      "durationMs": 21.26
     },
     {
       "schemaVersion": 1,
-      "token": "323c88",
-      "parentToken": "193823",
+      "token": "2b226f",
+      "parentToken": "44497b",
       "kind": "data",
       "request": {
         "method": "GET",
         "url": "/products/purchases"
       },
-      "startedAt": 1794003051111,
+      "startedAt": 1794055163902,
       "framework": {
         "name": "react-router"
       },
@@ -316,7 +344,7 @@
             },
             "take": 10
           },
-          "startMs": 0.39,
+          "startMs": 0.64,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/purchases.ts",
@@ -326,53 +354,61 @@
             }
           ],
           "queryIds": ["q_2", "q_3"],
-          "durationMs": 1.37
+          "durationMs": 1.61
         }
       ],
       "queries": [
         {
           "id": "q_2",
           "opId": "op_1",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT \"public\".\"Purchase\".\"id\", \"public\".\"Purchase\".\"productId\", \"public\".\"Purchase\".\"quantity\", \"public\".\"Purchase\".\"createdAt\" FROM \"public\".\"Purchase\" WHERE 1=1 ORDER BY \"public\".\"Purchase\".\"createdAt\" DESC LIMIT $1 OFFSET $2",
           "params": ["10", "0"],
           "fingerprint": "d87d1063693d",
-          "startMs": 0.48,
-          "durationMs": 0.55,
+          "startMs": 0.78,
+          "durationMs": 0.78,
           "rows": 6
         },
         {
           "id": "q_3",
           "opId": "op_1",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT \"public\".\"Product\".\"id\", \"public\".\"Product\".\"name\", \"public\".\"Product\".\"price\" FROM \"public\".\"Product\" WHERE \"public\".\"Product\".\"id\" IN ($1,$2,$3,$4,$5,$6) OFFSET $7",
           "params": [24, 23, 22, 21, 20, 19, "0"],
           "fingerprint": "763fd6686f09",
-          "startMs": 1.13,
-          "durationMs": 0.57,
+          "startMs": 1.66,
+          "durationMs": 0.49,
           "rows": 6
         }
       ],
       "warnings": [],
       "summary": {
         "queryCount": 2,
-        "dbTimeMs": 1.12,
+        "dbTimeMs": 1.27,
         "operationCount": 1,
         "errorCount": 0
       },
       "response": {
         "status": 200
       },
-      "durationMs": 2.04
+      "durationMs": 2.5
     },
     {
       "schemaVersion": 1,
-      "token": "b02f81",
-      "parentToken": "193823",
+      "token": "362f7c",
+      "parentToken": "44497b",
       "kind": "data",
       "request": {
         "method": "GET",
         "url": "/products/offers"
       },
-      "startedAt": 1794003051109,
+      "startedAt": 1794055163891,
       "framework": {
         "name": "react-router"
       },
@@ -389,7 +425,7 @@
               "discount": "desc"
             }
           },
-          "startMs": 0.48,
+          "startMs": 0.47,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/offers.ts",
@@ -399,52 +435,60 @@
             }
           ],
           "queryIds": ["q_2", "q_3"],
-          "durationMs": 2.04
+          "durationMs": 3.78
         }
       ],
       "queries": [
         {
           "id": "q_2",
           "opId": "op_1",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT \"public\".\"Offer\".\"id\", \"public\".\"Offer\".\"productId\", \"public\".\"Offer\".\"discount\" FROM \"public\".\"Offer\" WHERE 1=1 ORDER BY \"public\".\"Offer\".\"discount\" DESC OFFSET $1",
           "params": ["0"],
           "fingerprint": "c5d85da246bc",
-          "startMs": 0.57,
-          "durationMs": 1.18,
+          "startMs": 0.58,
+          "durationMs": 2.99,
           "rows": 3
         },
         {
           "id": "q_3",
           "opId": "op_1",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT \"public\".\"Product\".\"id\", \"public\".\"Product\".\"name\", \"public\".\"Product\".\"price\" FROM \"public\".\"Product\" WHERE \"public\".\"Product\".\"id\" IN ($1,$2,$3) OFFSET $4",
           "params": [23, 21, 19, "0"],
           "fingerprint": "763fd6686f09",
-          "startMs": 1.82,
-          "durationMs": 0.67,
+          "startMs": 3.65,
+          "durationMs": 0.53,
           "rows": 3
         }
       ],
       "warnings": [],
       "summary": {
         "queryCount": 2,
-        "dbTimeMs": 1.85,
+        "dbTimeMs": 3.52,
         "operationCount": 1,
         "errorCount": 0
       },
       "response": {
         "status": 200
       },
-      "durationMs": 2.73
+      "durationMs": 4.54
     },
     {
       "schemaVersion": 1,
-      "token": "193823",
+      "token": "44497b",
       "kind": "document",
       "request": {
         "method": "GET",
         "url": "/products"
       },
-      "startedAt": 1794003050841,
+      "startedAt": 1794055163592,
       "framework": {
         "name": "react-router"
       },
@@ -458,7 +502,7 @@
               "id": "asc"
             }
           },
-          "startMs": 0.97,
+          "startMs": 1.63,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/products.tsx",
@@ -468,36 +512,40 @@
             }
           ],
           "queryIds": ["q_2"],
-          "durationMs": 4.05
+          "durationMs": 7.79
         }
       ],
       "queries": [
         {
           "id": "q_2",
           "opId": "op_1",
+          "database": {
+            "id": "postgres#1",
+            "provider": "postgres"
+          },
           "sql": "SELECT \"public\".\"Product\".\"id\", \"public\".\"Product\".\"name\", \"public\".\"Product\".\"price\" FROM \"public\".\"Product\" WHERE 1=1 ORDER BY \"public\".\"Product\".\"id\" ASC OFFSET $1",
           "params": ["0"],
           "fingerprint": "a1e8c5d3e41f",
-          "startMs": 1.47,
-          "durationMs": 3.51,
+          "startMs": 2.83,
+          "durationMs": 6.51,
           "rows": 6
         }
       ],
       "warnings": [],
       "summary": {
         "queryCount": 1,
-        "dbTimeMs": 3.51,
+        "dbTimeMs": 6.51,
         "operationCount": 1,
         "errorCount": 0
       },
       "response": {
         "status": 200
       },
-      "durationMs": 7.96
+      "durationMs": 13.21
     }
   ],
   "fixes": {
-    "54273a": {
+    "82bcfa": {
       "q_9": {
         "operation": "Post.count",
         "times": 6,
@@ -576,5 +624,2644 @@
         "relation": "Post.authorId points to User"
       }
     }
+  },
+  "findings": {
+    "82bcfa": {
+      "q_2": [],
+      "q_9": [],
+      "q_10": [],
+      "q_11": [],
+      "q_12": [],
+      "q_13": [],
+      "q_14": []
+    },
+    "2b226f": {
+      "q_2": [],
+      "q_3": []
+    },
+    "362f7c": {
+      "q_2": [],
+      "q_3": []
+    },
+    "44497b": {
+      "q_2": []
+    }
+  },
+  "analyses": {
+    "82bcfa": {
+      "q_2": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Limit",
+              "rows": 6,
+              "cost": 0.57,
+              "kind": "limit",
+              "children": [
+                {
+                  "label": "Index Scan",
+                  "rows": 2000,
+                  "cost": 98.28,
+                  "kind": "read",
+                  "table": "User",
+                  "relation": "User",
+                  "access": "index-full",
+                  "index": "User_pkey",
+                  "children": []
+                }
+              ]
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Limit\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Startup Cost\": 0.28,\n      \"Total Cost\": 0.57,\n      \"Plan Rows\": 6,\n      \"Plan Width\": 35,\n      \"Disabled\": false,\n      \"Plans\": [\n        {\n          \"Node Type\": \"Index Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Scan Direction\": \"Forward\",\n          \"Index Name\": \"User_pkey\",\n          \"Relation Name\": \"User\",\n          \"Alias\": \"User\",\n          \"Startup Cost\": 0.28,\n          \"Total Cost\": 98.28,\n          \"Plan Rows\": 2000,\n          \"Plan Width\": 35,\n          \"Disabled\": false\n        }\n      ]\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "User",
+            "rows": 2000,
+            "analyzed": true,
+            "bytes": 516096,
+            "modified": 0,
+            "analyzeAfter": 250,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "email",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "name",
+                "type": "text",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "User_email_key",
+                "columns": ["email"],
+                "unique": true,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["email"]
+              },
+              {
+                "name": "User_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "User",
+            "rows": 2000,
+            "analyzed": true,
+            "bytes": 516096,
+            "modified": 0,
+            "analyzeAfter": 250,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "email",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "name",
+                "type": "text",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "User_email_key",
+                "columns": ["email"],
+                "unique": true,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["email"]
+              },
+              {
+                "name": "User_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [],
+            "statistics": []
+          }
+        ],
+        "findings": []
+      },
+      "q_9": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Aggregate",
+              "rows": 1,
+              "cost": 1749.38,
+              "kind": "group",
+              "children": [
+                {
+                  "label": "Seq Scan",
+                  "rows": 30,
+                  "cost": 1749,
+                  "kind": "read",
+                  "table": "Post",
+                  "relation": "Post",
+                  "access": "full",
+                  "filter": "(\"authorId\" = 1)",
+                  "children": []
+                }
+              ]
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Aggregate\",\n      \"Strategy\": \"Plain\",\n      \"Partial Mode\": \"Simple\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Startup Cost\": 1749.38,\n      \"Total Cost\": 1749.38,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 8,\n      \"Disabled\": false,\n      \"Plans\": [\n        {\n          \"Node Type\": \"Seq Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Relation Name\": \"Post\",\n          \"Alias\": \"Post\",\n          \"Startup Cost\": 0,\n          \"Total Cost\": 1749,\n          \"Plan Rows\": 30,\n          \"Plan Width\": 4,\n          \"Disabled\": false,\n          \"Filter\": \"(\\\"authorId\\\" = 1)\"\n        }\n      ]\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "full-scan-missing-index",
+            "severity": "problem",
+            "about": "query",
+            "message": "Reads every row of Post to find the ones it wants: no index has authorId.",
+            "table": "Post",
+            "step": 1,
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            }
+          },
+          {
+            "rule": "foreign-key-without-index",
+            "severity": "warning",
+            "about": "table",
+            "message": "Post.authorId references User with no index: PostgreSQL does not create one, so a join on it, or a delete in User, reads all of Post.",
+            "table": "Post",
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            },
+            "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+          },
+          {
+            "rule": "redundant-index",
+            "severity": "info",
+            "about": "table",
+            "message": "The index Post_published_idx on Post is the start of Post_published_createdAt_idx, which serves the same queries a little slower: one index fewer to update on every write.",
+            "table": "Post",
+            "fix": {
+              "kind": "drop-index",
+              "text": "Remove it, and its @@index line in schema.prisma if it has one.",
+              "sql": "DROP INDEX \"Post_published_idx\";"
+            }
+          }
+        ]
+      },
+      "q_10": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Aggregate",
+              "rows": 1,
+              "cost": 1749.38,
+              "kind": "group",
+              "children": [
+                {
+                  "label": "Seq Scan",
+                  "rows": 30,
+                  "cost": 1749,
+                  "kind": "read",
+                  "table": "Post",
+                  "relation": "Post",
+                  "access": "full",
+                  "filter": "(\"authorId\" = 2)",
+                  "children": []
+                }
+              ]
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Aggregate\",\n      \"Strategy\": \"Plain\",\n      \"Partial Mode\": \"Simple\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Startup Cost\": 1749.38,\n      \"Total Cost\": 1749.38,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 8,\n      \"Disabled\": false,\n      \"Plans\": [\n        {\n          \"Node Type\": \"Seq Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Relation Name\": \"Post\",\n          \"Alias\": \"Post\",\n          \"Startup Cost\": 0,\n          \"Total Cost\": 1749,\n          \"Plan Rows\": 30,\n          \"Plan Width\": 4,\n          \"Disabled\": false,\n          \"Filter\": \"(\\\"authorId\\\" = 2)\"\n        }\n      ]\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "full-scan-missing-index",
+            "severity": "problem",
+            "about": "query",
+            "message": "Reads every row of Post to find the ones it wants: no index has authorId.",
+            "table": "Post",
+            "step": 1,
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            }
+          },
+          {
+            "rule": "foreign-key-without-index",
+            "severity": "warning",
+            "about": "table",
+            "message": "Post.authorId references User with no index: PostgreSQL does not create one, so a join on it, or a delete in User, reads all of Post.",
+            "table": "Post",
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            },
+            "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+          },
+          {
+            "rule": "redundant-index",
+            "severity": "info",
+            "about": "table",
+            "message": "The index Post_published_idx on Post is the start of Post_published_createdAt_idx, which serves the same queries a little slower: one index fewer to update on every write.",
+            "table": "Post",
+            "fix": {
+              "kind": "drop-index",
+              "text": "Remove it, and its @@index line in schema.prisma if it has one.",
+              "sql": "DROP INDEX \"Post_published_idx\";"
+            }
+          }
+        ]
+      },
+      "q_11": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Aggregate",
+              "rows": 1,
+              "cost": 1749.38,
+              "kind": "group",
+              "children": [
+                {
+                  "label": "Seq Scan",
+                  "rows": 30,
+                  "cost": 1749,
+                  "kind": "read",
+                  "table": "Post",
+                  "relation": "Post",
+                  "access": "full",
+                  "filter": "(\"authorId\" = 3)",
+                  "children": []
+                }
+              ]
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Aggregate\",\n      \"Strategy\": \"Plain\",\n      \"Partial Mode\": \"Simple\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Startup Cost\": 1749.38,\n      \"Total Cost\": 1749.38,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 8,\n      \"Disabled\": false,\n      \"Plans\": [\n        {\n          \"Node Type\": \"Seq Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Relation Name\": \"Post\",\n          \"Alias\": \"Post\",\n          \"Startup Cost\": 0,\n          \"Total Cost\": 1749,\n          \"Plan Rows\": 30,\n          \"Plan Width\": 4,\n          \"Disabled\": false,\n          \"Filter\": \"(\\\"authorId\\\" = 3)\"\n        }\n      ]\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "full-scan-missing-index",
+            "severity": "problem",
+            "about": "query",
+            "message": "Reads every row of Post to find the ones it wants: no index has authorId.",
+            "table": "Post",
+            "step": 1,
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            }
+          },
+          {
+            "rule": "foreign-key-without-index",
+            "severity": "warning",
+            "about": "table",
+            "message": "Post.authorId references User with no index: PostgreSQL does not create one, so a join on it, or a delete in User, reads all of Post.",
+            "table": "Post",
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            },
+            "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+          },
+          {
+            "rule": "redundant-index",
+            "severity": "info",
+            "about": "table",
+            "message": "The index Post_published_idx on Post is the start of Post_published_createdAt_idx, which serves the same queries a little slower: one index fewer to update on every write.",
+            "table": "Post",
+            "fix": {
+              "kind": "drop-index",
+              "text": "Remove it, and its @@index line in schema.prisma if it has one.",
+              "sql": "DROP INDEX \"Post_published_idx\";"
+            }
+          }
+        ]
+      },
+      "q_12": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Aggregate",
+              "rows": 1,
+              "cost": 1749.38,
+              "kind": "group",
+              "children": [
+                {
+                  "label": "Seq Scan",
+                  "rows": 30,
+                  "cost": 1749,
+                  "kind": "read",
+                  "table": "Post",
+                  "relation": "Post",
+                  "access": "full",
+                  "filter": "(\"authorId\" = 4)",
+                  "children": []
+                }
+              ]
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Aggregate\",\n      \"Strategy\": \"Plain\",\n      \"Partial Mode\": \"Simple\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Startup Cost\": 1749.38,\n      \"Total Cost\": 1749.38,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 8,\n      \"Disabled\": false,\n      \"Plans\": [\n        {\n          \"Node Type\": \"Seq Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Relation Name\": \"Post\",\n          \"Alias\": \"Post\",\n          \"Startup Cost\": 0,\n          \"Total Cost\": 1749,\n          \"Plan Rows\": 30,\n          \"Plan Width\": 4,\n          \"Disabled\": false,\n          \"Filter\": \"(\\\"authorId\\\" = 4)\"\n        }\n      ]\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "full-scan-missing-index",
+            "severity": "problem",
+            "about": "query",
+            "message": "Reads every row of Post to find the ones it wants: no index has authorId.",
+            "table": "Post",
+            "step": 1,
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            }
+          },
+          {
+            "rule": "foreign-key-without-index",
+            "severity": "warning",
+            "about": "table",
+            "message": "Post.authorId references User with no index: PostgreSQL does not create one, so a join on it, or a delete in User, reads all of Post.",
+            "table": "Post",
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            },
+            "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+          },
+          {
+            "rule": "redundant-index",
+            "severity": "info",
+            "about": "table",
+            "message": "The index Post_published_idx on Post is the start of Post_published_createdAt_idx, which serves the same queries a little slower: one index fewer to update on every write.",
+            "table": "Post",
+            "fix": {
+              "kind": "drop-index",
+              "text": "Remove it, and its @@index line in schema.prisma if it has one.",
+              "sql": "DROP INDEX \"Post_published_idx\";"
+            }
+          }
+        ]
+      },
+      "q_13": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Aggregate",
+              "rows": 1,
+              "cost": 1749.38,
+              "kind": "group",
+              "children": [
+                {
+                  "label": "Seq Scan",
+                  "rows": 30,
+                  "cost": 1749,
+                  "kind": "read",
+                  "table": "Post",
+                  "relation": "Post",
+                  "access": "full",
+                  "filter": "(\"authorId\" = 5)",
+                  "children": []
+                }
+              ]
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Aggregate\",\n      \"Strategy\": \"Plain\",\n      \"Partial Mode\": \"Simple\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Startup Cost\": 1749.38,\n      \"Total Cost\": 1749.38,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 8,\n      \"Disabled\": false,\n      \"Plans\": [\n        {\n          \"Node Type\": \"Seq Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Relation Name\": \"Post\",\n          \"Alias\": \"Post\",\n          \"Startup Cost\": 0,\n          \"Total Cost\": 1749,\n          \"Plan Rows\": 30,\n          \"Plan Width\": 4,\n          \"Disabled\": false,\n          \"Filter\": \"(\\\"authorId\\\" = 5)\"\n        }\n      ]\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "full-scan-missing-index",
+            "severity": "problem",
+            "about": "query",
+            "message": "Reads every row of Post to find the ones it wants: no index has authorId.",
+            "table": "Post",
+            "step": 1,
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            }
+          },
+          {
+            "rule": "foreign-key-without-index",
+            "severity": "warning",
+            "about": "table",
+            "message": "Post.authorId references User with no index: PostgreSQL does not create one, so a join on it, or a delete in User, reads all of Post.",
+            "table": "Post",
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            },
+            "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+          },
+          {
+            "rule": "redundant-index",
+            "severity": "info",
+            "about": "table",
+            "message": "The index Post_published_idx on Post is the start of Post_published_createdAt_idx, which serves the same queries a little slower: one index fewer to update on every write.",
+            "table": "Post",
+            "fix": {
+              "kind": "drop-index",
+              "text": "Remove it, and its @@index line in schema.prisma if it has one.",
+              "sql": "DROP INDEX \"Post_published_idx\";"
+            }
+          }
+        ]
+      },
+      "q_14": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Aggregate",
+              "rows": 1,
+              "cost": 1749.38,
+              "kind": "group",
+              "children": [
+                {
+                  "label": "Seq Scan",
+                  "rows": 30,
+                  "cost": 1749,
+                  "kind": "read",
+                  "table": "Post",
+                  "relation": "Post",
+                  "access": "full",
+                  "filter": "(\"authorId\" = 6)",
+                  "children": []
+                }
+              ]
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Aggregate\",\n      \"Strategy\": \"Plain\",\n      \"Partial Mode\": \"Simple\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Startup Cost\": 1749.38,\n      \"Total Cost\": 1749.38,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 8,\n      \"Disabled\": false,\n      \"Plans\": [\n        {\n          \"Node Type\": \"Seq Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Relation Name\": \"Post\",\n          \"Alias\": \"Post\",\n          \"Startup Cost\": 0,\n          \"Total Cost\": 1749,\n          \"Plan Rows\": 30,\n          \"Plan Width\": 4,\n          \"Disabled\": false,\n          \"Filter\": \"(\\\"authorId\\\" = 6)\"\n        }\n      ]\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Post",
+            "rows": 60000,
+            "analyzed": true,
+            "bytes": 12288000,
+            "modified": 0,
+            "analyzeAfter": 6050,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "title",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "authorId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              },
+              {
+                "name": "published",
+                "type": "boolean",
+                "nullable": false
+              },
+              {
+                "name": "views",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Post_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              },
+              {
+                "name": "Post_published_createdAt_idx",
+                "columns": ["published", "createdAt"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published", "\"createdAt\""]
+              },
+              {
+                "name": "Post_published_idx",
+                "columns": ["published"],
+                "unique": false,
+                "primary": false,
+                "expression": false,
+                "method": "btree",
+                "parts": ["published"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Post_authorId_fkey",
+                "columns": ["authorId"],
+                "references": {
+                  "table": "User",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "full-scan-missing-index",
+            "severity": "problem",
+            "about": "query",
+            "message": "Reads every row of Post to find the ones it wants: no index has authorId.",
+            "table": "Post",
+            "step": 1,
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            }
+          },
+          {
+            "rule": "foreign-key-without-index",
+            "severity": "warning",
+            "about": "table",
+            "message": "Post.authorId references User with no index: PostgreSQL does not create one, so a join on it, or a delete in User, reads all of Post.",
+            "table": "Post",
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+              "index": "Post_authorId_idx",
+              "on": {
+                "table": "Post",
+                "columns": ["authorId"]
+              },
+              "prisma": "@@index([authorId])",
+              "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+            },
+            "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+          },
+          {
+            "rule": "redundant-index",
+            "severity": "info",
+            "about": "table",
+            "message": "The index Post_published_idx on Post is the start of Post_published_createdAt_idx, which serves the same queries a little slower: one index fewer to update on every write.",
+            "table": "Post",
+            "fix": {
+              "kind": "drop-index",
+              "text": "Remove it, and its @@index line in schema.prisma if it has one.",
+              "sql": "DROP INDEX \"Post_published_idx\";"
+            }
+          }
+        ]
+      }
+    },
+    "2b226f": {
+      "q_2": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Limit",
+              "rows": 6,
+              "cost": 1.15,
+              "kind": "limit",
+              "children": [
+                {
+                  "label": "Sort",
+                  "rows": 6,
+                  "cost": 1.15,
+                  "kind": "sort",
+                  "keys": ["\"createdAt\" DESC"],
+                  "children": [
+                    {
+                      "label": "Seq Scan",
+                      "rows": 6,
+                      "cost": 1.06,
+                      "kind": "read",
+                      "table": "Purchase",
+                      "relation": "Purchase",
+                      "access": "full",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Limit\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Startup Cost\": 1.14,\n      \"Total Cost\": 1.15,\n      \"Plan Rows\": 6,\n      \"Plan Width\": 20,\n      \"Disabled\": false,\n      \"Plans\": [\n        {\n          \"Node Type\": \"Sort\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Startup Cost\": 1.14,\n          \"Total Cost\": 1.15,\n          \"Plan Rows\": 6,\n          \"Plan Width\": 20,\n          \"Disabled\": false,\n          \"Sort Key\": [\n            \"\\\"createdAt\\\" DESC\"\n          ],\n          \"Plans\": [\n            {\n              \"Node Type\": \"Seq Scan\",\n              \"Parent Relationship\": \"Outer\",\n              \"Parallel Aware\": false,\n              \"Async Capable\": false,\n              \"Relation Name\": \"Purchase\",\n              \"Alias\": \"Purchase\",\n              \"Startup Cost\": 0,\n              \"Total Cost\": 1.06,\n              \"Plan Rows\": 6,\n              \"Plan Width\": 20,\n              \"Disabled\": false\n            }\n          ]\n        }\n      ]\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Purchase",
+            "rows": 6,
+            "analyzed": true,
+            "bytes": 24576,
+            "modified": 0,
+            "analyzeAfter": 50.6,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "productId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "quantity",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Purchase_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Purchase_productId_fkey",
+                "columns": ["productId"],
+                "references": {
+                  "table": "Product",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Purchase",
+            "rows": 6,
+            "analyzed": true,
+            "bytes": 24576,
+            "modified": 0,
+            "analyzeAfter": 50.6,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "productId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "quantity",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "createdAt",
+                "type": "timestamp(3) without time zone",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Purchase_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Purchase_productId_fkey",
+                "columns": ["productId"],
+                "references": {
+                  "table": "Product",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "sort-without-index",
+            "severity": "warning",
+            "about": "query",
+            "message": "Sorts every matching row to return the first ones: an index on createdAt gives them in order and stops at the limit.",
+            "table": "Purchase",
+            "step": 1,
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on createdAt to the Purchase model, then run prisma migrate dev.",
+              "index": "Purchase_createdAt_idx",
+              "on": {
+                "table": "Purchase",
+                "columns": ["createdAt DESC"]
+              },
+              "prisma": "@@index([createdAt(sort: Desc)])",
+              "sql": "CREATE INDEX \"Purchase_createdAt_idx\" ON \"public\".\"Purchase\" (\"createdAt\" DESC);"
+            }
+          },
+          {
+            "rule": "foreign-key-without-index",
+            "severity": "warning",
+            "about": "table",
+            "message": "Purchase.productId references Product with no index: PostgreSQL does not create one, so a join on it, or a delete in Product, reads all of Purchase.",
+            "table": "Purchase",
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on productId to the Purchase model, then run prisma migrate dev.",
+              "index": "Purchase_productId_idx",
+              "on": {
+                "table": "Purchase",
+                "columns": ["productId"]
+              },
+              "prisma": "@@index([productId])",
+              "sql": "CREATE INDEX \"Purchase_productId_idx\" ON \"public\".\"Purchase\" (\"productId\");"
+            },
+            "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+          },
+          {
+            "rule": "full-scan-small-table",
+            "severity": "info",
+            "about": "query",
+            "message": "Reads all 6 rows of Purchase: cheap at this size, but no index has createdAt, so it will read every row as the table grows.",
+            "table": "Purchase",
+            "step": 2,
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on createdAt to the Purchase model, then run prisma migrate dev.",
+              "index": "Purchase_createdAt_idx",
+              "on": {
+                "table": "Purchase",
+                "columns": ["createdAt DESC"]
+              },
+              "prisma": "@@index([createdAt(sort: Desc)])",
+              "sql": "CREATE INDEX \"Purchase_createdAt_idx\" ON \"public\".\"Purchase\" (\"createdAt\" DESC);"
+            }
+          }
+        ]
+      },
+      "q_3": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Seq Scan",
+              "rows": 6,
+              "cost": 1.1,
+              "kind": "read",
+              "table": "Product",
+              "relation": "Product",
+              "access": "full",
+              "filter": "(id = ANY ('{24,23,22,21,20,19}'::integer[]))",
+              "children": []
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"Product\",\n      \"Alias\": \"Product\",\n      \"Startup Cost\": 0,\n      \"Total Cost\": 1.1,\n      \"Plan Rows\": 6,\n      \"Plan Width\": 16,\n      \"Disabled\": false,\n      \"Filter\": \"(id = ANY ('{24,23,22,21,20,19}'::integer[]))\"\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Product",
+            "rows": 6,
+            "analyzed": true,
+            "bytes": 32768,
+            "modified": 0,
+            "analyzeAfter": 50.6,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "name",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "price",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Product_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Product",
+            "rows": 6,
+            "analyzed": true,
+            "bytes": 32768,
+            "modified": 0,
+            "analyzeAfter": 50.6,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "name",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "price",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Product_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "full-scan-index-skipped-small",
+            "severity": "info",
+            "about": "query",
+            "message": "Reads all 6 rows of Product instead of its index on id: with this few rows that is cheaper, and it will switch to the index as the table grows.",
+            "table": "Product",
+            "step": 0
+          }
+        ]
+      }
+    },
+    "362f7c": {
+      "q_2": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Sort",
+              "rows": 3,
+              "cost": 1.06,
+              "kind": "sort",
+              "keys": ["discount DESC"],
+              "children": [
+                {
+                  "label": "Seq Scan",
+                  "rows": 3,
+                  "cost": 1.03,
+                  "kind": "read",
+                  "table": "Offer",
+                  "relation": "Offer",
+                  "access": "full",
+                  "children": []
+                }
+              ]
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Sort\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Startup Cost\": 1.05,\n      \"Total Cost\": 1.06,\n      \"Plan Rows\": 3,\n      \"Plan Width\": 12,\n      \"Disabled\": false,\n      \"Sort Key\": [\n        \"discount DESC\"\n      ],\n      \"Plans\": [\n        {\n          \"Node Type\": \"Seq Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Relation Name\": \"Offer\",\n          \"Alias\": \"Offer\",\n          \"Startup Cost\": 0,\n          \"Total Cost\": 1.03,\n          \"Plan Rows\": 3,\n          \"Plan Width\": 12,\n          \"Disabled\": false\n        }\n      ]\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Offer",
+            "rows": 3,
+            "analyzed": true,
+            "bytes": 24576,
+            "modified": 0,
+            "analyzeAfter": 50.3,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "productId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "discount",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Offer_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Offer_productId_fkey",
+                "columns": ["productId"],
+                "references": {
+                  "table": "Product",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Offer",
+            "rows": 3,
+            "analyzed": true,
+            "bytes": 24576,
+            "modified": 0,
+            "analyzeAfter": 50.3,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "productId",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "discount",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Offer_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [
+              {
+                "name": "Offer_productId_fkey",
+                "columns": ["productId"],
+                "references": {
+                  "table": "Product",
+                  "columns": ["id"]
+                }
+              }
+            ],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "foreign-key-without-index",
+            "severity": "warning",
+            "about": "table",
+            "message": "Offer.productId references Product with no index: PostgreSQL does not create one, so a join on it, or a delete in Product, reads all of Offer.",
+            "table": "Offer",
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on productId to the Offer model, then run prisma migrate dev.",
+              "index": "Offer_productId_idx",
+              "on": {
+                "table": "Offer",
+                "columns": ["productId"]
+              },
+              "prisma": "@@index([productId])",
+              "sql": "CREATE INDEX \"Offer_productId_idx\" ON \"public\".\"Offer\" (\"productId\");"
+            },
+            "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+          },
+          {
+            "rule": "full-scan-small-table",
+            "severity": "info",
+            "about": "query",
+            "message": "Reads all 3 rows of Offer: cheap at this size, but no index has discount, so it will read every row as the table grows.",
+            "table": "Offer",
+            "step": 1,
+            "fix": {
+              "kind": "index",
+              "text": "Add an index on discount to the Offer model, then run prisma migrate dev.",
+              "index": "Offer_discount_idx",
+              "on": {
+                "table": "Offer",
+                "columns": ["discount DESC"]
+              },
+              "prisma": "@@index([discount(sort: Desc)])",
+              "sql": "CREATE INDEX \"Offer_discount_idx\" ON \"public\".\"Offer\" (\"discount\" DESC);"
+            }
+          }
+        ]
+      },
+      "q_3": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Seq Scan",
+              "rows": 3,
+              "cost": 1.08,
+              "kind": "read",
+              "table": "Product",
+              "relation": "Product",
+              "access": "full",
+              "filter": "(id = ANY ('{23,21,19}'::integer[]))",
+              "children": []
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"Product\",\n      \"Alias\": \"Product\",\n      \"Startup Cost\": 0,\n      \"Total Cost\": 1.08,\n      \"Plan Rows\": 3,\n      \"Plan Width\": 16,\n      \"Disabled\": false,\n      \"Filter\": \"(id = ANY ('{23,21,19}'::integer[]))\"\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Product",
+            "rows": 6,
+            "analyzed": true,
+            "bytes": 32768,
+            "modified": 0,
+            "analyzeAfter": 50.6,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "name",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "price",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Product_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Product",
+            "rows": 6,
+            "analyzed": true,
+            "bytes": 32768,
+            "modified": 0,
+            "analyzeAfter": 50.6,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "name",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "price",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Product_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "full-scan-index-skipped-small",
+            "severity": "info",
+            "about": "query",
+            "message": "Reads all 6 rows of Product instead of its index on id: with this few rows that is cheaper, and it will switch to the index as the table grows.",
+            "table": "Product",
+            "step": 0
+          }
+        ]
+      }
+    },
+    "44497b": {
+      "q_2": {
+        "engine": "postgres",
+        "version": "18.6",
+        "plan": {
+          "engine": "postgres",
+          "version": "18.6",
+          "measured": false,
+          "generic": false,
+          "approximate": false,
+          "steps": [
+            {
+              "label": "Sort",
+              "rows": 6,
+              "cost": 1.15,
+              "kind": "sort",
+              "keys": ["id"],
+              "children": [
+                {
+                  "label": "Seq Scan",
+                  "rows": 6,
+                  "cost": 1.06,
+                  "kind": "read",
+                  "table": "Product",
+                  "relation": "Product",
+                  "access": "full",
+                  "children": []
+                }
+              ]
+            }
+          ],
+          "raw": "[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Sort\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Startup Cost\": 1.14,\n      \"Total Cost\": 1.15,\n      \"Plan Rows\": 6,\n      \"Plan Width\": 16,\n      \"Disabled\": false,\n      \"Sort Key\": [\n        \"id\"\n      ],\n      \"Plans\": [\n        {\n          \"Node Type\": \"Seq Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Relation Name\": \"Product\",\n          \"Alias\": \"Product\",\n          \"Startup Cost\": 0,\n          \"Total Cost\": 1.06,\n          \"Plan Rows\": 6,\n          \"Plan Width\": 16,\n          \"Disabled\": false\n        }\n      ]\n    }\n  }\n]"
+        },
+        "tables": [
+          {
+            "schema": "public",
+            "name": "Product",
+            "rows": 6,
+            "analyzed": true,
+            "bytes": 32768,
+            "modified": 0,
+            "analyzeAfter": 50.6,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "name",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "price",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Product_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [],
+            "statistics": []
+          },
+          {
+            "schema": "public",
+            "name": "Product",
+            "rows": 6,
+            "analyzed": true,
+            "bytes": 32768,
+            "modified": 0,
+            "analyzeAfter": 50.6,
+            "columns": [
+              {
+                "name": "id",
+                "type": "integer",
+                "nullable": false
+              },
+              {
+                "name": "name",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "price",
+                "type": "integer",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "Product_pkey",
+                "columns": ["id"],
+                "unique": true,
+                "primary": true,
+                "expression": false,
+                "method": "btree",
+                "parts": ["id"]
+              }
+            ],
+            "foreignKeys": [],
+            "statistics": []
+          }
+        ],
+        "findings": [
+          {
+            "rule": "full-scan-index-skipped-small",
+            "severity": "info",
+            "about": "query",
+            "message": "Reads all 6 rows of Product instead of its index on id: with this few rows that is cheaper, and it will switch to the index as the table grows.",
+            "table": "Product",
+            "step": 1
+          }
+        ]
+      }
+    }
+  },
+  "session": {
+    "requests": 4,
+    "kinds": {
+      "document": 2,
+      "data": 2
+    },
+    "shapes": 6,
+    "analyzed": 6,
+    "skipped": 0,
+    "failed": [],
+    "databases": [
+      {
+        "engine": "postgres",
+        "version": "18.6"
+      }
+    ],
+    "indexes": [
+      {
+        "table": "Post",
+        "columns": ["authorId"],
+        "name": "Post_authorId_idx",
+        "prisma": "@@index([authorId])",
+        "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");",
+        "shapes": [
+          {
+            "fingerprint": "a56f8e44e384",
+            "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
+            "runs": 6,
+            "totalMs": 70.36,
+            "routes": ["/"],
+            "example": {
+              "token": "82bcfa",
+              "queryId": "q_13"
+            }
+          }
+        ],
+        "runs": 6,
+        "totalMs": 70.36,
+        "routes": ["/"],
+        "covers": []
+      },
+      {
+        "table": "Offer",
+        "columns": ["discount DESC"],
+        "name": "Offer_discount_idx",
+        "prisma": "@@index([discount(sort: Desc)])",
+        "sql": "CREATE INDEX \"Offer_discount_idx\" ON \"public\".\"Offer\" (\"discount\" DESC);",
+        "shapes": [
+          {
+            "fingerprint": "c5d85da246bc",
+            "sql": "SELECT \"public\".\"Offer\".\"id\", \"public\".\"Offer\".\"productId\", \"public\".\"Offer\".\"discount\" FROM \"public\".\"Offer\" WHERE 1=1 ORDER BY \"public\".\"Offer\".\"discount\" DESC OFFSET $1",
+            "runs": 1,
+            "totalMs": 2.99,
+            "routes": ["/products/offers"],
+            "example": {
+              "token": "362f7c",
+              "queryId": "q_2"
+            }
+          }
+        ],
+        "runs": 1,
+        "totalMs": 2.99,
+        "routes": ["/products/offers"],
+        "covers": []
+      },
+      {
+        "table": "Purchase",
+        "columns": ["createdAt DESC"],
+        "name": "Purchase_createdAt_idx",
+        "prisma": "@@index([createdAt(sort: Desc)])",
+        "sql": "CREATE INDEX \"Purchase_createdAt_idx\" ON \"public\".\"Purchase\" (\"createdAt\" DESC);",
+        "shapes": [
+          {
+            "fingerprint": "d87d1063693d",
+            "sql": "SELECT \"public\".\"Purchase\".\"id\", \"public\".\"Purchase\".\"productId\", \"public\".\"Purchase\".\"quantity\", \"public\".\"Purchase\".\"createdAt\" FROM \"public\".\"Purchase\" WHERE 1=1 ORDER BY \"public\".\"Purchase\".\"createdAt\" DESC LIMIT $1 OFFSET $2",
+            "runs": 1,
+            "totalMs": 0.78,
+            "routes": ["/products/purchases"],
+            "example": {
+              "token": "2b226f",
+              "queryId": "q_2"
+            }
+          }
+        ],
+        "runs": 1,
+        "totalMs": 0.78,
+        "routes": ["/products/purchases"],
+        "covers": []
+      }
+    ],
+    "rules": [
+      {
+        "rule": "full-scan-missing-index",
+        "severity": "problem",
+        "message": "Reads every row of Post to find the ones it wants: no index has authorId.",
+        "shapes": 1,
+        "runs": 6,
+        "totalMs": 70.36,
+        "example": {
+          "token": "82bcfa",
+          "queryId": "q_13"
+        }
+      },
+      {
+        "rule": "sort-without-index",
+        "severity": "warning",
+        "message": "Sorts every matching row to return the first ones: an index on createdAt gives them in order and stops at the limit.",
+        "shapes": 1,
+        "runs": 1,
+        "totalMs": 0.78,
+        "example": {
+          "token": "2b226f",
+          "queryId": "q_2"
+        }
+      },
+      {
+        "rule": "full-scan-index-skipped-small",
+        "severity": "info",
+        "message": "Reads all 6 rows of Product instead of its index on id: with this few rows that is cheaper, and it will switch to the index as the table grows.",
+        "shapes": 2,
+        "runs": 3,
+        "totalMs": 7.53,
+        "example": {
+          "token": "44497b",
+          "queryId": "q_2"
+        }
+      },
+      {
+        "rule": "full-scan-small-table",
+        "severity": "info",
+        "message": "Reads all 3 rows of Offer: cheap at this size, but no index has discount, so it will read every row as the table grows.",
+        "shapes": 2,
+        "runs": 2,
+        "totalMs": 3.77,
+        "example": {
+          "token": "362f7c",
+          "queryId": "q_2"
+        }
+      }
+    ],
+    "tables": [
+      {
+        "table": "Post",
+        "shapes": 1,
+        "runs": 6,
+        "totalMs": 70.36,
+        "fullReads": 1
+      },
+      {
+        "table": "Product",
+        "shapes": 2,
+        "runs": 3,
+        "totalMs": 7.53,
+        "fullReads": 2
+      },
+      {
+        "table": "Offer",
+        "shapes": 1,
+        "runs": 1,
+        "totalMs": 2.99,
+        "fullReads": 1
+      },
+      {
+        "table": "User",
+        "shapes": 1,
+        "runs": 1,
+        "totalMs": 2.28,
+        "fullReads": 0
+      },
+      {
+        "table": "Purchase",
+        "shapes": 1,
+        "runs": 1,
+        "totalMs": 0.78,
+        "fullReads": 1
+      }
+    ],
+    "notes": [
+      {
+        "rule": "foreign-key-without-index",
+        "severity": "warning",
+        "about": "table",
+        "message": "Purchase.productId references Product with no index: PostgreSQL does not create one, so a join on it, or a delete in Product, reads all of Purchase.",
+        "table": "Purchase",
+        "fix": {
+          "kind": "index",
+          "text": "Add an index on productId to the Purchase model, then run prisma migrate dev.",
+          "index": "Purchase_productId_idx",
+          "on": {
+            "table": "Purchase",
+            "columns": ["productId"]
+          },
+          "prisma": "@@index([productId])",
+          "sql": "CREATE INDEX \"Purchase_productId_idx\" ON \"public\".\"Purchase\" (\"productId\");"
+        },
+        "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+      },
+      {
+        "rule": "foreign-key-without-index",
+        "severity": "warning",
+        "about": "table",
+        "message": "Post.authorId references User with no index: PostgreSQL does not create one, so a join on it, or a delete in User, reads all of Post.",
+        "table": "Post",
+        "fix": {
+          "kind": "index",
+          "text": "Add an index on authorId to the Post model, then run prisma migrate dev.",
+          "index": "Post_authorId_idx",
+          "on": {
+            "table": "Post",
+            "columns": ["authorId"]
+          },
+          "prisma": "@@index([authorId])",
+          "sql": "CREATE INDEX \"Post_authorId_idx\" ON \"public\".\"Post\" (\"authorId\");"
+        },
+        "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+      },
+      {
+        "rule": "redundant-index",
+        "severity": "info",
+        "about": "table",
+        "message": "The index Post_published_idx on Post is the start of Post_published_createdAt_idx, which serves the same queries a little slower: one index fewer to update on every write.",
+        "table": "Post",
+        "fix": {
+          "kind": "drop-index",
+          "text": "Remove it, and its @@index line in schema.prisma if it has one.",
+          "sql": "DROP INDEX \"Post_published_idx\";"
+        }
+      },
+      {
+        "rule": "foreign-key-without-index",
+        "severity": "warning",
+        "about": "table",
+        "message": "Offer.productId references Product with no index: PostgreSQL does not create one, so a join on it, or a delete in Product, reads all of Offer.",
+        "table": "Offer",
+        "fix": {
+          "kind": "index",
+          "text": "Add an index on productId to the Offer model, then run prisma migrate dev.",
+          "index": "Offer_productId_idx",
+          "on": {
+            "table": "Offer",
+            "columns": ["productId"]
+          },
+          "prisma": "@@index([productId])",
+          "sql": "CREATE INDEX \"Offer_productId_idx\" ON \"public\".\"Offer\" (\"productId\");"
+        },
+        "docs": "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK"
+      }
+    ]
   }
 }
