@@ -95,6 +95,33 @@ describe("MySQL's plan", () => {
   });
 });
 
+describe("MySQL's subqueries", () => {
+  it("puts each subquery under the step MySQL's tree prints for it, which says whether it runs again for each outer row", () => {
+    const steps = readMysqlPlan(json("mysql-subqueries"));
+    expect(outline(steps)).toEqual([
+      "ALL",
+      "  Select #3 (subquery in condition; dependent)",
+      "    ALL",
+      "Select #2 (subquery in projection; dependent)",
+      "  ALL",
+    ]);
+    expect(reads(steps).map((read) => read.table)).toEqual(["a", "p", "p"]);
+  });
+
+  it("keeps what a range reads by apart from the index condition it checks on each entry", () => {
+    // From MySQL 8.4.
+    const [read] = readMysqlTree(
+      "-> Index range scan on qs_post using qs_post_status_views_created_idx over (status = 'draft' AND 400 < views), with index condition: ((qs_post.created_at = TIMESTAMP'2026-01-05 00:00:00') and (qs_post.`status` = 'draft') and (qs_post.views > 400))  (cost=594 rows=1320) (actual time=0.108..0.108 rows=0 loops=1)",
+    );
+    expect(read).toMatchObject({
+      access: "index",
+      index: "qs_post_status_views_created_idx",
+      lookup: "status = 'draft' AND 400 < views",
+      notes: ["Using index condition"],
+    });
+  });
+});
+
 describe("MariaDB's plan", () => {
   it("marks a table joined through a join buffer, read in full, with its join condition", () => {
     expect(reads(readMariadbPlan(json("mariadb-join-without-index")))[1]).toMatchObject({
@@ -109,6 +136,51 @@ describe("MariaDB's plan", () => {
     const steps = readMariadbPlan(json("mariadb-sort-and-group"));
     expect(outline(steps)).toEqual(["filesort", "  temporary table", "    ALL"]);
     expect(steps[0]!.keys).toEqual(["count(0) desc"]);
+  });
+
+  it("measures from 11.5 the rows that leave a read after every check, the rows filtered estimates", () => {
+    // ANALYZE FORMAT=JSON from 11.5, as MariaDB's manual shows it: r_index_rows entries enumerated,
+    // r_rows left after the index condition and the rowid filter, r_filtered for the rest.
+    const [read] = readMariadbPlan({
+      query_block: {
+        select_id: 1,
+        r_loops: 1,
+        nested_loop: [
+          {
+            table: {
+              table_name: "lineitem",
+              access_type: "range",
+              key: "i_l_quantity",
+              rowid_filter: {
+                range: { key: "i_l_shipdate", used_key_parts: ["l_shipDATE"] },
+                rows: 8335,
+                selectivity_pct: 8.476269722,
+                r_selectivity_pct: 9.742120344,
+              },
+              loops: 1,
+              r_loops: 1,
+              rows: 426,
+              r_index_rows: 349,
+              r_rows: 34,
+              filtered: 8.476269722,
+              r_total_filtered: 9.742120344,
+              index_condition: "lineitem.l_quantity > 47",
+              r_icp_filtered: 100,
+              attached_condition: "lineitem.l_shipDATE between '1997-01-01' and '1997-06-30'",
+              r_filtered: 100,
+            },
+          },
+        ],
+      },
+    });
+    expect(read).toMatchObject({
+      rows: 36.11,
+      rowsRead: 426,
+      notes: ["Using index condition", "Using rowid filter (i_l_shipdate)"],
+      measured: { rows: 34, loops: 1, removedByFilter: 0 },
+    });
+    // The same rows as r_index_rows × r_total_filtered: rows × filtered compares with them.
+    expect(read!.measured!.rows).toBe(Math.round((349 * 9.742120344) / 100));
   });
 
   it("reads ANALYZE's measured rows, time and rows thrown away", () => {

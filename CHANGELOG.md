@@ -43,6 +43,31 @@
   (`invisible-index-would-serve`, `ignored-index-would-serve`) rather than asking for another, and
   notes every such index on the tables a query reads (`invisible-index`, `ignored-index`), with no
   offer to drop a unique one.
+- **Correlated subqueries on MySQL and SQLite.** A subquery that runs again for each row of the
+  outer query, and reads a whole table each time, got no finding: MySQL's plan reader dropped the
+  subqueries of the select list, `ORDER BY` and `HAVING`, and SQLite's read was taken for one of the
+  query's own. Now the read gets one finding, with the index that makes each run a lookup
+  (`dependent-subquery-scan`, `correlated-scan`, and `-small` for a small table), and Measure it
+  counts the runs of one that already looks its rows up (`dependent-subquery-loops`).
+- **A range that stops MySQL's index early.** With an index on `(page, seconds, device)`,
+  `page = ? AND seconds > ? AND device = ?` searches it by `page` and `seconds` only, and checks
+  `device` on every entry the range reads. The analysis said nothing, since the read used an index.
+  It now advises the index with the equalities first, `(page, device, seconds)`
+  (`range-before-equality`).
+- **The index that groups without a temporary table, on MySQL.** A `GROUP BY` through a temporary
+  table said that "an index that starts with the GROUP BY columns" would help, even when grouping by
+  an expression. Now, when an index on the columns an equality fixes, then the `GROUP BY` columns in
+  their order, would give the rows already grouped, it names that index (`group-without-index`);
+  otherwise it only says the temporary table is built on every run.
+- **SQLite's foreign key checks in writes.** With foreign keys on, a `DELETE` in a parent table, or
+  an `UPDATE` of its key, makes SQLite look for the rows of each child table that reference it, and
+  the plan lists that search as one more read. The analysis took it for a read with nothing to find.
+  It now says when the child has no index on the key, so that each such write reads all of it, and
+  gives the index (`foreign-key-check-scan`).
+- **MariaDB's rowid filter and subquery cache.** A subquery under MariaDB's subquery cache, which
+  the plan dropped with every table it reads, is now in it, so the analysis checks those reads too.
+  In the plan that `explain_query` and the API give, a read with a rowid filter notes the second
+  index it uses (`Using rowid filter (…)`), and a cached subquery how often the cache answered.
 
 ## 0.4.0
 

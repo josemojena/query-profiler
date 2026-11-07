@@ -85,8 +85,14 @@ export async function analyzeQuery(
   const statement = readStatement(query.sql, engine);
   const planned = await explain(database, query, options);
   const plan = "problem" in planned ? undefined : planned;
+  // The tables the plan reads, by their real names, and the ones the SQL does not name: SQLite
+  // reads a child table to check a foreign key in a write.
   const relations: TableName[] = plan
-    ? allSteps(plan.steps).flatMap((step) => (step.relation ? [{ name: step.relation }] : []))
+    ? allSteps(plan.steps).flatMap((step) => {
+        if (step.relation) return [{ name: step.relation }];
+        const unnamed = step.kind === "read" && step.table && !statement.tableOf(step.table);
+        return unnamed ? [{ name: step.table! }] : [];
+      })
     : [];
   // A catalog the connection may not read still leaves the plan and the SQL to look at.
   const tables = await readCatalog(database.run, engine, [...statement.tables, ...relations]).catch(

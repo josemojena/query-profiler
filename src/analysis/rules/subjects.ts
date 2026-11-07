@@ -1,16 +1,20 @@
 import {
+  adviseGroupIndex,
   adviseIndex,
+  adviseKeyOrder,
   adviseSortIndex,
   patternClass,
   patternText,
+  prefixPattern,
   sameTable,
   unservedPrefix,
   usableWrapper,
   wantedColumns,
   writeAdvice,
+  type AdviceInput,
   type IndexAdvice,
 } from "../advisor.js";
-import type { Index, Table, TableName } from "../catalog.js";
+import type { ForeignKey, Index, Table, TableName } from "../catalog.js";
 import { allSteps, type Engine, type Plan, type PlanStep } from "../plan.js";
 import type { Condition, Count, Operand, Query, Statement } from "../statement.js";
 import type { Subject, SubjectKind } from "./engine.js";
@@ -19,6 +23,8 @@ import type { Subject, SubjectKind } from "./engine.js";
 const IMPOSSIBLE =
   /Impossible (?:WHERE|HAVING)(?: noticed after reading const tables)?|no matching row in const table|const row not found|unique row not found|No matching min\/max row|Zero limit|No matching rows after partition pruning/i;
 const TEXT_TYPE = /char|text|enum|set/i;
+// A subquery run again for each row of the outer query: MySQL's dependent one, SQLite's correlated.
+const RERUN = /^Select #\d+ \(.*\bdependent\)$|^CORRELATED (?:SCALAR|LIST) SUBQUERY \d+$/;
 
 /** Fewer rows than this, and reading them all is often what the database should do. */
 export const SMALL_TABLE = 1000;
@@ -87,7 +93,9 @@ function planSubjects(context: Context): Analyzed[] {
   return steps.flatMap((step, position): Analyzed[] => {
     if (step.kind === "read") return [readSubject(step, position)];
     if (step.kind === "sort" || step.kind === "group") {
-      const advice = sortAdvice(context);
+      const sorted = sortAdvice(context);
+      const grouped = step.kind === "group" ? groupAdvice(context) : undefined;
+      const advice = step.kind === "group" ? grouped : sorted;
       return [
         subject(
           step.kind,
@@ -95,7 +103,8 @@ function planSubjects(context: Context): Analyzed[] {
             temporary: step.temporary === true,
             onDisk: step.onDisk === true,
             limited,
-            sortable: advice !== undefined,
+            sortable: sorted !== undefined,
+            groupable: grouped !== undefined,
             measured: step.measured !== undefined,
           },
           {
@@ -117,7 +126,9 @@ function planSubjects(context: Context): Analyzed[] {
       ((step.relation ?? step.table) ? { name: (step.relation ?? step.table)! } : undefined);
     const table = name && context.tables.find((candidate) => sameTable(engine, candidate, name));
     const identity = table ? { schema: table.schema, name: table.name } : name;
-    const inner = innerSide(step);
+    const enforced = table ? enforcedKey(table) : undefined;
+    const inner = innerSide(step) && !enforced;
+    const dependent = rerun(step);
     const input = identity && {
       engine,
       table: identity,
@@ -126,7 +137,7 @@ function planSubjects(context: Context): Analyzed[] {
       params: context.params,
       existing: (table?.indexes ?? []).filter((index) => index.valid !== false),
       columns: table?.columns,
-      joins: inner || filteredElsewhere(identity),
+      joins: inner || dependent || filteredElsewhere(identity),
       version: context.version,
     };
     const wanted = input ? wantedColumns(input) : [];
@@ -141,6 +152,17 @@ function planSubjects(context: Context): Analyzed[] {
           )
         : undefined;
     const advice = hidden ? undefined : visibleAdvice;
+    const partial = input && table ? partialKey(step, table, input) : undefined;
+    const enforcedAdvice =
+      enforced && identity
+        ? writeAdvice(
+            engine,
+            identity,
+            enforced.columns.map((column) => ({ name: column })),
+            context.version,
+          )
+        : undefined;
+    const fixAdvice = advice ?? partial?.advice ?? enforcedAdvice;
     const like = table && identity ? unservedLike(table, identity) : undefined;
     const rows = table?.rows ?? step.rowsRead ?? step.rows;
     const measured = step.measured;
@@ -192,6 +214,9 @@ function planSubjects(context: Context): Analyzed[] {
           !stopsEarly(step),
         manyLoops: (measured?.loops ?? 0) >= MANY_LOOPS,
         inner,
+        dependent,
+        partialKey: partial !== undefined,
+        enforcement: enforced !== undefined,
         joinBuffer: (step.notes ?? []).some((note) => note.startsWith("Using join buffer")),
         wasteful: removed >= WASTED_ROWS && removed >= WASTE * Math.max(measured?.rows ?? 0, 1),
         considered: (step.possibleIndexes?.length ?? 0) > 0 && !step.index,
@@ -218,7 +243,7 @@ function planSubjects(context: Context): Analyzed[] {
       {
         table: identity?.name,
         rows,
-        columns: (advice?.columns ?? wanted).map((column) => column.name).join(", "),
+        columns: (fixAdvice?.columns ?? wanted).map((column) => column.name).join(", "),
         index: step.index,
         filter: step.filter,
         loops: measured?.loops,
@@ -236,9 +261,60 @@ function planSubjects(context: Context): Analyzed[] {
         hidden: hidden?.name,
         like: like?.column,
         operatorClass: patternClass(like?.type),
+        used: partial?.used.join(", "),
+        last: partial?.used.at(-1),
+        skipped: partial?.skipped.join(", "),
+        references: enforced?.references.table,
       },
-      { advice, step: position, table: identity },
+      { advice: fixAdvice, step: position, table: identity },
     );
+  }
+
+  // The index the read looks up by, used only up to a range on one of its columns: an equality on
+  // a later column is checked on each entry the range reads instead of narrowing it.
+  function partialKey(step: PlanStep, table: Table, input: AdviceInput) {
+    if (step.access !== "index" && step.access !== "index-only") return undefined;
+    const index = table.indexes.find(
+      (each) => each.name.toLowerCase() === step.index?.toLowerCase(),
+    );
+    if (!index || index.expression || (index.method && !/^btree$/i.test(index.method)))
+      return undefined;
+    const lookup = step.lookup ?? "";
+    const reach = index.columns.findIndex((column) => !mentions(lookup, column));
+    const used = index.columns.slice(0, reach < 0 ? index.columns.length : reach);
+    if (!used.length || used.length === index.columns.length) return undefined;
+    const own = conditions.filter(
+      (condition) =>
+        !condition.alternative &&
+        condition.clause !== "having" &&
+        usableWrapper(condition.wrapper) &&
+        condition.value.kind !== "column" &&
+        condition.column.table !== undefined &&
+        sameTable(engine, condition.column.table, input.table),
+    );
+    const on = (column: string) => own.filter((condition) => condition.column.column === column);
+    const ranged = on(used.at(-1)!).some(
+      (condition) => condition.kind === "range" || prefixPattern(condition, context.params),
+    );
+    const skipped = index.columns
+      .slice(used.length)
+      .filter((column) =>
+        on(column).some((condition) => condition.kind === "equality" || condition.kind === "null"),
+      );
+    const advice = ranged && skipped.length ? adviseKeyOrder(input) : undefined;
+    return advice ? { used, skipped, advice } : undefined;
+  }
+
+  // In a DELETE or UPDATE, a read of a table the SQL does not name, with a foreign key to the
+  // table written: the rows that reference the ones deleted or re-keyed, found to check the key.
+  function enforcedKey(table: Table): ForeignKey | undefined {
+    const target = statement.query.tables[0]?.table;
+    if (!written || !target || statement.tables.some((named) => sameTable(engine, named, table)))
+      return undefined;
+    const keys = table.foreignKeys.filter((key) =>
+      sameTable(engine, { name: key.references.table }, target),
+    );
+    return keys.find((key) => !keyIndexed(engine, table, key)) ?? keys[0];
   }
 
   // A LIKE with a fixed start on this table that a plain index would not serve, and none of its indexes does.
@@ -270,6 +346,13 @@ function planSubjects(context: Context): Analyzed[] {
     // SQLite lists the tables of a join in loop order, outer first, as siblings.
     const siblings = parents.get(step)?.children ?? plan!.steps;
     return siblings.filter((sibling) => sibling.kind === "read").indexOf(step) > 0;
+  }
+
+  // Inside a subquery that runs again for each outer row, which reads the table each time.
+  function rerun(step: PlanStep): boolean {
+    for (let parent = parents.get(step); parent; parent = parents.get(parent))
+      if (RERUN.test(parent.label)) return true;
+    return false;
   }
 
   // Under a LIMIT, in a semi or anti join (EXISTS, NOT EXISTS), or on a merge join's inner side,
@@ -347,6 +430,31 @@ function sortAdvice(context: Context): IndexAdvice | undefined {
     params: context.params,
     existing: table.indexes.filter((index) => index.valid !== false),
     columns: table.columns,
+  });
+}
+
+function groupAdvice(context: Context): IndexAdvice | undefined {
+  const { statement, engine } = context;
+  const { groupBy, groupsByExpression } = statement.query;
+  const owner = groupBy[0]?.table;
+  if (
+    !owner ||
+    groupsByExpression ||
+    groupBy.some((column) => !column.table || !sameTable(engine, column.table, owner))
+  )
+    return undefined;
+  const table = context.tables.find((candidate) => sameTable(engine, candidate, owner));
+  if (!table) return undefined;
+  return adviseGroupIndex({
+    engine,
+    version: context.version,
+    table: { schema: table.schema, name: table.name },
+    conditions: statement.query.conditions,
+    orderBy: [],
+    params: context.params,
+    existing: table.indexes.filter((index) => index.valid !== false),
+    columns: table.columns,
+    groupBy: groupBy.map((column) => column.column),
   });
 }
 
@@ -486,23 +594,28 @@ function querySubject({ statement, params, tables, plan, engine, returned }: Con
   );
 }
 
+/** Whether an index finds the rows of a foreign key's columns. */
+function keyIndexed(engine: Engine, table: Table, key: ForeignKey): boolean {
+  const columns = new Set(key.columns);
+  // A lookup by the key's columns needs a B-tree leading with them, or a hash on just one.
+  return table.indexes.some(
+    (index) =>
+      index.valid !== false &&
+      !index.expression &&
+      !index.where &&
+      (engine === "sqlite" ||
+        index.method === undefined ||
+        /^btree$/i.test(index.method) ||
+        (/^hash$/i.test(index.method) && index.columns.length === 1 && columns.size === 1)) &&
+      index.columns.slice(0, columns.size).every((column) => columns.has(column)) &&
+      index.columns.length >= columns.size,
+  );
+}
+
 function foreignKeySubjects({ tables, engine, version }: Context): Analyzed[] {
   return tables.flatMap((table) =>
     table.foreignKeys.map((key) => {
-      const columns = new Set(key.columns);
-      // A lookup by the key's columns needs a B-tree leading with them, or a hash on just one.
-      const indexed = table.indexes.some(
-        (index) =>
-          index.valid !== false &&
-          !index.expression &&
-          !index.where &&
-          (engine === "sqlite" ||
-            index.method === undefined ||
-            /^btree$/i.test(index.method) ||
-            (/^hash$/i.test(index.method) && index.columns.length === 1 && columns.size === 1)) &&
-          index.columns.slice(0, columns.size).every((column) => columns.has(column)) &&
-          index.columns.length >= columns.size,
-      );
+      const indexed = keyIndexed(engine, table, key);
       const identity = { schema: table.schema, name: table.name };
       return subject(
         "foreign-key",

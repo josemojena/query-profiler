@@ -54,6 +54,8 @@ export interface Query {
   conditions: Condition[];
   orderBy: SortKey[];
   groupBy: ColumnReference[];
+  /** Some GROUP BY item is an expression or a position, not a plain column. */
+  groupsByExpression?: boolean;
   limit?: Count;
   offset?: Count;
   distinct: boolean;
@@ -407,6 +409,7 @@ export function readStatement(sql: string, engine: Engine): Statement {
       for (const item of items(group)) {
         const found = term(item, scope);
         if (found?.kind === "column") result.groupBy.push(found.column);
+        if (found?.kind !== "column" || found.wrapper) result.groupsByExpression = true;
       }
     filter(parts.get("HAVING"), "having", result, scope);
     const order = parts.get("ORDER");

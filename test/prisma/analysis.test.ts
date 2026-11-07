@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { analyzeQuery, tryIndex, type Analysis } from "../../src/analysis/analyze.js";
+import { allSteps } from "../../src/analysis/plan.js";
 import { prismaNames, readSchema } from "../../src/analysis/schema.js";
 import { analyzeSession } from "../../src/analysis/session.js";
 import {
@@ -438,6 +439,157 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     );
     expect(rules(analysis)).toContain("automatic-index");
   });
+
+  it.runIf(engine === "mysql" || engine === "sqlite")(
+    "finds a correlated subquery that reads a whole table again for each outer row, and the index that makes each run a lookup",
+    async () => {
+      const { analysis } = await analyze(
+        `SELECT a.id, (SELECT COUNT(*) FROM qp_post p WHERE p.title = a.name) AS c FROM qp_author a`,
+      );
+      const rule = engine === "mysql" ? "dependent-subquery-scan" : "correlated-scan";
+      expect(finding(analysis, rule)).toMatchObject({
+        severity: "problem",
+        table: "qp_post",
+        fix: { prisma: "@@index([title])" },
+      });
+      // One finding for the read, not another that takes it for a read of its own.
+      expect(
+        analysis.findings
+          .filter((each) => each.about === "query" && each.table === "qp_post")
+          .map(({ rule }) => rule),
+      ).toEqual([rule]);
+      // A table joined inside the subquery is the join's to tell.
+      const { analysis: joined } = await analyze(
+        `SELECT a.id, (SELECT COUNT(*) FROM qp_post p JOIN qp_fresh f ON f.kind = p.status WHERE p.author_id = a.id) AS c FROM qp_author a WHERE a.id < 10`,
+      );
+      const onJoined = joined.findings
+        .filter((each) => each.about === "query" && each.table === "qp_fresh")
+        .map(({ rule }) => rule);
+      expect(onJoined).toContain(engine === "mysql" ? "join-buffer" : "automatic-index");
+      expect(onJoined).not.toContain(rule);
+    },
+  );
+
+  it.runIf(engine === "mysql")(
+    "counts the runs of a correlated subquery that looks its rows up through an index",
+    async () => {
+      const sql = `SELECT a.id, (SELECT COUNT(*) FROM qp_post p WHERE p.author_id = a.id) AS c FROM qp_author a`;
+      const { analysis } = await analyze(sql, [], { measure: true });
+      expect(finding(analysis, "dependent-subquery-loops")).toMatchObject({
+        table: "qp_post",
+        message: expect.stringContaining("1,000 times"),
+      });
+      const { analysis: estimated } = await analyze(sql);
+      expect(
+        estimated.findings.filter((each) => each.about === "query" && each.table === "qp_post"),
+      ).toEqual([]);
+    },
+  );
+
+  it.runIf(engine === "mysql")(
+    "finds a range that stops an index before a column an equality fixes, and the index with the equalities first",
+    async () => {
+      const sql = `SELECT id FROM qp_visit WHERE page = ? AND seconds > ? AND device = ?`;
+      for (const measure of [false, true]) {
+        const { analysis } = await analyze(sql, ["page-7", 900, "phone"], { measure });
+        expect(finding(analysis, "range-before-equality")).toMatchObject({
+          table: "qp_visit",
+          message: expect.stringContaining(
+            "through qp_visit_page_seconds_device_idx by page, seconds only",
+          ),
+          fix: { prisma: "@@index([page, device, seconds])" },
+        });
+      }
+      const { analysis: whole } = await analyze(
+        `SELECT id FROM qp_visit WHERE page = ? AND seconds = ? AND device = ?`,
+        ["page-7", 900, "phone"],
+      );
+      expect(rules(whole)).not.toContain("range-before-equality");
+    },
+  );
+
+  it.runIf(engine === "mysql")(
+    "finds a grouping through a temporary table that an index would give already grouped",
+    async () => {
+      const { analysis } = await analyze(`SELECT title, COUNT(*) FROM qp_post GROUP BY title`);
+      expect(finding(analysis, "group-without-index")).toMatchObject({
+        table: "qp_post",
+        fix: { prisma: "@@index([title])" },
+      });
+      expect(rules(analysis)).not.toContain("temporary-group");
+      const { analysis: filtered } = await analyze(
+        `SELECT seconds, COUNT(*) FROM qp_visit WHERE device = ? GROUP BY seconds`,
+        ["phone"],
+      );
+      expect(finding(filtered, "group-without-index")!.fix!.prisma).toBe(
+        "@@index([device, seconds])",
+      );
+      // MySQL keeps the index that finds page's rows, and groups them in a temporary table even
+      // when an index on page and device exists.
+      const { analysis: found } = await analyze(
+        `SELECT device, COUNT(*) FROM qp_visit WHERE page = ? GROUP BY device`,
+        ["page-7"],
+      );
+      const { analysis: expression } = await analyze(
+        `SELECT LEFT(title, 6), COUNT(*) FROM qp_post GROUP BY LEFT(title, 6)`,
+      );
+      for (const each of [found, expression]) {
+        expect(rules(each)).toContain("temporary-group");
+        expect(rules(each)).not.toContain("group-without-index");
+      }
+    },
+  );
+
+  it.runIf(engine === "sqlite")(
+    "finds a write that makes SQLite read a whole table to check a foreign key, and the index that finds the rows",
+    async () => {
+      for (const sql of [
+        `DELETE FROM qp_author WHERE id = ?`,
+        `UPDATE qp_author SET id = id + 100000 WHERE id = ?`,
+      ]) {
+        const { analysis } = await analyze(sql, [999_999]);
+        expect(finding(analysis, "foreign-key-check-scan")).toMatchObject({
+          severity: "problem",
+          table: "qp_post",
+          message: expect.stringContaining(
+            "in qp_author makes SQLite look for the rows of qp_post",
+          ),
+          fix: { prisma: "@@index([author_id])" },
+        });
+      }
+      // Only a change to the key checks it.
+      const { analysis: renamed } = await analyze(`UPDATE qp_author SET name = ? WHERE id = ?`, [
+        "Author",
+        999_999,
+      ]);
+      expect(rules(renamed)).not.toContain("foreign-key-check-scan");
+    },
+  );
+
+  it.runIf(engine === "mariadb")(
+    "reads a rowid filter and a subquery cache, and finds no misestimate in a read they narrow",
+    async () => {
+      const { analysis } = await analyze(
+        `SELECT id, title FROM qp_post WHERE status = ? AND created_at > ? AND views < ?`,
+        ["draft", "2026-01-05", 60],
+        { measure: true },
+      );
+      const [read] = allSteps(analysis.plan!.steps).filter((step) => step.kind === "read");
+      expect(read!.notes).toContain("Using rowid filter (qp_post_status_created_idx)");
+      // The estimate counts the rowid filter in, and the measured rows come after it.
+      expect(read!.rows! / read!.measured!.rows).toBeGreaterThan(0.5);
+      expect(read!.rows! / read!.measured!.rows).toBeLessThan(2);
+      expect(rules(analysis)).not.toContain("misestimated-rows");
+      const { analysis: cached } = await analyze(
+        `SELECT a.id, (SELECT COUNT(*) FROM qp_post p WHERE p.title = a.country) AS c FROM qp_author a`,
+        [],
+        { measure: true },
+      );
+      const inside = allSteps(cached.plan!.steps).find((step) => step.table === "p")!;
+      expect(inside.notes).toEqual(["Subquery cache: 996 of 1,000 runs answered from the cache"]);
+      expect(inside.measured!.loops).toBe(4);
+    },
+  );
 
   it("tries the suggested index in a transaction it rolls back, where the engine can undo it", async () => {
     const { query, analysis } = await analyze(`SELECT id FROM qp_post WHERE title = ${p(1)}`, [

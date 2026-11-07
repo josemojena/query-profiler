@@ -1,0 +1,78 @@
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "101.75"
+    },
+    "table": {
+      "table_name": "a",
+      "access_type": "ALL",
+      "possible_keys": ["PRIMARY"],
+      "rows_examined_per_scan": 1000,
+      "rows_produced_per_join": 1000,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "1.75",
+        "eval_cost": "100.00",
+        "prefix_cost": "101.75",
+        "data_read_per_join": "2M"
+      },
+      "used_columns": ["id", "name", "email"],
+      "attached_condition": "((`query_profiler_test`.`a`.`id` < 50) or exists(/* select#3 */ select 1 from `query_profiler_test`.`qp_post` `p` where (`query_profiler_test`.`p`.`title` = `query_profiler_test`.`a`.`email`)))",
+      "attached_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 3,
+            "cost_info": {
+              "query_cost": "2047.05"
+            },
+            "table": {
+              "table_name": "p",
+              "access_type": "ALL",
+              "rows_examined_per_scan": 19908,
+              "rows_produced_per_join": 1990,
+              "filtered": "10.00",
+              "cost_info": {
+                "read_cost": "56.25",
+                "eval_cost": "199.08",
+                "prefix_cost": "2047.05",
+                "data_read_per_join": "2M"
+              },
+              "used_columns": ["title"],
+              "attached_condition": "(`query_profiler_test`.`p`.`title` = `query_profiler_test`.`a`.`email`)"
+            }
+          }
+        }
+      ]
+    },
+    "select_list_subqueries": [
+      {
+        "dependent": true,
+        "cacheable": false,
+        "query_block": {
+          "select_id": 2,
+          "cost_info": {
+            "query_cost": "2047.05"
+          },
+          "table": {
+            "table_name": "p",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 19908,
+            "rows_produced_per_join": 1990,
+            "filtered": "10.00",
+            "cost_info": {
+              "read_cost": "56.25",
+              "eval_cost": "199.08",
+              "prefix_cost": "2047.05",
+              "data_read_per_join": "2M"
+            },
+            "used_columns": ["title"],
+            "attached_condition": "(`query_profiler_test`.`p`.`title` = `query_profiler_test`.`a`.`name`)"
+          }
+        }
+      }
+    ]
+  }
+}
