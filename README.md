@@ -34,14 +34,14 @@ and leaves nothing in production builds.
 | Framework  | Any Node server: Express, Fastify, Koa, Hapi, NestJS, Hono           |
 
 Prisma 6 is not supported: it has no SQL comments, and its query engine runs the driver adapter
-outside the request's async context. Next.js is planned.
+outside the request's async context.
 
 query-profiler is an independent project, not affiliated with Prisma or React Router.
 
 ## Entry points
 
 One package, one entry per integration. Import only the ones you use: the frameworks and drivers
-are optional peer dependencies, so installing `query-profiler` never pulls in Next.js, React or Vite, and
+are optional peer dependencies, so installing `query-profiler` never pulls in Vite, Prisma or `pg`, and
 an entry you don't import is never loaded.
 
 | Import                    | What it does                                                                                                                  | Needs                       |
