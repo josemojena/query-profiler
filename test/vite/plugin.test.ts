@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createServer as createHttpServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { createServer, type Plugin, type UserConfig, type ViteDevServer } from "vite";
+import { createLogger, createServer, type Plugin, type UserConfig, type ViteDevServer } from "vite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   beginQuery,
@@ -57,6 +57,7 @@ describe("the Vite plugin", () => {
     let http: Server;
     let origin: string;
     let profilerPort: number;
+    const logged: string[] = [];
 
     beforeAll(async () => {
       vi.stubEnv("NODE_ENV", "development");
@@ -67,8 +68,11 @@ describe("the Vite plugin", () => {
       vi.stubEnv("QUERY_PROFILER_PORT", String(profilerPort));
       vite = await createServer({
         configFile: false,
-        logLevel: "silent",
         appType: "custom",
+        customLogger: {
+          ...createLogger("silent"),
+          info: (line: string) => void logged.push(line),
+        },
         plugins: [queryProfiler(), app],
         server: { middlewareMode: true, hmr: false },
       });
@@ -117,6 +121,14 @@ describe("the Vite plugin", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it("says where AI agents reach the profiler's MCP", async () => {
+      await vi.waitFor(() =>
+        expect(logged).toContain(
+          `[query-profiler] MCP: http://localhost:${profilerPort}/_profiler/mcp`,
+        ),
+      );
     });
 
     it("serves the bar's code as a module Vite compiles", async () => {
