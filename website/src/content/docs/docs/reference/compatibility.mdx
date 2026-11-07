@@ -31,8 +31,8 @@ The [preload](/docs/guides/node) works with any framework that serves through No
 CI runs the same requests, with Prisma against PostgreSQL, in each of these:
 
 - **Express 4.18 and later**, 5 included, tested on 4.18.0, 5.0.0 and the newest. Before 4.18,
-  Express's body parser drops the request's async context: a route that reads a body loses its
-  queries.
+  Express's body parser drops the request's async context: a route that reads a body has its
+  queries in a background profile instead.
 - **Fastify**, tested on 4.26.0, 5.0.0 and the newest.
 - **Koa 3**, **Hapi 21**, **NestJS 12** on Express, and **Hono 4** on `@hono/node-server`.
 

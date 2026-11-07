@@ -3,51 +3,105 @@ import { integrations } from "../../data/integrations";
 import { link } from "../../data/site";
 import Logo from "./Logo.astro";
 
-// The landing page lists only what works today; the compatibility page also shows what is coming.
-const supported = integrations.filter((integration) => integration.status === "ready");
+// The landing page lists only what works today, as the profiler sits: any of these servers, Prisma
+// between, any of these databases. The compatibility page also shows what is coming.
+const ready = integrations.filter((integration) => integration.status === "ready");
+const frameworks = ready.filter((integration) => integration.kind === "framework");
+const databases = ready.filter((integration) => integration.kind === "database");
+const orm = ready.find((integration) => integration.kind === "orm")!;
 ---
 
 <section class="wrap works">
   <div class="eyebrow">-- works with</div>
-  <h2 class="title">Prisma first. Your framework next.</h2>
+  <h2 class="title">Any of these servers. Any of these databases.</h2>
+  <p class="lead">Every pair works: the profiler sits on Prisma, between the two.</p>
   <div class="panel result">
     <div class="query">
-      <span class="k">SELECT</span> logo, name, versions <span class="k">FROM</span> integrations{" "}
-      <span class="k">WHERE</span> status = <span class="s">'ready'</span>;
+      <span class="k">SELECT</span> f.name, d.name <span class="k">FROM</span> frameworks f{" "}
+      <span class="k">CROSS JOIN</span> databases d;
     </div>
-    <ul class="rows">
-      {
-        supported.map((integration) => (
-          <li>
-            <Logo icon={integration.logo} name={integration.name} />
-            {integration.guide ? (
-              <a class="name" href={link(integration.guide)}>{integration.name}</a>
-            ) : (
-              <span class="name">{integration.name}</span>
-            )}
-            <span class="versions">{integration.versions ?? "—"}</span>
-          </li>
-        ))
-      }
-    </ul>
-    <div class="count">({supported.length} rows)</div>
+    <div class="join">
+      <div class="side">
+        <h3>Frameworks</h3>
+        <ul class="rows">
+          {
+            frameworks.map((integration) => (
+              <li>
+                <Logo icon={integration.logo} name={integration.name} />
+                <a class="name" href={link(integration.guide!)}>{integration.name}</a>
+                <span class="versions">{integration.versions}</span>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+      <div class="link to-orm" aria-hidden="true"></div>
+      <div class="orm">
+        <Logo icon={orm.logo} name={orm.name} />
+        <a class="orm-name" href={link(orm.guide!)}>{orm.name} {orm.versions}</a>
+        <span class="how">its driver adapter and client extension</span>
+        <span class="profiler">query-profiler</span>
+      </div>
+      <div class="link from-orm" aria-hidden="true"></div>
+      <div class="side">
+        <h3>Databases</h3>
+        <ul class="rows">
+          {
+            databases.map((integration) => (
+              <li>
+                <Logo icon={integration.logo} name={integration.name} />
+                <a class="name" href={link(integration.guide!)}>{integration.name}</a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </div>
+    <div class="count">
+      ({frameworks.length} × {databases.length} = {frameworks.length * databases.length} rows)
+    </div>
   </div>
 </section>
 
 <style>
   .works { padding-block: 0 80px; }
+  .works .lead { margin-top: 10px; }
   .result { margin-top: 24px; overflow: hidden; font: 14px var(--mono); }
   .query { padding: 14px 18px; border-bottom: 1px solid var(--line); color: var(--muted); overflow-x: auto; white-space: nowrap; }
-  .s { color: var(--string); }
-  /* Two columns of rows, so a longer list stays short; one column on a phone. */
-  .rows { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .rows li { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px 18px; border-bottom: 1px solid #1c2130; }
-  .rows li:nth-child(odd) { border-right: 1px solid #1c2130; }
+  /* Frameworks, Prisma, databases: two brackets gather each side's rows into Prisma. */
+  .join {
+    display: grid; align-items: center; padding: 22px 18px 8px;
+    grid-template-columns: minmax(0, 1.25fr) 56px minmax(180px, 0.8fr) 56px minmax(0, 1fr);
+  }
+  .side h3 { margin: 0 0 8px; font: 500 12px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
+  .rows { list-style: none; margin: 0; padding: 0; }
+  .rows li { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 8px 12px; border-radius: 8px; }
+  .rows li:hover { background: var(--track); }
   .name { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .versions { margin-left: auto; padding-left: 12px; color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  /* Each side's rows get a bracket, halfway across the gap; one line runs from it to Prisma. */
+  .rows { position: relative; }
+  .rows::after { content: ""; position: absolute; top: 18px; bottom: 18px; border-left: 1px solid var(--line-strong); }
+  .side:first-child .rows::after { right: -28px; }
+  .side:last-child .rows::after { left: -28px; }
+  .link { position: relative; align-self: stretch; }
+  .link::after { content: ""; position: absolute; top: calc(50% + 14px); width: 50%; border-top: 1px solid var(--line-strong); }
+  .to-orm::after { left: 50%; }
+  .from-orm::after { right: 50%; }
+  .orm {
+    display: grid; gap: 10px; justify-items: center; text-align: center; margin-top: 24px;
+    padding: 18px 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface-2);
+  }
+  .orm :global(.logo) { width: 30px; height: 30px; color: var(--ink); }
+  .orm-name { font-weight: 600; color: var(--ink); }
+  .how { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+  .profiler { width: 100%; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--blue); }
   .count { padding: 10px 18px; color: var(--dim); font-size: 13px; }
-  @media (max-width: 560px) {
-    .rows { grid-template-columns: 1fr; }
-    .rows li:nth-child(odd) { border-right: 0; }
+  /* On a narrow screen the three stack, joined by one line. */
+  @media (max-width: 860px) {
+    .join { grid-template-columns: 1fr; gap: 6px; }
+    .link { height: 26px; background: linear-gradient(var(--line-strong), var(--line-strong)) center / 1px 100% no-repeat; }
+    .link::after, .rows::after { display: none; }
+    .orm { margin-top: 0; }
   }
 </style>
