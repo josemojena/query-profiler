@@ -1,6 +1,6 @@
 {
   "name": "query-profiler",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "The database profiler for Prisma ORM, in development: every operation and SQL statement of a request, the line of code behind it, N+1, slow and duplicate warnings, in a bar on your pages.",
   "keywords": [
     "database",

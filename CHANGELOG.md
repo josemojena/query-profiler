@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.4.1
+
+Fixes to the query analysis and the bar. The index advice uses your schema's names and is one the
+database can use; the analysis spots the correlated subqueries, partly used keys, groupings and
+foreign key checks it missed; Try this index says when it cannot tell; Stats says what it counts;
+and the bar fits a narrow screen.
 
 ### Fixed
 
