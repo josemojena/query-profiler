@@ -75,7 +75,7 @@ const ORDER: Record<Severity, number> = { problem: 0, warning: 1, info: 2 };
 /** A query's plan, its tables in the catalog, and what the rules find in them. */
 export async function analyzeQuery(
   database: Database,
-  query: { sql: string; params: unknown[] },
+  query: { sql: string; params: unknown[]; rows?: number },
   options: { measure?: boolean } = {},
 ): Promise<Analysis> {
   const { engine, version } = await engineOf(database);
@@ -89,7 +89,15 @@ export async function analyzeQuery(
   const tables = await readCatalog(database.run, engine, [...statement.tables, ...relations]).catch(
     () => [],
   );
-  const found = subjects({ engine, version, statement, plan, tables, params: query.params });
+  const found = subjects({
+    engine,
+    version,
+    statement,
+    plan,
+    tables,
+    params: query.params,
+    returned: query.rows,
+  });
   return {
     engine,
     version,
@@ -101,14 +109,18 @@ export async function analyzeQuery(
 
 /** What the rules find in a query's SQL and parameters alone, without asking the database. */
 export function readFindings(
-  query: { sql: string; params: unknown[] },
+  query: { sql: string; params: unknown[]; rows?: number },
   provider: Provider,
 ): Finding[] {
   const engine: Engine = provider;
   const statement = readStatement(query.sql, engine);
-  const found = subjects({ engine, statement, tables: [], params: query.params }).filter(
-    (subject) => subject.kind === "condition" || subject.kind === "query",
-  );
+  const found = subjects({
+    engine,
+    statement,
+    tables: [],
+    params: query.params,
+    returned: query.rows,
+  }).filter((subject) => subject.kind === "condition" || subject.kind === "query");
   return findingsOf(found, engine, "");
 }
 

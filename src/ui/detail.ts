@@ -6,7 +6,7 @@ import type {
   StackFrame,
   Warning,
 } from "../core/index.js";
-import { clue, explainLink, toolsRow, type AnalysisView } from "./analysis.js";
+import { clue, explainLink, fixLink, toolsRow, type AnalysisView } from "./analysis.js";
 import { count } from "./count.js";
 import {
   editorLink,
@@ -128,7 +128,7 @@ function queriesTab(context: Detail, profile: Profile): string {
           ? row.queries
               .map(
                 (query) =>
-                  `<tr class="child"><td></td><td><div class="sub">params ${escape(compact(query.params, 120))}</div></td><td class="dur">${ms(query.durationMs)}</td><td></td></tr>`,
+                  `<tr class="child"><td></td><td><div class="sub">params ${escape(compact(query.params, 120))}</div></td><td class="rows">${rowsOf(query)}</td><td class="dur">${ms(query.durationMs)}</td><td></td></tr>`,
               )
               .join("")
           : "";
@@ -137,14 +137,32 @@ function queriesTab(context: Detail, profile: Profile): string {
         <td>
           <div class="sql mono ${expanded ? "formatted" : "clip"}" data-action="expand" data-id="${escape(first.id)}">${expanded ? highlightSql(formatSql(first.sql)) : escape(first.sql)}${badges}</div>
           ${expanded ? "" : clue(context.analysis, first)}
-          <div class="meta"><div class="sub">${escape(what)}${detail ? ` · ${detail}` : ""}${first.error ? ` · <span class="badge error">${escape(first.error.code ?? "")}</span> ${escape(first.error.message)}` : ""}</div>${expanded ? "" : explainLink(first)}</div>
+          <div class="meta"><div class="sub">${escape(what)}${detail ? ` · ${detail}` : ""}${first.error ? ` · <span class="badge error">${escape(first.error.code ?? "")}</span> ${escape(first.error.message)}` : ""}</div>${expanded ? "" : `<span class="links">${row.repeated ? fixLink(first) : ""}${explainLink(first)}</span>`}</div>
         </td>
+        <td class="rows">${rowsCell(row.queries)}</td>
         <td class="dur">${row.repeated ? `${row.queries.length} × ${ms(average)}` : `<b>${ms(first.durationMs)}</b>`}<div class="meter ${tone}" style="width:${Math.max(4, ((row.repeated ? average : (first.durationMs ?? 0)) / longest) * 100)}%"></div></td>
         ${originCell(context, originOf(profile, first))}
-      </tr>${expanded ? toolsRow(context.analysis, first, row.queries.length) : ""}${children}`;
+      </tr>${expanded ? toolsRow(context.analysis, first, row.queries.length, context.root) : ""}${children}`;
     })
     .join("");
-  return `<table><thead><tr><th>#</th><th>SQL · operation</th><th>Duration</th><th>Origin</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table><thead><tr><th>#</th><th>SQL · operation</th><th>Rows</th><th>Duration</th><th>Origin</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/** The rows a query returned, or the rows a write changed. */
+const rowsOf = (query: QueryRecord) =>
+  query.rows !== undefined
+    ? query.rows.toLocaleString("en-US")
+    : query.changedRows !== undefined
+      ? `${query.changedRows.toLocaleString("en-US")} changed`
+      : "–";
+
+/** One query's rows; for an N+1, the rows of each run, or of all of them when they differ. */
+function rowsCell(queries: QueryRecord[]): string {
+  if (queries.length === 1) return rowsOf(queries[0]!);
+  const each = new Set(queries.map(rowsOf));
+  if (each.size === 1) return `${queries.length} × ${[...each][0]}`;
+  const total = queries.reduce((sum, query) => sum + (query.rows ?? 0), 0);
+  return `${total.toLocaleString("en-US")} in all`;
 }
 
 function operationsTab(context: Detail, profile: Profile): string {
@@ -160,11 +178,18 @@ function operationsTab(context: Detail, profile: Profile): string {
           ${op.error ? `<div class="sub">${escape(op.error.message)}</div>` : ""}</td>
         <td class="dur"><b>${ms(op.durationMs)}</b><div class="meter" style="width:${Math.max(4, ((op.durationMs ?? 0) / longest) * 100)}%"></div></td>
         <td>${count(op.queryIds.length, "query", "queries")}</td>
+        <td class="rows">${operationRows(profile, op)}</td>
         ${originCell(context, op.origin)}
       </tr>`,
     )
     .join("");
-  return `<table><thead><tr><th>#</th><th>Operation · args</th><th>Duration</th><th>SQL</th><th>Origin</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table><thead><tr><th>#</th><th>Operation · args</th><th>Duration</th><th>SQL</th><th>Rows</th><th>Origin</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/** An operation's rows: those of its first statement, the one on its own model. */
+function operationRows(profile: Profile, op: OperationRecord): string {
+  const first = profile.queries.find((query) => query.id === op.queryIds[0]);
+  return first ? rowsOf(first) : "–";
 }
 
 function timelineTab(profile: Profile): string {
@@ -233,7 +258,7 @@ function warningsTab(context: Detail, profile: Profile): string {
       const query = profile.queries.find((q) => q.id === warning.queryIds[0]);
       return `<tr class="warn">
         <td><span class="badge ${warning.kind === "n+1" ? "n1" : warning.kind === "truncated" ? "slow" : warning.kind}">${warning.kind === "n+1" ? "N+1" : warning.kind}</span></td>
-        <td>${escape(WARNING_TEXT[warning.kind](warning.queryIds.length, profile))}${query ? `<div class="sub mono sql clip">${escape(query.sql)}</div>` : ""}</td>
+        <td>${escape(WARNING_TEXT[warning.kind](warning.queryIds.length, profile))}${query ? `<div class="sub mono sql clip">${escape(query.sql)}</div>` : ""}${warning.kind === "n+1" && query ? `<div class="links">${fixLink(query)}</div>` : ""}</td>
         ${query ? originCell(context, originOf(profile, query)) : "<td></td>"}
       </tr>`;
     })

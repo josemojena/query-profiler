@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { fixesOf } from "../core/analysis-http.js";
 import { formatProfile, formatWarnings, shownPath, type Profile } from "../core/index.js";
 
 const SEND_TIMEOUT_MS = 2000;
@@ -19,7 +20,7 @@ export const scriptName = (file = process.argv[1]) => (file ? shownPath(file) : 
 export function scriptReport(profile: Profile, profilerUrl?: string): string {
   return [
     formatProfile(profile),
-    ...formatWarnings(profile).map((line) => `  ${line}`),
+    ...formatWarnings(profile, fixesOf(profile)).map((line) => `  ${line}`),
     ...(profilerUrl ? [`  ${profilerUrl}/${profile.token}`] : []),
   ].join("\n");
 }

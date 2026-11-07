@@ -32,5 +32,6 @@ export const COMMON: Rule[] = [
   ["buried-join", "read", "mysql mariadb sqlite", "inner & (full | indexFull) & buried", "problem", "Reads {table} again for every joined row: the index {buriedIn} has {columns}, but after {leading}, so it cannot look them up.", "index"],
   ["paging-without-order", "query", "*", "paged & unordered", "warning", "Skips {offset} rows with no ORDER BY: the rows come in no fixed order, so pages can repeat or miss rows."],
   ["full-scan-broad-filter","read","*","full & served & broad & !small","info","Reads every row of {table}: about {share}% of them match, so its index on {columns} would not save reads."],
+  ["many-rows","query","*","manyRows & !limited & !write","warning","Returned {returned} rows with no limit: if the page shows fewer, take or a cursor reads only those.",undefined,"https://www.prisma.io/docs/orm/prisma-client/queries/pagination"],
   ["unstable-order","query","*","unstableOrder & paged","warning","Pages through {table} ordered by {keys}, which several rows can share: rows with the same values can land on either page, so pages can repeat or miss rows. Add a unique column, such as id, last in the order."],
 ];

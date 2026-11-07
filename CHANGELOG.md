@@ -4,6 +4,20 @@
 
 ### New
 
+- **The rows of each query.** Each query keeps the rows it returned, or the rows a write changed
+  (`rows`, `changedRows`), from Prisma's driver adapter and from `pg`, on every engine. Queries and
+  Operations have a **Rows** column; an N+1 row shows the rows of each run.
+- **Fix the N+1 ›**, on an N+1 row and on the N+1 warning. It says what repeats, which value changes
+  each time and which earlier query those values came from, then the code that replaces the loop,
+  best first, each with the queries it saves and **Copy**: `_count` or `include` in the query
+  before, `groupBy`, `findMany` with `in`, `createMany`, `createManyAndReturn` with `createMany` for
+  nested creates, `updateMany`, `deleteMany`. When no single query replaces the loop, it says so.
+  The relation names come from the app's `schema.prisma`, which the profiler finds by itself.
+- **A hint for many rows**: a read with no limit that returned 1,000 rows or more (rule
+  `many-rows`).
+- **A script's terminal summary** ends an N+1's line with its fix: `→ createMany: 2 queries
+  instead of 30`.
+- **New route**: `GET /api/profiles/:token/fixes`.
 - **Query analysis.** Every query the database can be asked about has **Explain ›** in the Queries
   tab, of the bar and of `/_profiler`. It opens the query's tools, in a row of their own under it:
   - **Explain plan**: the database's estimated plan, read into the same steps for every engine

@@ -3,13 +3,13 @@
   "profiles": [
     {
       "schemaVersion": 1,
-      "token": "3900a9",
+      "token": "54273a",
       "kind": "document",
       "request": {
         "method": "GET",
         "url": "/"
       },
-      "startedAt": 1793872357994,
+      "startedAt": 1794003051641,
       "framework": {
         "name": "react-router"
       },
@@ -21,9 +21,10 @@
           "args": {
             "orderBy": {
               "id": "asc"
-            }
+            },
+            "take": 6
           },
-          "startMs": 0.26,
+          "startMs": 2.03,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -33,7 +34,7 @@
             }
           ],
           "queryIds": ["q_2"],
-          "durationMs": 2.08
+          "durationMs": 4.29
         },
         {
           "id": "op_3",
@@ -41,10 +42,10 @@
           "action": "count",
           "args": {
             "where": {
-              "authorId": 7
+              "authorId": 1
             }
           },
-          "startMs": 2.95,
+          "startMs": 8.39,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -60,7 +61,7 @@
             }
           ],
           "queryIds": ["q_9"],
-          "durationMs": 1.96
+          "durationMs": 7.41
         },
         {
           "id": "op_4",
@@ -68,10 +69,10 @@
           "action": "count",
           "args": {
             "where": {
-              "authorId": 8
+              "authorId": 2
             }
           },
-          "startMs": 2.96,
+          "startMs": 8.42,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -87,7 +88,7 @@
             }
           ],
           "queryIds": ["q_10"],
-          "durationMs": 1.98
+          "durationMs": 7.59
         },
         {
           "id": "op_5",
@@ -95,10 +96,10 @@
           "action": "count",
           "args": {
             "where": {
-              "authorId": 9
+              "authorId": 3
             }
           },
-          "startMs": 2.97,
+          "startMs": 8.43,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -114,7 +115,7 @@
             }
           ],
           "queryIds": ["q_11"],
-          "durationMs": 1.86
+          "durationMs": 7.46
         },
         {
           "id": "op_6",
@@ -122,10 +123,10 @@
           "action": "count",
           "args": {
             "where": {
-              "authorId": 10
+              "authorId": 4
             }
           },
-          "startMs": 2.97,
+          "startMs": 8.43,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -141,7 +142,7 @@
             }
           ],
           "queryIds": ["q_12"],
-          "durationMs": 1.79
+          "durationMs": 11.5
         },
         {
           "id": "op_7",
@@ -149,10 +150,10 @@
           "action": "count",
           "args": {
             "where": {
-              "authorId": 11
+              "authorId": 5
             }
           },
-          "startMs": 2.98,
+          "startMs": 8.44,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -168,7 +169,7 @@
             }
           ],
           "queryIds": ["q_13"],
-          "durationMs": 1.91
+          "durationMs": 11.42
         },
         {
           "id": "op_8",
@@ -176,10 +177,10 @@
           "action": "count",
           "args": {
             "where": {
-              "authorId": 12
+              "authorId": 6
             }
           },
-          "startMs": 2.98,
+          "startMs": 8.45,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/home.tsx",
@@ -195,72 +196,79 @@
             }
           ],
           "queryIds": ["q_14"],
-          "durationMs": 1.88
+          "durationMs": 7.51
         }
       ],
       "queries": [
         {
           "id": "q_2",
           "opId": "op_1",
-          "sql": "SELECT \"public\".\"User\".\"id\", \"public\".\"User\".\"email\" FROM \"public\".\"User\" WHERE 1=1 ORDER BY \"public\".\"User\".\"id\" ASC OFFSET $1",
-          "params": ["0"],
-          "fingerprint": "8ea8a78bdcc6",
-          "startMs": 0.39,
-          "durationMs": 1.9
+          "sql": "SELECT \"public\".\"User\".\"id\", \"public\".\"User\".\"email\", \"public\".\"User\".\"name\" FROM \"public\".\"User\" WHERE 1=1 ORDER BY \"public\".\"User\".\"id\" ASC LIMIT $1 OFFSET $2",
+          "params": ["6", "0"],
+          "fingerprint": "57057fe8e66a",
+          "startMs": 2.34,
+          "durationMs": 3.88,
+          "rows": 6
         },
         {
           "id": "q_9",
           "opId": "op_3",
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
-          "params": [7, "0"],
+          "params": [1, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 3.16,
-          "durationMs": 1.75
+          "startMs": 8.8,
+          "durationMs": 6.9,
+          "rows": 1
         },
         {
           "id": "q_10",
           "opId": "op_4",
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
-          "params": [8, "0"],
+          "params": [2, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 3.22,
-          "durationMs": 1.71
+          "startMs": 8.93,
+          "durationMs": 7.06,
+          "rows": 1
         },
         {
           "id": "q_11",
           "opId": "op_5",
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
-          "params": [9, "0"],
+          "params": [3, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 3.27,
-          "durationMs": 1.55
+          "startMs": 9.03,
+          "durationMs": 6.83,
+          "rows": 1
         },
         {
           "id": "q_12",
           "opId": "op_6",
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
-          "params": [10, "0"],
+          "params": [4, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 3.32,
-          "durationMs": 1.41
+          "startMs": 9.12,
+          "durationMs": 10.79,
+          "rows": 1
         },
         {
           "id": "q_13",
           "opId": "op_7",
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
-          "params": [11, "0"],
+          "params": [5, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 3.36,
-          "durationMs": 1.52
+          "startMs": 9.2,
+          "durationMs": 10.62,
+          "rows": 1
         },
         {
           "id": "q_14",
           "opId": "op_8",
           "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Post\".\"id\" FROM \"public\".\"Post\" WHERE \"public\".\"Post\".\"authorId\" = $1 OFFSET $2) AS \"sub\"",
-          "params": [12, "0"],
+          "params": [6, "0"],
           "fingerprint": "a56f8e44e384",
-          "startMs": 3.39,
-          "durationMs": 1.47
+          "startMs": 9.27,
+          "durationMs": 6.67,
+          "rows": 1
         }
       ],
       "warnings": [
@@ -272,96 +280,25 @@
       ],
       "summary": {
         "queryCount": 7,
-        "dbTimeMs": 3.67,
+        "dbTimeMs": 14.99,
         "operationCount": 7,
         "errorCount": 0
       },
       "response": {
         "status": 200
       },
-      "durationMs": 6.6
+      "durationMs": 23.14
     },
     {
       "schemaVersion": 1,
-      "token": "808033",
-      "parentToken": "e78833",
-      "kind": "data",
-      "request": {
-        "method": "GET",
-        "url": "/products/offers"
-      },
-      "startedAt": 1793872355519,
-      "framework": {
-        "name": "react-router"
-      },
-      "operations": [
-        {
-          "id": "op_1",
-          "model": "Offer",
-          "action": "findMany",
-          "args": {
-            "include": {
-              "product": true
-            },
-            "orderBy": {
-              "discount": "desc"
-            }
-          },
-          "startMs": 0.4,
-          "origin": [
-            {
-              "file": "/home/you/shop/app/routes/offers.ts",
-              "line": 4,
-              "column": 23,
-              "fn": "loader"
-            }
-          ],
-          "queryIds": ["q_2", "q_3"],
-          "durationMs": 3.85
-        }
-      ],
-      "queries": [
-        {
-          "id": "q_2",
-          "opId": "op_1",
-          "sql": "SELECT \"public\".\"Offer\".\"id\", \"public\".\"Offer\".\"productId\", \"public\".\"Offer\".\"discount\" FROM \"public\".\"Offer\" WHERE 1=1 ORDER BY \"public\".\"Offer\".\"discount\" DESC OFFSET $1",
-          "params": ["0"],
-          "fingerprint": "c5d85da246bc",
-          "startMs": 0.65,
-          "durationMs": 2.12
-        },
-        {
-          "id": "q_3",
-          "opId": "op_1",
-          "sql": "SELECT \"public\".\"Product\".\"id\", \"public\".\"Product\".\"name\", \"public\".\"Product\".\"price\" FROM \"public\".\"Product\" WHERE \"public\".\"Product\".\"id\" IN ($1,$2,$3) OFFSET $4",
-          "params": [5, 3, 1, "0"],
-          "fingerprint": "763fd6686f09",
-          "startMs": 2.89,
-          "durationMs": 1.34
-        }
-      ],
-      "warnings": [],
-      "summary": {
-        "queryCount": 2,
-        "dbTimeMs": 3.46,
-        "operationCount": 1,
-        "errorCount": 0
-      },
-      "response": {
-        "status": 200
-      },
-      "durationMs": 4.45
-    },
-    {
-      "schemaVersion": 1,
-      "token": "fb23f0",
-      "parentToken": "e78833",
+      "token": "323c88",
+      "parentToken": "193823",
       "kind": "data",
       "request": {
         "method": "GET",
         "url": "/products/purchases"
       },
-      "startedAt": 1793872355520,
+      "startedAt": 1794003051111,
       "framework": {
         "name": "react-router"
       },
@@ -379,7 +316,7 @@
             },
             "take": 10
           },
-          "startMs": 0.23,
+          "startMs": 0.39,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/purchases.ts",
@@ -389,7 +326,7 @@
             }
           ],
           "queryIds": ["q_2", "q_3"],
-          "durationMs": 2.1
+          "durationMs": 1.37
         }
       ],
       "queries": [
@@ -399,40 +336,115 @@
           "sql": "SELECT \"public\".\"Purchase\".\"id\", \"public\".\"Purchase\".\"productId\", \"public\".\"Purchase\".\"quantity\", \"public\".\"Purchase\".\"createdAt\" FROM \"public\".\"Purchase\" WHERE 1=1 ORDER BY \"public\".\"Purchase\".\"createdAt\" DESC LIMIT $1 OFFSET $2",
           "params": ["10", "0"],
           "fingerprint": "d87d1063693d",
-          "startMs": 0.36,
-          "durationMs": 1.3
+          "startMs": 0.48,
+          "durationMs": 0.55,
+          "rows": 6
         },
         {
           "id": "q_3",
           "opId": "op_1",
-          "sql": "SELECT \"public\".\"Product\".\"id\", \"public\".\"Product\".\"name\", \"public\".\"Product\".\"price\" FROM \"public\".\"Product\" WHERE \"public\".\"Product\".\"id\" IN ($1,$2,$3,$4,$5,$6,$7) OFFSET $8",
-          "params": [1, 6, 5, 4, 3, 2, 1, "0"],
+          "sql": "SELECT \"public\".\"Product\".\"id\", \"public\".\"Product\".\"name\", \"public\".\"Product\".\"price\" FROM \"public\".\"Product\" WHERE \"public\".\"Product\".\"id\" IN ($1,$2,$3,$4,$5,$6) OFFSET $7",
+          "params": [24, 23, 22, 21, 20, 19, "0"],
           "fingerprint": "763fd6686f09",
-          "startMs": 1.72,
-          "durationMs": 0.54
+          "startMs": 1.13,
+          "durationMs": 0.57,
+          "rows": 6
         }
       ],
       "warnings": [],
       "summary": {
         "queryCount": 2,
-        "dbTimeMs": 1.84,
+        "dbTimeMs": 1.12,
         "operationCount": 1,
         "errorCount": 0
       },
       "response": {
         "status": 200
       },
-      "durationMs": 2.65
+      "durationMs": 2.04
     },
     {
       "schemaVersion": 1,
-      "token": "e78833",
+      "token": "b02f81",
+      "parentToken": "193823",
+      "kind": "data",
+      "request": {
+        "method": "GET",
+        "url": "/products/offers"
+      },
+      "startedAt": 1794003051109,
+      "framework": {
+        "name": "react-router"
+      },
+      "operations": [
+        {
+          "id": "op_1",
+          "model": "Offer",
+          "action": "findMany",
+          "args": {
+            "include": {
+              "product": true
+            },
+            "orderBy": {
+              "discount": "desc"
+            }
+          },
+          "startMs": 0.48,
+          "origin": [
+            {
+              "file": "/home/you/shop/app/routes/offers.ts",
+              "line": 4,
+              "column": 23,
+              "fn": "loader"
+            }
+          ],
+          "queryIds": ["q_2", "q_3"],
+          "durationMs": 2.04
+        }
+      ],
+      "queries": [
+        {
+          "id": "q_2",
+          "opId": "op_1",
+          "sql": "SELECT \"public\".\"Offer\".\"id\", \"public\".\"Offer\".\"productId\", \"public\".\"Offer\".\"discount\" FROM \"public\".\"Offer\" WHERE 1=1 ORDER BY \"public\".\"Offer\".\"discount\" DESC OFFSET $1",
+          "params": ["0"],
+          "fingerprint": "c5d85da246bc",
+          "startMs": 0.57,
+          "durationMs": 1.18,
+          "rows": 3
+        },
+        {
+          "id": "q_3",
+          "opId": "op_1",
+          "sql": "SELECT \"public\".\"Product\".\"id\", \"public\".\"Product\".\"name\", \"public\".\"Product\".\"price\" FROM \"public\".\"Product\" WHERE \"public\".\"Product\".\"id\" IN ($1,$2,$3) OFFSET $4",
+          "params": [23, 21, 19, "0"],
+          "fingerprint": "763fd6686f09",
+          "startMs": 1.82,
+          "durationMs": 0.67,
+          "rows": 3
+        }
+      ],
+      "warnings": [],
+      "summary": {
+        "queryCount": 2,
+        "dbTimeMs": 1.85,
+        "operationCount": 1,
+        "errorCount": 0
+      },
+      "response": {
+        "status": 200
+      },
+      "durationMs": 2.73
+    },
+    {
+      "schemaVersion": 1,
+      "token": "193823",
       "kind": "document",
       "request": {
         "method": "GET",
         "url": "/products"
       },
-      "startedAt": 1793872355475,
+      "startedAt": 1794003050841,
       "framework": {
         "name": "react-router"
       },
@@ -446,7 +458,7 @@
               "id": "asc"
             }
           },
-          "startMs": 0.34,
+          "startMs": 0.97,
           "origin": [
             {
               "file": "/home/you/shop/app/routes/products.tsx",
@@ -456,7 +468,7 @@
             }
           ],
           "queryIds": ["q_2"],
-          "durationMs": 2.05
+          "durationMs": 4.05
         }
       ],
       "queries": [
@@ -466,21 +478,103 @@
           "sql": "SELECT \"public\".\"Product\".\"id\", \"public\".\"Product\".\"name\", \"public\".\"Product\".\"price\" FROM \"public\".\"Product\" WHERE 1=1 ORDER BY \"public\".\"Product\".\"id\" ASC OFFSET $1",
           "params": ["0"],
           "fingerprint": "a1e8c5d3e41f",
-          "startMs": 0.47,
-          "durationMs": 1.88
+          "startMs": 1.47,
+          "durationMs": 3.51,
+          "rows": 6
         }
       ],
       "warnings": [],
       "summary": {
         "queryCount": 1,
-        "dbTimeMs": 1.88,
+        "dbTimeMs": 3.51,
         "operationCount": 1,
         "errorCount": 0
       },
       "response": {
         "status": 200
       },
-      "durationMs": 4.75
+      "durationMs": 7.96
     }
-  ]
+  ],
+  "fixes": {
+    "54273a": {
+      "q_9": {
+        "operation": "Post.count",
+        "times": 6,
+        "origin": {
+          "file": "/home/you/shop/app/routes/home.tsx",
+          "line": 8,
+          "column": 37,
+          "fn": "user"
+        },
+        "options": [
+          {
+            "title": "In the query before",
+            "short": "include",
+            "lines": [
+              {
+                "text": "prisma.user.findMany({"
+              },
+              {
+                "text": "  orderBy: { id: \"asc\" },"
+              },
+              {
+                "text": "  take: 6,"
+              },
+              {
+                "text": "  include: { _count: { select: { posts: true } } },",
+                "added": true
+              },
+              {
+                "text": "})"
+              }
+            ],
+            "queries": 1,
+            "instead": 7,
+            "note": "Each user comes with _count.posts; the loop of counts goes."
+          },
+          {
+            "short": "groupBy",
+            "lines": [
+              {
+                "text": "prisma.post.groupBy({"
+              },
+              {
+                "text": "  by: [\"authorId\"],"
+              },
+              {
+                "text": "  where: { authorId: { in: [1, 2, 3, 4, 5, 6] } },"
+              },
+              {
+                "text": "  _count: { _all: true },"
+              },
+              {
+                "text": "})"
+              }
+            ],
+            "note": "Then match each count by authorId: one with no rows gets none, so count it as 0.",
+            "title": "One query for all of them",
+            "queries": 2,
+            "instead": 7
+          }
+        ],
+        "varying": {
+          "path": "authorId",
+          "values": [1, 2, 3, 4, 5, 6],
+          "count": 6
+        },
+        "source": {
+          "operation": "User.findMany",
+          "origin": {
+            "file": "/home/you/shop/app/routes/home.tsx",
+            "line": 6,
+            "column": 35,
+            "fn": "loader"
+          },
+          "rows": 6
+        },
+        "relation": "Post.authorId points to User"
+      }
+    }
+  }
 }

@@ -1,7 +1,7 @@
 export type * from "./profile.js";
 export { fromRequest } from "./profile.js";
 export type { Scope } from "./context.js";
-export type { ActiveProfile } from "./recorder.js";
+export type { ActiveProfile, RowCount } from "./recorder.js";
 export type { Outside, OutsideOptions, OutsideRecorder } from "./outside.js";
 export { currentScope, enterProfile, enterScope, runInScope, runWithProfile } from "./context.js";
 export {
@@ -25,7 +25,7 @@ export {
 } from "./storage.js";
 export { fingerprint, normalizeSql } from "./fingerprint.js";
 export { captureOrigin } from "./origin.js";
-export { formatProfile, formatWarnings, shownPath } from "./format.js";
+export { formatProfile, formatWarnings, shownPath, type TerminalFixes } from "./format.js";
 export { sanitize } from "./sanitize.js";
 export { enabled } from "./enabled.js";
 export {

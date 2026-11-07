@@ -93,3 +93,17 @@ it("shows a file from the working directory, and whole when it is outside it", (
   expect(shownPath("/elsewhere/report.ts")).toBe("/elsewhere/report.ts");
   expect(shownPath("scripts/backfill.js")).toBe("scripts/backfill.js");
 });
+
+it("ends an N+1's line with the fix that replaces the loop, and what it saves", () => {
+  const origin = [{ file: `${process.cwd()}/prisma/seed.ts`, line: 6 }];
+  const profile = {
+    operations: [{ id: "op_1", model: "User", action: "create", origin }],
+    queries: [{ id: "q_1", opId: "op_1", sql: "INSERT" }],
+    warnings: [{ kind: "n+1", queryIds: ["q_1", "q_2", "q_3", "q_4", "q_5", "q_6"] }],
+    summary: { queryCount: 30 },
+  } as unknown as Profile;
+  const fixes = { q_1: { options: [{ short: "createMany", queries: 2, instead: 30 }] } };
+  expect(formatWarnings(profile, fixes)).toEqual([
+    "N+1        User.create, 6 times  prisma/seed.ts:6  → createMany: 2 queries instead of 30",
+  ]);
+});

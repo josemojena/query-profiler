@@ -1,8 +1,10 @@
 import type { Analysis, Finding, Trial } from "../analysis/analyze.js";
 import type { NoPlan } from "../analysis/explain.js";
+import type { FixOption, N1Fix } from "../analysis/n1.js";
 import type { Engine, PlanStep } from "../analysis/plan.js";
-import type { QueryRecord } from "../core/index.js";
-import { escape, ms } from "./format.js";
+import type { QueryRecord, StackFrame } from "../core/index.js";
+import { count } from "./count.js";
+import { escape, ms, shortPath } from "./format.js";
 import { askProfiler } from "./http.js";
 
 // A query's tools, in a row of their own under its open row: Explain plan and Measure it, each
@@ -12,7 +14,9 @@ export type PlanState = { loading: true } | { analysis: Analysis } | { error: st
 
 export type TrialState = { loading: true } | { trial: Trial } | { error: string };
 
-export type QueryTab = "explain" | "measure";
+export type FixesState = { loading: true } | { fixes: Record<string, N1Fix> } | { error: string };
+
+export type QueryTab = "fix" | "explain" | "measure";
 
 export interface AnalysisView {
   /** What each query's SQL shows without asking the database, by query id. */
@@ -27,6 +31,8 @@ export interface AnalysisView {
   trials: Record<string, TrialState>;
   /** Sections opened: a fix's SQL, a table's notes, the database's own plan. */
   open: ReadonlySet<string>;
+  /** The code that replaces each N+1 of the profile, asked for once. */
+  fixes?: FixesState;
 }
 
 export const emptyAnalysis = (): AnalysisView => ({
@@ -74,6 +80,10 @@ export function clue(view: AnalysisView, query: QueryRecord): string {
   return `<div class="clue ${first.severity}">${escape(first.message)}${rest.length ? ` <span class="more">and ${rest.length} more</span>` : ""}</div>`;
 }
 
+/** The way into the code that replaces an N+1, on its closed row. */
+export const fixLink = (query: QueryRecord) =>
+  `<button class="explain-link" data-action="fix-open" data-id="${escape(query.id)}">Fix the N+1 ›</button>`;
+
 /** The way into a query's plan, on its closed row, when the database can be asked about it. */
 export function explainLink(query: QueryRecord): string {
   return explainable(query)
@@ -81,13 +91,21 @@ export function explainLink(query: QueryRecord): string {
     : "";
 }
 
-/** The tools row under an open query, the table's whole width. */
-export function toolsRow(view: AnalysisView, query: QueryRecord, times: number): string {
+/** The tools row under an open query, the table's whole width; an N+1's starts with its fix. */
+export function toolsRow(
+  view: AnalysisView,
+  query: QueryRecord,
+  times: number,
+  root: string,
+): string {
   const id = escape(query.id);
   const active = view.tabs[query.id];
   const tab = (name: QueryTab, label: string, hint: string) =>
     `<button class="qtab${active === name ? " on" : ""}" data-action="query-tab" data-tab="${name}" data-id="${id}">${label}<small>${hint}</small></button>`;
+  const best =
+    view.fixes && "fixes" in view.fixes ? view.fixes.fixes[query.id]?.options[0] : undefined;
   const tabs = [
+    times > 1 ? tab("fix", "Fix the N+1", best ? saved(best) : "") : "",
     explainable(query) ? tab("explain", "Explain plan", "estimated") : "",
     measurable(query)
       ? tab(
@@ -98,8 +116,52 @@ export function toolsRow(view: AnalysisView, query: QueryRecord, times: number):
       : "",
   ].join("");
   const strip = `<div class="qtabs">${tabs}<span class="spacer"></span><button class="link" data-action="copy" data-id="${id}">Copy runnable SQL</button><button class="close" data-action="query-close" data-id="${id}">Close ✕</button></div>`;
-  return `<tr class="tools"><td></td><td colspan="3">${strip}${pane(view, query, times)}</td></tr>`;
+  const body = active === "fix" ? fixPane(view, query, root) : pane(view, query, times);
+  return `<tr class="tools"><td></td><td colspan="4">${strip}${body}</td></tr>`;
 }
+
+const saved = (option: FixOption) =>
+  `${count(option.queries, "query", "queries")} instead of ${option.instead}`;
+
+/** What an N+1 repeats, where its values came from, and the code that replaces the loop. */
+function fixPane(view: AnalysisView, query: QueryRecord, root: string): string {
+  const state = view.fixes;
+  if (!state || "loading" in state) return `<div class="said">Reading the loop…</div>`;
+  if ("error" in state)
+    return `<div class="said">Couldn't read the loop: ${escape(state.error)}</div>`;
+  const fix = state.fixes[query.id];
+  if (!fix) return `<div class="said">No fix is known for this one.</div>`;
+  const place = (frame: StackFrame | undefined, lead: string) =>
+    frame ? `${lead}${escape(shortPath(frame.file, root))}:${frame.line}` : "";
+  const { varying, source } = fix;
+  const values =
+    varying &&
+    `${varying.values.map((value) => escape(JSON.stringify(value))).join(", ")}${varying.count > varying.values.length ? ", …" : ""}`;
+  const said = [
+    `<b>${escape(fix.operation)}</b> ran ${fix.times} times${place(fix.origin, " from ")}`,
+    varying ? `, once for each <span class="mono">${escape(varying.path)}</span>: ${values}.` : ".",
+    source
+      ? ` They are the ${source.rows} rows <b>${escape(source.operation)}</b> read just before${place(source.origin, ", at ")}${fix.relation ? `: ${escape(fix.relation)} in your schema` : ""}.`
+      : "",
+  ].join("");
+  const options = fix.options.map(
+    (option) => `<div class="h">${escape(option.title)}<small>${saved(option)}</small></div>
+      <pre class="fix-code">${option.lines.map((line) => `<span${line.added ? ' class="added"' : ""}>${codeHtml(line.text)}</span>`).join("\n")}</pre>
+      <div class="after"><span>${escape(option.note ?? "")}</span>${copyButton(option.lines.map((line) => line.text).join("\n"))}</div>`,
+  );
+  return `<div class="said"><span>${said}</span></div>${fix.note ? `<div class="said"><span>${escape(fix.note)}</span></div>` : ""}${options.join("")}`;
+}
+
+// Strings and comments of a fix's code, in their colours.
+const codeHtml = (text: string) =>
+  text
+    .split(/("(?:[^"\\]|\\.)*"|\/\*.*?\*\/|\/\/.*$)/)
+    .map((part, index) =>
+      index % 2
+        ? `<span class="${part.startsWith('"') ? "str" : "cm"}">${escape(part)}</span>`
+        : escape(part),
+    )
+    .join("");
 
 function pane(view: AnalysisView, query: QueryRecord, times: number): string {
   const active = view.tabs[query.id];
@@ -307,6 +369,17 @@ export interface Where {
   token: string | undefined;
   /** Opens or closes a query's row. */
   expand(id: string, open: boolean): void;
+  /** Shows the Queries tab, for an N+1's fix opened from Warnings. */
+  toQueries?(): void;
+}
+
+/** Opens an N+1's row on its fix, asking for the profile's fixes the first time. */
+export function openFix(view: AnalysisView, where: Where, id: string, rerender: () => void) {
+  if (!where.token) return;
+  where.toQueries?.();
+  where.expand(id, true);
+  view.tabs[id] = "fix";
+  if (!view.fixes) void loadFixes(view, where.base, where.token, rerender);
 }
 
 /** Opens a query's row on Explain plan, asking the database the first time. */
@@ -331,12 +404,19 @@ export function planAction(
       if (id) openExplain(view, where, id, rerender);
       rerender();
       return true;
+    case "fix-open":
+      if (id) openFix(view, where, id, rerender);
+      rerender();
+      return true;
     case "query-tab": {
       const tab = target.dataset.tab as QueryTab;
       if (!id || !token) return true;
       // The open tab, pressed again, closes.
       if (view.tabs[id] === tab) delete view.tabs[id];
-      else {
+      else if (tab === "fix") {
+        view.tabs[id] = tab;
+        if (!view.fixes) void loadFixes(view, base, token, rerender);
+      } else {
         view.tabs[id] = tab;
         const known = tab === "explain" ? view.estimates : view.measures;
         if (!known[id]) void ask(view, base, token, id, tab, rerender);
@@ -389,12 +469,20 @@ export function planAction(
   }
 }
 
+async function loadFixes(view: AnalysisView, base: string, token: string, rerender: () => void) {
+  view.fixes = { loading: true };
+  rerender();
+  const result = await askProfiler<Record<string, N1Fix>>(`${base}/api/profiles/${token}/fixes`);
+  view.fixes = "error" in result ? result : { fixes: result.body };
+  rerender();
+}
+
 async function ask(
   view: AnalysisView,
   base: string,
   token: string,
   id: string,
-  tab: QueryTab,
+  tab: Exclude<QueryTab, "fix">,
   rerender: () => void,
 ) {
   const known = tab === "explain" ? view.estimates : view.measures;

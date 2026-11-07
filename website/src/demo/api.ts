@@ -3,6 +3,8 @@ import { link } from "../data/site";
 import demo from "./profiles.json";
 
 const profiles = demo.profiles as Profile[];
+// Each N+1's fix, as the example's profiler gave it: it reads the example's schema.prisma.
+const fixes = demo.fixes;
 
 /** Where the demo's profiler lives: no server behind it, the browser answers with sample profiles. */
 export const DEMO_BASE = link("demo-profiler");
@@ -37,6 +39,8 @@ function answer(path: string, params: URLSearchParams, stats: unknown): Response
     const listed = profiles.filter((profile) => !parent || profile.parentToken === parent);
     return Response.json(listed.slice(0, limit).map(listItem));
   }
+  const fixed = /^\/profiles\/([0-9a-f]{6})\/fixes$/.exec(path)?.[1];
+  if (fixed) return Response.json((fixes as Record<string, unknown>)[fixed] ?? {});
   const token = /^\/profiles\/([0-9a-f]{6})$/.exec(path)?.[1];
   const profile = profiles.find((candidate) => candidate.token === token);
   return profile ? Response.json(profile) : new Response("Not found", { status: 404 });

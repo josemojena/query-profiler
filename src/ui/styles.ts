@@ -143,6 +143,14 @@ tr.tools > td { padding: 2px 8px 20px; border-bottom: 1px solid var(--line); }
 .said { display: flex; justify-content: space-between; gap: 12px; margin: 14px 0 6px; color: var(--ink-2); font-size: 12px; }
 .said b { color: var(--ink); font-weight: 650; }
 .tools .h { font-size: 11.5px; font-weight: 650; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 2px; }
+.tools .h small { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12px; color: var(--ink-2); margin-left: 8px; }
+.fix-code { margin: 6px 0 0; padding: 10px 14px; background: var(--chrome); border-radius: 6px; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; overflow-x: auto; color: var(--ink); }
+.fix-code .added { color: var(--ok); }
+.fix-code .str { color: var(--ok); }
+.fix-code .cm { color: var(--ink-3); }
+.after { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-top: 6px; font-size: 12px; color: var(--ink-2); }
+.links { display: flex; gap: 14px; }
+td.rows { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tools .badge { margin-left: 0; }
 .badge.problem { background: var(--bad-soft); color: var(--bad); }
 .badge.warning { background: var(--warn-soft); color: var(--warn); }

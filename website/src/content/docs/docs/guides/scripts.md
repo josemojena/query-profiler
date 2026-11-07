@@ -29,7 +29,7 @@ terminal sums it up: one line, each warning with the line of code behind it, and
 
 ```txt
 [query-profiler] script prisma/seed.ts · 32 queries · 33.58 ms in db · 8 operations · 3 warnings · 102.11 ms · 3b9cfe
-  N+1        User.create, 6 times  prisma/seed.ts:6
+  N+1        User.create, 6 times  prisma/seed.ts:6  → createMany: 2 queries instead of 30
   http://localhost:4983/_profiler/3b9cfe
 ```
 
@@ -43,8 +43,9 @@ your app's connection, so it answers for a script that uses the same database as
   `QUERY_PROFILER_PORT`) for scripts to reach it. You keep using `/_profiler` on your app's port.
 - With no dev server running, the terminal summary is all you get.
 
-A profile keeps its first 1,000 queries and counts the rest. A seed that inserts 60,000 rows one at
-a time says how many it ran, and its N+1 shows the loop: one `createMany` would do.
+An N+1's line ends with [its fix](/docs/concepts/warnings#fixing-an-n1) and what it saves. A
+profile keeps its first 1,000 queries and counts the rest, so a seed that inserts 60,000 rows one at
+a time says how many it ran.
 
 ## A server's startup
 

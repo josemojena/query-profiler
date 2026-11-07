@@ -202,6 +202,7 @@ export class ProfilerToolbar extends HTMLElement {
         else expanded.delete(id);
         state.expanded = expanded;
       },
+      toQueries: () => (state.tab = "queries"),
     };
     if (planAction(target, state.analysis, where, () => this.#render())) return;
     switch (target.dataset.action) {
