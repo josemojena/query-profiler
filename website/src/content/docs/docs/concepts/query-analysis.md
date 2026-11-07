@@ -6,7 +6,8 @@ description: Each query's plan from your database, what is wrong with it, and th
 Open a query in the **Queries** tab, of the bar or of `/_profiler`, and the profiler asks your
 database how it runs that query. It reads the answer with rules written from each engine's manual,
 and tells you what is wrong and how to fix it: the `@@index` line for `schema.prisma`, the SQL, or the
-change to the query.
+change to the query. The `@@index` line uses your schema's names: a model mapped with `@@map` or a
+field mapped with `@map` shows as you wrote it, not as the database calls it.
 
 There is no AI in it, and nothing leaves your machine. The plan comes from your database's own
 planner, through the same connection your app uses, and the rules run in the profiler.

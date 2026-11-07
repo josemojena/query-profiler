@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, realpathSync, utimesSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { findSchema, readSchema } from "../../src/analysis/schema.js";
+import { findSchema, prismaNames, readSchema } from "../../src/analysis/schema.js";
 
 const BLOG = `
 // The blog: https://example.test/docs
@@ -55,6 +55,44 @@ describe("reading a schema", () => {
       relation: { name: "Liked", fields: ["fanId"], references: ["id"] },
     });
     expect(post!.fields.find((field) => field.name === "authorId")!.relation).toBeUndefined();
+  });
+});
+
+describe("the names a schema gives the database's", () => {
+  const MAPPED = `
+model Post {
+  id        Int      @id
+  authorId  Int      @map("author_id")
+  createdAt DateTime @map("created_at") @default(now())
+  author    User     @relation(fields: [authorId], references: [id], map: "post_author_fk")
+  @@map("posts")
+}
+
+model User {
+  id Int @id
+}
+`;
+
+  it("reads @@map on a model and @map on a field, not the map of a relation", () => {
+    const [post] = readSchema(MAPPED).models;
+    expect(post).toMatchObject({ name: "Post", table: "posts" });
+    expect(post!.fields.map((field) => [field.name, field.column])).toEqual([
+      ["id", undefined],
+      ["authorId", "author_id"],
+      ["createdAt", "created_at"],
+      ["author", undefined],
+    ]);
+  });
+
+  it("names a table's model and a column's field, in any case, and keeps the others as they are", () => {
+    const names = prismaNames(readSchema(MAPPED));
+    expect(names.model("posts")).toBe("Post");
+    expect(names.field("posts", "author_id")).toBe("authorId");
+    expect(names.field("POSTS", "CREATED_AT")).toBe("createdAt");
+    expect(names.model("User")).toBe("User");
+    expect(names.field("posts", "views")).toBe("views");
+    expect(names.model("audit_log")).toBe("audit_log");
+    expect(prismaNames(undefined).field("posts", "author_id")).toBe("author_id");
   });
 });
 

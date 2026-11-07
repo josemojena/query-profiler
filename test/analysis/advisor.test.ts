@@ -3,6 +3,7 @@ import {
   adviseIndex,
   adviseSortIndex,
   patternText,
+  prismaIndex,
   wantedColumns,
   writeAdvice,
 } from "../../src/analysis/advisor.js";
@@ -58,9 +59,9 @@ describe("the index a query wants", () => {
       { name: "userId" },
       { name: "createdAt", descending: true },
     ]);
+    expect(prismaIndex(advice)).toBe("@@index([userId, createdAt(sort: Desc)])");
     expect(advice).toMatchObject({
       name: "Order_userId_createdAt_idx",
-      prisma: "@@index([userId, createdAt(sort: Desc)])",
       sql: 'CREATE INDEX "Order_userId_createdAt_idx" ON "public"."Order" ("userId", "createdAt" DESC);',
     });
     expect(writeAdvice("mysql", { name: "Order" }, [{ name: "userId" }]).sql).toBe(
@@ -184,9 +185,11 @@ describe("the indexes that count", () => {
 
   it("writes no DESC where it does nothing: before MySQL 8.0 and MariaDB 10.8", () => {
     const columns = [{ name: "createdAt", descending: true }];
-    expect(writeAdvice("mysql", post, columns, "5.7.44").prisma).toBe("@@index([createdAt])");
-    expect(writeAdvice("mariadb", post, columns, "10.6.20").prisma).toBe("@@index([createdAt])");
-    expect(writeAdvice("mariadb", post, columns, "11.4.4").prisma).toBe(
+    expect(prismaIndex(writeAdvice("mysql", post, columns, "5.7.44"))).toBe("@@index([createdAt])");
+    expect(prismaIndex(writeAdvice("mariadb", post, columns, "10.6.20"))).toBe(
+      "@@index([createdAt])",
+    );
+    expect(prismaIndex(writeAdvice("mariadb", post, columns, "11.4.4"))).toBe(
       "@@index([createdAt(sort: Desc)])",
     );
   });

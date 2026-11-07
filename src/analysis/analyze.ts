@@ -19,6 +19,7 @@ import { POSTGRES } from "./rules/postgres.js";
 import { SQLITE } from "./rules/sqlite.js";
 import { fixFor, type Fix } from "./rules/fixes.js";
 import { subjects, type Analyzed } from "./rules/subjects.js";
+import type { PrismaNames } from "./schema.js";
 import { readStatement } from "./statement.js";
 
 export interface Finding {
@@ -76,7 +77,7 @@ const ORDER: Record<Severity, number> = { problem: 0, warning: 1, info: 2 };
 export async function analyzeQuery(
   database: Database,
   query: { sql: string; params: unknown[]; rows?: number },
-  options: { measure?: boolean } = {},
+  options: { measure?: boolean; names?: PrismaNames } = {},
 ): Promise<Analysis> {
   const { engine, version } = await engineOf(database);
   const statement = readStatement(query.sql, engine);
@@ -103,7 +104,7 @@ export async function analyzeQuery(
     version,
     ...(plan ? { plan } : { noPlan: planned as NoPlan }),
     tables,
-    findings: findingsOf(found, engine, version),
+    findings: findingsOf(found, engine, version, options.names),
   };
 }
 
@@ -111,6 +112,7 @@ export async function analyzeQuery(
 export function readFindings(
   query: { sql: string; params: unknown[]; rows?: number },
   provider: Provider,
+  names?: PrismaNames,
 ): Finding[] {
   const engine: Engine = provider;
   const statement = readStatement(query.sql, engine);
@@ -121,7 +123,7 @@ export function readFindings(
     params: query.params,
     returned: query.rows,
   }).filter((subject) => subject.kind === "condition" || subject.kind === "query");
-  return findingsOf(found, engine, "");
+  return findingsOf(found, engine, "", names);
 }
 
 /**
@@ -161,7 +163,12 @@ export async function tryIndex(
   };
 }
 
-function findingsOf(found: Analyzed[], engine: Engine, version: string): Finding[] {
+function findingsOf(
+  found: Analyzed[],
+  engine: Engine,
+  version: string,
+  names?: PrismaNames,
+): Finding[] {
   const byKind = new Map<SubjectKind, Analyzed[]>();
   for (const subject of found)
     byKind.set(subject.kind, [...(byKind.get(subject.kind) ?? []), subject]);
@@ -175,7 +182,7 @@ function findingsOf(found: Analyzed[], engine: Engine, version: string): Finding
       const key = `${rule.id}\u0000${message}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const fix = fixFor(rule.fix, subject, engine, version);
+      const fix = fixFor(rule.fix, subject, engine, version, names);
       findings.push({
         rule: rule.id,
         severity: rule.severity,

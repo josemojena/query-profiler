@@ -1,4 +1,6 @@
 import { atLeast } from "../explain.js";
+import { prismaIndex } from "../advisor.js";
+import { DATABASE_NAMES, type PrismaNames } from "../schema.js";
 import type { Engine } from "../plan.js";
 import type { Analyzed } from "./subjects.js";
 
@@ -71,6 +73,7 @@ export function fixFor(
   subject: Analyzed,
   engine: Engine,
   version = "",
+  names: PrismaNames = DATABASE_NAMES,
 ): Fix | undefined {
   const quote = engine === "mysql" || engine === "mariadb" ? "`" : '"';
   const quoted = (name: string) => `${quote}${name.replaceAll(quote, quote + quote)}${quote}`;
@@ -88,13 +91,13 @@ export function fixFor(
       if (!advice) return undefined;
       return {
         kind,
-        text: `Add an index on ${advice.columns.map((part) => part.name).join(", ")} to the ${table} model, then run prisma migrate dev.`,
+        text: `Add an index on ${advice.columns.map((part) => names.field(advice.table.name, part.name)).join(", ")} to the ${names.model(advice.table.name)} model, then run prisma migrate dev.`,
         index: advice.name,
         on: {
           table: advice.table.name,
           columns: advice.columns.map((part) => `${part.name}${part.descending ? " DESC" : ""}`),
         },
-        prisma: advice.prisma,
+        prisma: prismaIndex(advice, names),
         sql: advice.sql,
       };
     }
@@ -149,7 +152,7 @@ export function fixFor(
       return {
         kind,
         text: "A trigram index finds text anywhere in the column, % first or case-insensitive. It needs the pg_trgm extension: create it first, in a migration made with prisma migrate dev --create-only.",
-        prisma: `@@index([${column}(ops: raw("gin_trgm_ops"))], type: Gin, map: "${name}")`,
+        prisma: `@@index([${names.field(table, column)}(ops: raw("gin_trgm_ops"))], type: Gin, map: "${name}")`,
         sql: `CREATE EXTENSION IF NOT EXISTS pg_trgm;\nCREATE INDEX ${quoted(name)} ON ${quoted(table)} USING gin (${quoted(column)} gin_trgm_ops);`,
       };
     }
@@ -157,7 +160,7 @@ export function fixFor(
       return {
         kind,
         text: "A FULLTEXT index finds whole words anywhere in the column, not parts of words: search it with Prisma's search filter instead of contains.",
-        prisma: `@@fulltext([${column}])`,
+        prisma: `@@fulltext([${names.field(table, column)}])`,
         sql: `CREATE FULLTEXT INDEX ${quoted(`${table}_${column}_idx`)} ON ${quoted(table)} (${quoted(column)});`,
       };
     case "full-text":

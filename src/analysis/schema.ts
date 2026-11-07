@@ -12,19 +12,55 @@ export interface SchemaField {
   type: string;
   list: boolean;
   optional: boolean;
+  /** The column it is stored in, from @map, when it has another name. */
+  column?: string;
   /** On a relation field: its @relation name, and on the side that holds the key, its fields. */
   relation?: { name?: string; fields: string[]; references: string[] };
 }
 
 export interface SchemaModel {
   name: string;
+  /** The table it is stored in, from @@map, when it has another name. */
+  table?: string;
   fields: SchemaField[];
 }
 
 export interface Schema {
   /** The file, or the folder of files, it was read from. */
   path: string;
+  /** When its files last changed, as milliseconds since the epoch. */
+  changed?: number;
   models: SchemaModel[];
+}
+
+/** How the database's names read in the schema: a table's model, a column's field. */
+export interface PrismaNames {
+  model(table: string): string;
+  field(table: string, column: string): string;
+}
+
+/** The database's own names, for when there is no schema to read. */
+export const DATABASE_NAMES: PrismaNames = {
+  model: (table) => table,
+  field: (_, column) => column,
+};
+
+/** The names a schema gives the database's tables and columns, through @@map and @map. */
+export function prismaNames(schema: Schema | undefined): PrismaNames {
+  if (!schema) return DATABASE_NAMES;
+  // MySQL and SQLite compare names in any case, and may report them in another.
+  const find = <T>(items: T[], name: (item: T) => string, wanted: string) =>
+    items.find((item) => name(item) === wanted) ??
+    items.find((item) => name(item).toLowerCase() === wanted.toLowerCase());
+  const modelOf = (table: string) =>
+    find(schema.models, (model) => model.table ?? model.name, table);
+  return {
+    model: (table) => modelOf(table)?.name ?? table,
+    field: (table, column) => {
+      const scalars = modelOf(table)?.fields.filter((field) => !field.relation) ?? [];
+      return find(scalars, (field) => field.column ?? field.name, column)?.name ?? column;
+    },
+  };
 }
 
 /** The models of a Prisma schema, with their fields and relations. */
@@ -40,6 +76,8 @@ export function readSchema(text: string, path = ""): Schema {
       continue;
     }
     if (line.startsWith("}")) current = undefined;
+    const table = /^@@map\(\s*"([^"]+)"/.exec(line)?.[1];
+    if (current && table) current.table = table;
     if (!current || !line || line.startsWith("@@")) continue;
     const field = /^(\w+)\s+(\w+)(\[\])?(\?)?(.*)$/.exec(line);
     if (field)
@@ -48,6 +86,7 @@ export function readSchema(text: string, path = ""): Schema {
         type: field[2]!,
         list: field[3] !== undefined,
         optional: field[4] !== undefined,
+        ...columnOf(field[5]!),
         ...relationOf(field[5]!),
       });
   }
@@ -57,6 +96,11 @@ export function readSchema(text: string, path = ""): Schema {
       if (names.has(field.type)) field.relation ??= { fields: [], references: [] };
       else delete field.relation;
   return { path, models };
+}
+
+function columnOf(attributes: string): Pick<SchemaField, "column"> {
+  const column = /@map\(\s*"([^"]+)"/.exec(attributes)?.[1];
+  return column ? { column } : {};
 }
 
 function relationOf(attributes: string): Pick<SchemaField, "relation"> {
@@ -112,7 +156,10 @@ function load(path: string): Schema | undefined {
     const changed = Math.max(...files.map((file) => statSync(file).mtimeMs));
     const known = read.get(path);
     if (known?.changed === changed) return known.schema;
-    const schema = readSchema(files.map((file) => readFileSync(file, "utf8")).join("\n"), path);
+    const schema = {
+      ...readSchema(files.map((file) => readFileSync(file, "utf8")).join("\n"), path),
+      changed,
+    };
     read.set(path, { changed, schema });
     return schema.models.length ? schema : undefined;
   } catch {

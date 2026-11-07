@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **The index to add uses your schema's names.** For a model mapped with `@@map` or a field mapped
+  with `@map` (`authorId Int @map("author_id")`), the `@@index` line said the database's names
+  (`@@index([author_id])`), which Prisma does not accept. It now says `@@index([authorId])`, and
+  names the model, from the `schema.prisma` the profiler already reads; so do the trigram and
+  `@@fulltext` lines. The SQL keeps the database's names.
+
 ## 0.4.0
 
 Query analysis: each query's plan, the index that fixes it and whether the database would use it,

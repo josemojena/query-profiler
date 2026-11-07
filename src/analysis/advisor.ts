@@ -1,6 +1,7 @@
 import type { Index, TableName } from "./catalog.js";
 import { atLeast } from "./explain.js";
 import type { Engine } from "./plan.js";
+import { DATABASE_NAMES, type PrismaNames } from "./schema.js";
 import type { Condition, Operand, SortKey } from "./statement.js";
 
 export interface IndexColumn {
@@ -8,15 +9,25 @@ export interface IndexColumn {
   descending?: boolean;
 }
 
-/** An index to add: the columns, in order, and how to write it in schema.prisma and in SQL. */
+/** An index to add: the columns, in order, and how to write it in SQL; prismaIndex() writes its schema line. */
 export interface IndexAdvice {
   table: TableName;
   columns: IndexColumn[];
   /** Prisma's own name for it: Table_column_column_idx. */
   name: string;
-  /** The line for the model in schema.prisma. */
-  prisma: string;
   sql: string;
+}
+
+/** The index's line for its model in schema.prisma, with the schema's names for the columns. */
+export function prismaIndex(
+  advice: Pick<IndexAdvice, "table" | "columns">,
+  names: PrismaNames = DATABASE_NAMES,
+): string {
+  const fields = advice.columns.map(
+    (column) =>
+      `${names.field(advice.table.name, column.name)}${column.descending ? "(sort: Desc)" : ""}`,
+  );
+  return `@@index([${fields.join(", ")}])`;
 }
 
 export interface AdviceInput {
@@ -216,14 +227,10 @@ export function writeAdvice(
   const parts = columns.map(
     (column) => `${quoted(column.name)}${column.descending ? " DESC" : ""}`,
   );
-  const fields = columns.map((column) =>
-    column.descending ? `${column.name}(sort: Desc)` : column.name,
-  );
   return {
     table,
     columns,
     name,
-    prisma: `@@index([${fields.join(", ")}])`,
     sql: `CREATE INDEX ${quoted(name)} ON ${target} (${parts.join(", ")});`,
   };
 }
