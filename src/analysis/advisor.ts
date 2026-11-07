@@ -300,7 +300,7 @@ function wantedParts(input: AdviceInput): {
  * How the index's key part at `at` holds its column otherwise than the query compares it, if it
  * does (PostgreSQL): in another collation than the column's, or with a *_pattern_ops class.
  */
-export function keyMisfit(
+function keyMisfit(
   engine: Engine,
   index: Index,
   at: number,
@@ -325,7 +325,7 @@ function unfitKey(input: AdviceInput, index: Index, uses: KeyUse[]): KeyMisfit |
     if (!misfit) continue;
     if (use === "order") return misfit;
     if (misfit.collation === undefined) continue;
-    // LIKE with a fixed start reads a range of a key that sorts by bytes, whatever the column's collation.
+    // LIKE with a fixed start reads a range of any key that sorts by bytes.
     if (use === "match" && !sortsByLanguage(index.collations?.[at])) continue;
     return misfit;
   }
