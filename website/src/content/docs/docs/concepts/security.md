@@ -11,7 +11,7 @@ description: What query-profiler keeps, where, who can see it, and what it does 
 - **Local only.** The API answers `localhost`, `127.0.0.1` and `[::1]`, even when the dev server
   listens on the network. For a Node server, the profiler's own port listens on `localhost` only.
   It takes profiles from other processes as JSON only and never with an `Origin`, so a page in your
-  browser cannot send it any.
+  browser cannot send it any. Its MCP server turns away a page of another site the same way.
 - **In memory only.** The last 100 profiles (no more than 20 of them background work), at most 1000
   queries each, in the dev server's memory.
   Nothing is written to disk, to a database or to cookies; the browser keeps only how you left the

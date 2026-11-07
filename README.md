@@ -225,7 +225,7 @@ Without it, as in production, every entry does nothing.
 Run the dev server. Once your app listens, the terminal says where the profiler is:
 
 ```txt
-[query-profiler] http://localhost:4983/_profiler
+[query-profiler] http://localhost:4983/_profiler · MCP: http://localhost:4983/_profiler/mcp
 ```
 
 Call your API and open it: every request, its SQL, the Prisma operations and the line of code
@@ -362,6 +362,45 @@ each step really had. No AI, and nothing leaves your machine: the plan comes fro
 planner. See [Query analysis](https://query-profiler.dev/docs/concepts/query-analysis) and
 [every rule](https://query-profiler.dev/docs/reference/rules).
 
+## AI agents (MCP)
+
+The profiler is also an MCP server, for an AI agent working on your app: it reads the same
+profiles, at `http://localhost:4983/_profiler/mcp`. That is the profiler's own port, which the
+preload opens for a Node server and the Vite plugin opens for React Router. Nothing else to run.
+
+```sh
+claude mcp add --transport http query-profiler http://localhost:4983/_profiler/mcp
+```
+
+Cursor, in `.cursor/mcp.json`:
+
+```json
+{ "mcpServers": { "query-profiler": { "url": "http://localhost:4983/_profiler/mcp" } } }
+```
+
+VS Code, in `.vscode/mcp.json`:
+
+```json
+{
+  "servers": { "query-profiler": { "type": "http", "url": "http://localhost:4983/_profiler/mcp" } }
+}
+```
+
+| Tool              | What it gives the agent                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| `list_requests`   | The recent requests, scripts and tasks, newest first; filters by path, kind and warnings        |
+| `get_request`     | One whole: each query with its SQL, parameters, rows, time and line of code; its operations     |
+| `fix_n1`          | The code that replaces each N+1, and the line to change                                         |
+| `explain_query`   | The plan, tables and findings, with the `@@index` line; `measure: true` runs a read rolled back |
+| `try_index`       | Creates a suggested index in a transaction that is rolled back: would the database use it?      |
+| `analyze_session` | The indexes that fix the most across the stored requests, and where the time goes               |
+| `get_stats`       | The slowest and most repeated statements, by model and by route                                 |
+
+Every tool but `try_index` only reads. It runs with the official SDK
+([`@modelcontextprotocol/server`](https://www.npmjs.com/package/@modelcontextprotocol/server)),
+loaded only once an agent connects, for clients of the 2026-07-28 protocol and of 2025. Like the
+rest of the API it answers only local hosts, in development, and turns away a page of another site.
+
 ## HTTP API
 
 Under `/_profiler`, answering only `localhost`, only in development: on the dev server for React
@@ -376,6 +415,7 @@ Router, and on the profiler's own port for a Node server. `/_profiler`,
 | `GET /api/meta`                                 | Where paths are shown from                                                                      |
 | `POST /api/profiles`                            | Takes another process's profile, as JSON, again as a script's grows; refuses an `Origin`        |
 | `DELETE /api/profiles`                          | Empties the storage                                                                             |
+| `/mcp`                                          | The MCP server, for AI agents: see [AI agents (MCP)](#ai-agents-mcp)                            |
 | `GET /api/profiles/:token/findings`             | What each query's SQL shows without asking the database                                         |
 | `GET /api/profiles/:token/fixes`                | The code that replaces each N+1, by its first query                                             |
 | `GET /api/profiles/:token/queries/:id/analysis` | The query's plan, tables and findings; `?measure=1` to measure it. Needs `X-Query-Profiler`     |
@@ -402,7 +442,7 @@ preload does too.
 - **Local only.** The API answers `localhost`, `127.0.0.1` and `[::1]`, even when the dev server
   listens on the network. For a Node server, the profiler's own port listens on `localhost` only.
   It takes profiles from other processes as JSON only and never with an `Origin`, so a page in your
-  browser cannot send it any.
+  browser cannot send it any. Its MCP server turns away a page of another site the same way.
 - **In memory only.** Profiles live in the dev server's memory: the last 100 (no more than 20 of
   them background work), at most 1000 queries each. Nothing is written to disk, to a database or to cookies; the browser keeps only how you
   left the bar.

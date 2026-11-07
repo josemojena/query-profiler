@@ -4,6 +4,17 @@
 
 ### New
 
+- **An MCP server for AI agents**, in the profiler itself: `http://localhost:4983/_profiler/mcp`,
+  for any app (the preload and the Vite plugin open that port). An agent reads the same profiles
+  as the page, through seven tools: `list_requests`, `get_request`, `fix_n1`, `explain_query`
+  (`measure: true` runs a read in a transaction that is rolled back), `try_index`,
+  `analyze_session` and `get_stats`. Every tool but `try_index` only reads. It runs with the
+  official SDK, `@modelcontextprotocol/server`, loaded once an agent connects; like the rest of
+  the API it answers only local hosts, and turns away a page of another site. The terminal says
+  where it is. Claude Code: `claude mcp add --transport http query-profiler
+  http://localhost:4983/_profiler/mcp`.
+- **Two dependencies**: `@modelcontextprotocol/server` and `zod`, which it uses. The package had
+  none; both install only where query-profiler does, as a dev dependency.
 - **The rows of each query.** Each query keeps the rows it returned, or the rows a write changed
   (`rows`, `changedRows`), from Prisma's driver adapter and from `pg`, on every engine. Queries and
   Operations have a **Rows** column; an N+1 row shows the rows of each run.
