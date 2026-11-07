@@ -42,7 +42,8 @@ Some of the [rules](/docs/reference/rules), by what they look at:
 - **How a table is read.** Every row of a big table read to find a few, for want of an index, with
   the index to add, its columns in the order an index can use them: equality first, then the sort,
   then one range. An index that has the column after another one. A join that reads a table again for
-  every row it joins. A table never analyzed, or whose statistics are out of date.
+  every row it joins, and a correlated subquery that reads it again for every outer row. A table never
+  analyzed, or whose statistics are out of date.
 - **The query.** A `%` first, `ILIKE`, a function or cast on the column, a text column compared with
   a number, `OR` across columns, huge `IN` lists, a deep `OFFSET`, paging with no `ORDER BY` or
   ordered by columns several rows share, counting a whole table, `NOT IN` and its `NULL`.
@@ -51,7 +52,9 @@ Some of the [rules](/docs/reference/rules), by what they look at:
   index, an index left invalid.
 - **Each engine's own**: PostgreSQL's JIT and planning time, hashes and sorts that went to disk,
   partial indexes against parameters; MySQL's and MariaDB's join buffers and writes that lock every
-  row they read; SQLite's automatic indexes.
+  row they read; MySQL's ranges that stop an index before an equality, and groupings through a
+  temporary table; SQLite's automatic indexes, and the foreign key checks that read a whole child
+  table on every delete.
 
 Every rule links to the section of its engine's manual that backs it, and is tested against the real
 engine.
