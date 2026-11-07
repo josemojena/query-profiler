@@ -38,6 +38,12 @@ const COLUMNS = (names: string) => `
 // Each row's stat starts with the rows its index, or its table, holds.
 const STATISTICS = "SELECT tbl, stat FROM sqlite_stat1";
 
+// The foreign keys from or to these tables: a key names its parent as its REFERENCES clause wrote it.
+const KEYED = (names: string) => `
+  SELECT m.name, f."table"
+  FROM sqlite_master m JOIN pragma_foreign_key_list(m.name) f
+  WHERE m.type = 'table' AND (m.name IN (${names}) OR f."table" COLLATE NOCASE IN (${names}))`;
+
 /** Tables, their columns, indexes and foreign keys, from SQLite's schema and pragmas. */
 export async function readSqliteCatalog(run: RunSql, asked: TableName[]): Promise<Table[]> {
   const names = [...new Set(asked.map((table) => table.name))];
@@ -71,6 +77,23 @@ export async function readSqliteCatalog(run: RunSql, asked: TableName[]): Promis
     }),
   );
   return pickTables(asked, found, "main");
+}
+
+/**
+ * The first of these tables that a foreign key leaves or reaches, when the connection does not
+ * enforce foreign keys (PRAGMA foreign_keys is off). Undefined while it does.
+ */
+export async function readSqliteUnenforced(
+  run: RunSql,
+  asked: TableName[],
+): Promise<TableName | undefined> {
+  const { rows } = await run("PRAGMA foreign_keys");
+  if (Number(rows[0]?.[0]) !== 0) return undefined;
+  const names = [...new Set(asked.map((table) => table.name))];
+  const list = names.map(() => "?").join(", ");
+  const keys = await run(KEYED(list), [...names, ...names]);
+  const keyed = new Set(keys.rows.flat().map((name) => String(name).toLowerCase()));
+  return asked.find((table) => keyed.has(table.name.toLowerCase()));
 }
 
 function groupIndexes(rows: unknown[][]): Index[] {

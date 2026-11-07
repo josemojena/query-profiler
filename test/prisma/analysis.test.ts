@@ -623,6 +623,38 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     },
   );
 
+  it.runIf(engine === "sqlite")(
+    "tells once when the connection has foreign keys off, which then go unchecked",
+    async () => {
+      const join = `SELECT p.id FROM qp_post p JOIN qp_author a ON a.id = p.author_id WHERE a.country = ?`;
+      const { analysis: on } = await analyze(join, ["es"]);
+      expect(rules(on)).not.toContain("foreign-keys-off");
+      await prisma.$executeRawUnsafe("PRAGMA foreign_keys = OFF");
+      try {
+        const { analysis: joined } = await analyze(join, ["es"]);
+        const off = joined.findings.filter((each) => each.rule === "foreign-keys-off");
+        expect(off).toHaveLength(1);
+        expect(off[0]).toMatchObject({
+          about: "table",
+          severity: "warning",
+          message: expect.stringContaining("Foreign keys are off on this connection"),
+          fix: { sql: "PRAGMA foreign_keys = ON;\nPRAGMA foreign_key_check;" },
+        });
+        // A delete in the parent table no longer checks its children, so the plan reads none.
+        const { analysis: deleted } = await analyze(
+          `DELETE FROM qp_author WHERE id = ?`,
+          [999_999],
+        );
+        expect(finding(deleted, "foreign-keys-off")).toMatchObject({ table: "qp_author" });
+        expect(rules(deleted)).not.toContain("foreign-key-check-scan");
+        const { analysis: unrelated } = await analyze(`SELECT id FROM qp_visit WHERE id = ?`, [1]);
+        expect(rules(unrelated)).not.toContain("foreign-keys-off");
+      } finally {
+        await prisma.$executeRawUnsafe("PRAGMA foreign_keys = ON");
+      }
+    },
+  );
+
   it.runIf(engine === "mariadb")(
     "reads a rowid filter and a subquery cache, and finds no misestimate in a read they narrow",
     async () => {

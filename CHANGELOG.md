@@ -12,6 +12,13 @@
   sort. It now asks for a plain `@@index`, and says why the index it has does not count
   (`full-scan-pattern-ops-index`, `full-scan-collation-index`, `sort-pattern-ops-index`,
   `sort-collation-index`).
+- **SQLite with foreign keys off.** SQLite enforces foreign keys only while `PRAGMA foreign_keys`
+  is on, for each connection. Prisma's better-sqlite3 and libSQL adapters start with it on, but a
+  `PRAGMA foreign_keys = OFF` run through the client, in a seed or a reset, leaves it off for the
+  client's connection: deletes stop cascading and a row can point at a parent that does not exist.
+  The analysis now reads the pragma, and when it is off and the query's tables have foreign keys,
+  says so once, with the pragma that turns them back on and `PRAGMA foreign_key_check`
+  (`foreign-keys-off`).
 
 ## 0.4.1
 

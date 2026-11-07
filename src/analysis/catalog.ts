@@ -1,7 +1,7 @@
 import type { RunSql } from "../core/index.js";
 import { readMysqlCatalog } from "./catalogs/mysql.js";
 import { readPostgresCatalog } from "./catalogs/postgres.js";
-import { readSqliteCatalog } from "./catalogs/sqlite.js";
+import { readSqliteCatalog, readSqliteUnenforced } from "./catalogs/sqlite.js";
 import type { Engine } from "./plan.js";
 
 export interface Index {
@@ -98,6 +98,19 @@ export function readCatalog(run: RunSql, engine: Engine, tables: TableName[]): P
     case "sqlite":
       return readSqliteCatalog(run, unique);
   }
+}
+
+/**
+ * The first of these tables with a foreign key, or one another table's key references, when the
+ * connection does not enforce foreign keys: SQLite, while PRAGMA foreign_keys is off.
+ */
+export function readUnenforced(
+  run: RunSql,
+  engine: Engine,
+  tables: TableName[],
+): Promise<TableName | undefined> {
+  if (engine !== "sqlite" || !tables.length) return Promise.resolve(undefined);
+  return readSqliteUnenforced(run, tables);
 }
 
 const key = (table: TableName) => `${table.schema ?? ""}.${table.name}`;

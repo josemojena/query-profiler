@@ -63,6 +63,8 @@ export interface Context {
   params: unknown[];
   /** The rows the query returned, when it ran. */
   returned?: number;
+  /** A table of the query whose foreign keys the connection does not enforce (SQLite). */
+  unenforced?: TableName;
 }
 
 /** Everything the rules look at in one query, each with its facts and values. */
@@ -642,14 +644,25 @@ function keyIndexed(engine: Engine, table: Table, key: ForeignKey): boolean {
   );
 }
 
-function foreignKeySubjects({ tables, engine, version }: Context): Analyzed[] {
-  return tables.flatMap((table) =>
+function foreignKeySubjects({ tables, engine, version, unenforced }: Context): Analyzed[] {
+  // One more for the connection, when it enforces none of them: one finding, not one per key.
+  const connection = unenforced
+    ? [
+        subject(
+          "foreign-key",
+          { unindexed: false, unenforced: true },
+          { table: unenforced.name, columns: undefined, references: undefined },
+          { table: unenforced },
+        ),
+      ]
+    : [];
+  const keys = tables.flatMap((table) =>
     table.foreignKeys.map((key) => {
       const indexed = keyIndexed(engine, table, key);
       const identity = { schema: table.schema, name: table.name };
       return subject(
         "foreign-key",
-        { unindexed: !indexed },
+        { unindexed: !indexed, unenforced: false },
         { table: table.name, columns: key.columns.join(", "), references: key.references.table },
         {
           table: identity,
@@ -665,6 +678,7 @@ function foreignKeySubjects({ tables, engine, version }: Context): Analyzed[] {
       );
     }),
   );
+  return [...keys, ...connection];
 }
 
 function indexSubjects({ tables }: Context): Analyzed[] {
