@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { analyzeQuery, tryIndex, type Analysis } from "../../src/analysis/analyze.js";
+import { prismaNames, readSchema } from "../../src/analysis/schema.js";
 import { analyzeSession } from "../../src/analysis/session.js";
 import {
   endProfile,
@@ -53,6 +54,26 @@ describe.each(ENGINES)("%s", (engine, connect) => {
       /^CREATE INDEX ["`]qp_post_title_idx["`] ON .*qp_post["`] \(["`]title["`]\);$/,
     );
     expect(full.step).toBeGreaterThanOrEqual(0);
+  });
+
+  it("writes the index with the schema's names, for a model and a field mapped to other ones", async () => {
+    const names = prismaNames(
+      readSchema(
+        `model Post {\n  id Int @id\n  headline String @map("title")\n  @@map("qp_post")\n}`,
+      ),
+    );
+    const { analysis } = await analyze(
+      `SELECT id FROM qp_post WHERE title = ${p(1)}`,
+      ["Post 77"],
+      {
+        names,
+      },
+    );
+    expect(finding(analysis, "full-scan-missing-index")!.fix).toMatchObject({
+      text: "Add an index on headline to the Post model, then run prisma migrate dev.",
+      prisma: "@@index([headline])",
+      sql: expect.stringMatching(/\btitle\b/),
+    });
   });
 
   it("counts each table's rows, exactly, whatever the engine caches", async () => {

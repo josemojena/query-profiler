@@ -132,7 +132,6 @@ describe("every rule", () => {
                 table: { name: "t" },
                 columns: [{ name: "a" }],
                 name: "t_a_idx",
-                prisma: "@@index([a])",
                 sql: "CREATE INDEX",
               },
             },

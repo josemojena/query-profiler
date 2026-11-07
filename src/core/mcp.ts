@@ -7,9 +7,14 @@ import {
   type CallToolResult,
 } from "@modelcontextprotocol/server";
 import * as z from "zod";
-import { analyzeSession } from "../analysis/session.js";
-import { explainOf, fixesOf, isRefusal, trialOf, type Refusal } from "./analysis-http.js";
-import { findDatabase } from "./database.js";
+import {
+  explainOf,
+  fixesOf,
+  isRefusal,
+  sessionOf,
+  trialOf,
+  type Refusal,
+} from "./analysis-http.js";
 import { detailed, explained, fixed, listed } from "./mcp-views.js";
 import type { Profile, ProfileKind } from "./profile.js";
 import { projectRoot } from "./root.js";
@@ -186,7 +191,7 @@ function profilerServer(): McpServer {
       inputSchema: z.object({}),
       annotations: read,
     },
-    async () => text(await analyzeSession(listProfiles(), (query) => findDatabase(query.database))),
+    async () => text(await sessionOf(listProfiles())),
   );
 
   server.registerTool(

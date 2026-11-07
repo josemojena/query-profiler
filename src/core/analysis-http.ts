@@ -8,7 +8,7 @@ import {
 } from "../analysis/analyze.js";
 import type { NoPlan } from "../analysis/explain.js";
 import { n1Fixes } from "../analysis/n1.js";
-import { findSchema } from "../analysis/schema.js";
+import { findSchema, prismaNames, type Schema } from "../analysis/schema.js";
 import { analyzeSession } from "../analysis/session.js";
 import { ANALYSIS_HEADER } from "./constants.js";
 import { findDatabase, type Database } from "./database.js";
@@ -41,7 +41,10 @@ async function answer(
   if (!profile) return json({ error: "not_found" }, 404);
   if (!action) {
     if (method !== "GET") return json({ error: "not_found" }, 404);
-    return json(Object.fromEntries(profile.queries.map((query) => [query.id, findingsOf(query)])));
+    const schema = schemaOf(profile);
+    return json(
+      Object.fromEntries(profile.queries.map((query) => [query.id, findingsOf(query, schema)])),
+    );
   }
   if (method !== (action === "trial" ? "POST" : "GET")) return json({ error: "not_found" }, 404);
   if (!request.headers.has(ANALYSIS_HEADER)) return json({ error: "forbidden" }, 403);
@@ -74,7 +77,10 @@ export async function explainOf(
   queryId: string,
   measure = false,
 ): Promise<Analysis | Refusal> {
-  return asked(profile, queryId, (database, query) => analyzeQuery(database, query, { measure }));
+  const names = prismaNames(schemaOf(profile));
+  return asked(profile, queryId, (database, query) =>
+    analyzeQuery(database, query, { measure, names }),
+  );
 }
 
 /** The plan once an index the analysis suggested exists, in a transaction that is rolled back. */
@@ -128,25 +134,39 @@ async function fixesRoute(request: Request, token: string): Promise<Response> {
   return json(fixesOf(profile));
 }
 
+/** The app's schema, for the models these profiles use, when the profiler finds it. */
+const schemaOf = (...profiles: Profile[]) =>
+  findSchema([
+    ...new Set(profiles.flatMap((profile) => profile.operations.flatMap((op) => op.model ?? []))),
+  ]);
+
 /** A profile's N+1 fixes, with the app's schema when the profiler finds it. */
-export const fixesOf = (profile: Profile) =>
-  n1Fixes(profile, findSchema([...new Set(profile.operations.flatMap((op) => op.model ?? []))]));
+export const fixesOf = (profile: Profile) => n1Fixes(profile, schemaOf(profile));
 
 /** Every statement shape of the stored requests, analyzed once: it asks the database. */
+export function sessionOf(profiles: Profile[]) {
+  const names = prismaNames(schemaOf(...profiles));
+  return analyzeSession(
+    profiles,
+    (query) => findDatabase(query.database),
+    (database, query) => analyzeQuery(database, query, { names }),
+  );
+}
+
 async function sessionRoute(request: Request): Promise<Response> {
   if (request.method !== "GET" && request.method !== "HEAD")
     return json({ error: "not_found" }, 404);
   if (!request.headers.has(ANALYSIS_HEADER)) return json({ error: "forbidden" }, 403);
-  return json(await analyzeSession(listProfiles(), (query) => findDatabase(query.database)));
+  return json(await sessionOf(listProfiles()));
 }
 
-// The same SQL with the same values and rows always gives the same findings.
-function findingsOf(query: QueryRecord): Finding[] {
+// The same SQL with the same values and rows, and the same schema, always gives the same findings.
+function findingsOf(query: QueryRecord, schema: Schema | undefined): Finding[] {
   if (!query.database) return [];
-  const key = `${query.database.provider}\u0000${query.sql}\u0000${JSON.stringify(query.params)}\u0000${query.rows}`;
+  const key = `${query.database.provider}\u0000${query.sql}\u0000${JSON.stringify(query.params)}\u0000${query.rows}\u0000${schema?.path}:${schema?.changed}`;
   const known = remembered.get(key);
   if (known) return known;
-  const findings = readFindings(query, query.database.provider);
+  const findings = readFindings(query, query.database.provider, prismaNames(schema));
   if (remembered.size >= MEMORY) remembered.delete(remembered.keys().next().value!);
   remembered.set(key, findings);
   return findings;
