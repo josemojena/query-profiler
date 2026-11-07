@@ -496,11 +496,13 @@ set `QUERY_PROFILER_TEST_DATABASE_URL`, in the environment or in a `.env` file (
 
 ### Releasing
 
-1. Set the version in `package.json` (`0.x` while the API settles) and add it to
-   [CHANGELOG.md](CHANGELOG.md).
+1. Set the version in `package.json` (`0.x` while the API settles) and turn the changelog's
+   `## Unreleased` into `## <version>` in [CHANGELOG.md](CHANGELOG.md).
 2. Tag the commit and push the tag: `git tag v0.1.0 && git push origin v0.1.0`.
-3. The release workflow checks that the tag matches `package.json`, runs every check and test,
-   stages the version on npm with provenance and creates the GitHub release.
+3. The release workflow checks that the tag matches `package.json` and that the changelog has a
+   section for that version, runs every check and test, stages the version on npm with provenance
+   and creates the GitHub release. Its notes are that section, followed by the pull requests merged
+   since the last release.
 4. Approve the staged version with two-factor authentication, on npmjs.com or with
    `npm stage list query-profiler` and `npm stage approve <id>`. Only then is it public.
 

@@ -59,6 +59,11 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: The tag matches package.json
         run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+      - name: The changelog has a section for this version
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          awk -v head="## $version" '$0 == head { found = 1; next } found && /^## / { exit } found' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       - run: pnpm --filter './examples/*' exec prisma generate
@@ -77,6 +82,6 @@ jobs:
             npm stage publish
           fi
       - name: GitHub release
-        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "See [CHANGELOG.md](CHANGELOG.md)."
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
+
+Query analysis: each query's plan, the index that fixes it and whether the database would use it,
+on every engine, and across the session the indexes that fix the most time. Also profiles for the
+work no request starts (scripts, startup, background work, tasks), the rows of each query, the code
+that fixes an N+1, and an MCP server for AI agents.
 
 ### New
 
