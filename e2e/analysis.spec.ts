@@ -260,6 +260,21 @@ test("tries the suggested index by its name, and says the database is as it was"
   });
 });
 
+test("says when the trial cannot tell, instead of saying the database does not use the index", async ({
+  page,
+}) => {
+  const { app } = await open(page);
+  const why =
+    "PostgreSQL does not use an index in the transaction that builds it while another transaction can still see older versions of some rows of the table, so this trial cannot tell.";
+  await page.route("**/trial", (route) =>
+    route.fulfill({ json: { ...TRIAL, used: false, inconclusive: why } }),
+  );
+  await app.getByRole("button", { name: "Explain ›" }).first().click();
+  await app.getByRole("button", { name: "Try this index" }).click();
+  await expect(app.locator(".tried.inconclusive")).toContainText(why);
+  await expect(app.locator(".tried")).not.toContainText("still does not use it");
+});
+
 test("keeps a table's notes apart and folded, and shows the database's own plan on demand", async ({
   page,
 }) => {
