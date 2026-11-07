@@ -151,10 +151,13 @@ function queriesTab(context: Detail, profile: Profile): string {
 /** The rows a query returned, or the rows a write changed. */
 const rowsOf = (query: QueryRecord) =>
   query.rows !== undefined
-    ? query.rows.toLocaleString("en-US")
+    ? `${query.rows.toLocaleString("en-US")}${unit(query.rows)}`
     : query.changedRows !== undefined
       ? `${query.changedRows.toLocaleString("en-US")} changed`
       : "–";
+
+// Where the Rows column folds into a line under the SQL, the number needs its word.
+const unit = (rows: number) => `<span class="unit"> ${rows === 1 ? "row" : "rows"}</span>`;
 
 /** One query's rows; for an N+1, the rows of each run, or of all of them when they differ. */
 function rowsCell(queries: QueryRecord[]): string {
@@ -162,7 +165,7 @@ function rowsCell(queries: QueryRecord[]): string {
   const each = new Set(queries.map(rowsOf));
   if (each.size === 1) return `${queries.length} × ${[...each][0]}`;
   const total = queries.reduce((sum, query) => sum + (query.rows ?? 0), 0);
-  return `${total.toLocaleString("en-US")} in all`;
+  return `${total.toLocaleString("en-US")}${unit(total)} in all`;
 }
 
 function operationsTab(context: Detail, profile: Profile): string {

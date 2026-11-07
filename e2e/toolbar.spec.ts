@@ -174,6 +174,45 @@ test("is dark by default, even on a light system, and keeps the theme picked", a
   await expect.poll(() => stripColor(page)).toBe(LIGHT_CHROME);
 });
 
+test("fits a narrow screen: it opens, nothing overlaps, and the theme is at the end of its tabs", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 400, height: 800 });
+  await open(page);
+  const strip = bar(page).locator(".strip");
+  await expect(strip).toContainText("GET 200");
+  const boxes = await strip.locator(":scope > *:visible").evaluateAll((items) =>
+    items.map((item) => ({
+      left: item.getBoundingClientRect().left,
+      right: item.getBoundingClientRect().right,
+    })),
+  );
+  for (const [index, box] of boxes.entries())
+    if (index) expect(box.left).toBeGreaterThanOrEqual(boxes[index - 1]!.right);
+  expect(boxes.at(-1)!.right).toBeLessThanOrEqual(400);
+  await expect(strip.getByRole("button", { name: "Dark", exact: true })).toHaveCount(0);
+  await openPanel(page);
+  await bar(page).locator(".tabs").getByRole("button", { name: "Light", exact: true }).click();
+  await expect.poll(() => stripColor(page)).toBe(LIGHT_CHROME);
+});
+
+test("folds each query into lines on a narrow screen, with nothing wider than the screen", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 400, height: 800 });
+  await open(page);
+  await openPanel(page);
+  await bar(page)
+    .getByRole("button", { name: /^Queries/ })
+    .click();
+  await expect(bar(page).locator(".panel thead")).toBeHidden();
+  await expect(bar(page).locator(".panel tbody tr").first()).toContainText("User.findUnique");
+  const wider = await bar(page)
+    .locator(".panel .body")
+    .evaluate((body) => body.scrollWidth > body.clientWidth);
+  expect(wider).toBe(false);
+});
+
 test("follows the system on Auto", async ({ page }) => {
   await open(page);
   await bar(page).getByRole("button", { name: "Auto", exact: true }).click();
