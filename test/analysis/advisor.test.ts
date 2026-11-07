@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   adviseIndex,
   adviseSortIndex,
+  misfitSort,
   patternText,
   prismaIndex,
   wantedColumns,
   writeAdvice,
 } from "../../src/analysis/advisor.js";
-import type { Index } from "../../src/analysis/catalog.js";
+import type { Column, Index } from "../../src/analysis/catalog.js";
 import type { Engine } from "../../src/analysis/plan.js";
 import { readStatement } from "../../src/analysis/statement.js";
 
@@ -192,5 +193,59 @@ describe("the indexes that count", () => {
     expect(prismaIndex(writeAdvice("mariadb", post, columns, "11.4.4"))).toBe(
       "@@index([createdAt(sort: Desc)])",
     );
+  });
+});
+
+describe("a PostgreSQL index key in another operator class or collation", () => {
+  const ICU = { name: "und-x-icu", provider: "icu" as const };
+  const columns: Column[] = ["status", "title"].map((name) => ({
+    name,
+    type: "text",
+    nullable: false,
+    collation: ICU,
+  }));
+  const input = (sql: string, existing: Index[]) => {
+    const statement = readStatement(sql, "postgres");
+    return {
+      engine: "postgres" as const,
+      table: ORDER,
+      conditions: statement.query.conditions,
+      orderBy: statement.query.orderBy,
+      params: ["paid", 10],
+      existing,
+      columns,
+    };
+  };
+  const BY_STATUS = `SELECT "id" FROM "public"."Order" WHERE "status" = $1 ORDER BY "title" LIMIT $2`;
+  const BY_TITLE = `SELECT "id" FROM "public"."Order" WHERE "title" = $1 ORDER BY "status" LIMIT $2`;
+
+  it("gives no ORDER BY with text_pattern_ops, though it finds the rows of an = before it", () => {
+    const keys = index(["status", "title"], {
+      operatorClasses: ["text_pattern_ops", "text_pattern_ops"],
+      collations: [ICU, ICU],
+    });
+    const sorted = input(BY_STATUS, [keys]);
+    expect(adviseSortIndex(sorted)!.columns.map(({ name }) => name)).toEqual(["status", "title"]);
+    expect(misfitSort(sorted)).toMatchObject({
+      index: { name: "i_status_title" },
+      key: { column: "title", operatorClass: "text_pattern_ops" },
+    });
+    const plain = index(["status", "title"], { operatorClasses: ["text_ops", "text_ops"] });
+    expect(adviseSortIndex(input(BY_STATUS, [plain]))).toBeUndefined();
+    expect(misfitSort(input(BY_STATUS, [plain]))).toBeUndefined();
+  });
+
+  it("finds no rows by = nor gives them in order in another collation than the column's", () => {
+    const byBytes = index(["title", "status"], {
+      collations: [{ name: "C", provider: "libc" }, ICU],
+    });
+    expect(adviseSortIndex(input(BY_TITLE, [byBytes]))).toBeDefined();
+    expect(misfitSort(input(BY_TITLE, [byBytes]))!.key).toEqual({
+      column: "title",
+      collation: "C",
+      columnCollation: "und-x-icu",
+    });
+    const own = index(["title", "status"], { collations: [ICU, ICU] });
+    expect(adviseSortIndex(input(BY_TITLE, [own]))).toBeUndefined();
   });
 });

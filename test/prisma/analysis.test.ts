@@ -208,6 +208,63 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     },
   );
 
+  it.runIf(engine === "postgres")(
+    "asks for a plain index for a range or ORDER BY that a text_pattern_ops index cannot serve, and for = too under another collation",
+    async () => {
+      const own = (analysis: Analysis) =>
+        analysis.findings.filter((each) => each.about === "query").map(({ rule }) => rule);
+      const { analysis: equal } = await analyze(`SELECT id FROM qp_tag WHERE code = $1`, [
+        "code-1234",
+      ]);
+      expect(own(equal)).toEqual([]);
+      const { query, analysis: range } = await analyze(
+        `SELECT id FROM qp_tag WHERE code > $1 AND code < $2`,
+        ["code-12340", "code-12345"],
+      );
+      expect(own(range)).toEqual(["full-scan-pattern-ops-index"]);
+      const advice = finding(range, "full-scan-pattern-ops-index")!;
+      expect(advice).toMatchObject({
+        message: expect.stringContaining(
+          "qp_tag_code_idx leads with code: its operator class, text_pattern_ops,",
+        ),
+        fix: { prisma: "@@index([code])" },
+      });
+      const trial = await tryIndex(findDatabase(query.database)!, query, {
+        name: advice.fix!.index!,
+        sql: advice.fix!.sql!,
+      });
+      expect(trial).toMatchObject({ used: true });
+      const { analysis: sorted } = await analyze(`SELECT id FROM qp_tag ORDER BY code LIMIT 10`);
+      expect(own(sorted)).toEqual(["full-scan-pattern-ops-index", "sort-pattern-ops-index"]);
+      expect(finding(sorted, "sort-pattern-ops-index")!.fix!.prisma).toBe("@@index([code])");
+      // handle sorts by ICU, and its only index by bytes: LIKE can read it, nothing else can.
+      const { analysis: like } = await analyze(`SELECT id FROM qp_tag WHERE handle LIKE $1`, [
+        "handle-1234%",
+      ]);
+      expect(own(like)).toEqual([]);
+      for (const [sql, params] of [
+        [`SELECT id FROM qp_tag WHERE handle = $1`, ["handle-1234"]],
+        [
+          `SELECT id FROM qp_tag WHERE handle > $1 AND handle < $2`,
+          ["handle-12340", "handle-12345"],
+        ],
+      ] as const) {
+        const { analysis } = await analyze(sql, [...params]);
+        expect(own(analysis)).toEqual(["full-scan-collation-index"]);
+        expect(finding(analysis, "full-scan-collation-index")).toMatchObject({
+          message: expect.stringContaining(
+            'qp_tag_handle_idx leads with handle: the index holds it in the collation "C", and the query compares it in the column\'s, "und-x-icu".',
+          ),
+          fix: { prisma: "@@index([handle])" },
+        });
+      }
+      const { analysis: byHandle } = await analyze(
+        `SELECT id FROM qp_tag ORDER BY handle LIMIT 10`,
+      );
+      expect(own(byHandle)).toEqual(["full-scan-collation-index", "sort-collation-index"]);
+    },
+  );
+
   it.runIf(engine === "sqlite")(
     "asks for an index built with COLLATE NOCASE for LIKE, and is content with one",
     async () => {

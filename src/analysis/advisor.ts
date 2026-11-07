@@ -57,6 +57,21 @@ const MOST_COLUMNS = 4;
 const NAME_LENGTH = 63;
 // The libc locales in which PostgreSQL sorts text by its bytes.
 const BYTE_ORDER = /^(?:C|POSIX)$/;
+const PATTERN_CLASS = /_pattern_ops$/;
+
+/** How a PostgreSQL index key holds its column otherwise than the query compares it. */
+export interface KeyMisfit {
+  column: string;
+  /** A *_pattern_ops class: it serves = and LIKE, not <, <=, >, >= or ORDER BY. */
+  operatorClass?: string;
+  /** A collation other than the column's: the key serves no =, range or ORDER BY in the column's. */
+  collation?: string;
+  columnCollation?: string;
+}
+
+// How a query uses an index key: = compares in the column's collation, a range or ORDER BY needs
+// the column's order too, and LIKE with a fixed start only its characters.
+type KeyUse = "compare" | "order" | "match";
 
 /** Whether an index on the column can serve a condition that wraps it this way. */
 export const usableWrapper = (wrapper: string | undefined) => !wrapper || HARMLESS.test(wrapper);
@@ -69,13 +84,42 @@ export const usableWrapper = (wrapper: string | undefined) => !wrapper || HARMLE
 export function adviseIndex(input: AdviceInput): IndexAdvice | undefined {
   const columns = wantedColumns(input);
   if (!columns.length) return undefined;
-  // With equality columns, only an index that starts with one finds the rows well: one that
-  // starts with a range or the sort is a poor stand-in.
-  const { equalities } = wantedParts(input);
-  const usable = new Set(equalities.length ? equalities : columns.map((column) => column.name));
-  const served = ordered(input).some((index) => usable.has(index.columns[0] ?? ""));
+  const served = ordered(input).some((index) => {
+    const uses = lookupUses(input, columns, index);
+    return uses !== undefined && !unfitKey(input, index, uses);
+  });
   if (served) return undefined;
   return writeAdvice(input.engine, input.table, columns, input.version);
+}
+
+/**
+ * The index that would find the query's rows but for how its first key holds the column: in
+ * another collation, or with a *_pattern_ops class (PostgreSQL). Undefined when an index serves.
+ */
+export function misfitLookup(input: AdviceInput): { index: Index; key: KeyMisfit } | undefined {
+  const columns = wantedColumns(input);
+  if (input.engine !== "postgres" || !adviseIndex(input)) return undefined;
+  for (const index of ordered(input)) {
+    const uses = lookupUses(input, columns, index);
+    const key = uses && unfitKey(input, index, uses);
+    if (key) return { index, key };
+  }
+  return undefined;
+}
+
+// With equality columns, only an index that starts with one finds the rows well: one that starts
+// with a range or the sort is a poor stand-in.
+function lookupUses(
+  input: AdviceInput,
+  columns: IndexColumn[],
+  index: Index,
+): KeyUse[] | undefined {
+  const { equalities, inOrder } = wantedParts(input);
+  const usable = new Set(equalities.length ? equalities : columns.map((column) => column.name));
+  const first = index.columns[0] ?? "";
+  if (!usable.has(first)) return undefined;
+  if (equalities.includes(first)) return ["compare"];
+  return [inOrder.includes(first) ? "order" : "match"];
 }
 
 /**
@@ -83,6 +127,33 @@ export function adviseIndex(input: AdviceInput): IndexAdvice | undefined {
  * columns and no index starts with the query's equality columns followed by the sort.
  */
 export function adviseSortIndex(input: AdviceInput): IndexAdvice | undefined {
+  const layout = sortLayout(input);
+  if (!layout) return undefined;
+  const { columns, uses, sortsBy } = layout;
+  if (ordered(input).some((index) => sortsBy(index) && !unfitKey(input, index, uses)))
+    return undefined;
+  return writeAdvice(input.engine, input.table, columns, input.version);
+}
+
+/**
+ * The index that would give this query's rows already sorted but for how a key holds its column: in
+ * another collation, or with a *_pattern_ops class (PostgreSQL). Undefined when an index serves.
+ */
+export function misfitSort(input: AdviceInput): { index: Index; key: KeyMisfit } | undefined {
+  const layout = sortLayout(input);
+  if (input.engine !== "postgres" || !layout || !adviseSortIndex(input)) return undefined;
+  for (const index of ordered(input).filter(layout.sortsBy)) {
+    const key = unfitKey(input, index, layout.uses);
+    if (key) return { index, key };
+  }
+  return undefined;
+}
+
+// The columns an index needs to give the rows sorted, how the query uses each key, and whether an
+// index has those columns in that order.
+function sortLayout(
+  input: AdviceInput,
+): { columns: IndexColumn[]; uses: KeyUse[]; sortsBy: (index: Index) => boolean } | undefined {
   const columns = wantedColumns(input);
   const sortAt = columns.findIndex((column) =>
     input.orderBy.some((key) => key.column?.column === column.name),
@@ -97,25 +168,23 @@ export function adviseSortIndex(input: AdviceInput): IndexAdvice | undefined {
   // of ORDER BY createdAt, id.
   const primary = input.existing.find((index) => index.primary)?.columns ?? [];
   const innodb = input.engine === "mysql" || input.engine === "mariadb";
-  const serves = (index: Index) => {
+  const sortsBy = (index: Index) => {
     // A prefix index holds the first characters only, so it cannot give the order.
     if (sort.some((name) => index.prefix?.[name] !== undefined)) return false;
-    const columns = innodb
+    const keys = innodb
       ? [...index.columns, ...primary.filter((name) => !index.columns.includes(name))]
       : index.columns;
-    const head = new Set(columns.slice(0, leading.size));
-    const next = columns.slice(leading.size, leading.size + sort.length);
+    const head = new Set(keys.slice(0, leading.size));
+    const next = keys.slice(leading.size, leading.size + sort.length);
     return (
       [...leading].every((name) => head.has(name)) && sort.every((name, at) => next[at] === name)
     );
   };
-  if (ordered(input).some(serves)) return undefined;
-  return writeAdvice(
-    input.engine,
-    input.table,
-    columns.slice(0, sortAt + sort.length),
-    input.version,
-  );
+  return {
+    columns: columns.slice(0, sortAt + sort.length),
+    uses: [...[...leading].map((): KeyUse => "compare"), ...sort.map((): KeyUse => "order")],
+    sortsBy,
+  };
 }
 
 /**
@@ -181,17 +250,22 @@ export function wantedColumns(input: AdviceInput): IndexColumn[] {
     .slice(0, MOST_COLUMNS);
 }
 
-/** The query's equality, sort and range columns on this table. */
+/**
+ * The query's equality, sort and range columns on this table, and the ones it needs in the column's
+ * order: a range's and the sort's, not a LIKE's.
+ */
 function wantedParts(input: AdviceInput): {
   equalities: string[];
   sorts: IndexColumn[];
   ranges: string[];
+  inOrder: string[];
 } {
   const same = (table: TableName | undefined) =>
     table !== undefined && sameTable(input.engine, table, input.table);
   const filters: string[] = [];
   const joins: string[] = [];
   const ranges: string[] = [];
+  const compared: string[] = [];
   for (const condition of input.conditions) {
     if (condition.alternative || condition.clause === "having") continue;
     const own = same(condition.column.table) && usableWrapper(condition.wrapper);
@@ -211,13 +285,51 @@ function wantedParts(input: AdviceInput): {
       (prefixPattern(condition, input.params) && plainServesLike(input.engine, column))
     )
       ranges.push(condition.column.column);
+    if (condition.kind === "range") compared.push(condition.column.column);
   }
   const equalities = [...filters, ...(input.joins === false ? [] : joins)];
   const sorted = input.orderBy.every((key) => key.column && same(key.column.table));
   const sorts = sorted
     ? input.orderBy.map((key) => ({ name: key.column!.column, descending: key.descending }))
     : [];
-  return { equalities: unique(equalities), sorts, ranges };
+  const inOrder = unique([...compared, ...sorts.map((key) => key.name)]);
+  return { equalities: unique(equalities), sorts, ranges, inOrder };
+}
+
+/**
+ * How the index's key part at `at` holds its column otherwise than the query compares it, if it
+ * does (PostgreSQL): in another collation than the column's, or with a *_pattern_ops class.
+ */
+export function keyMisfit(
+  engine: Engine,
+  index: Index,
+  at: number,
+  columns: Column[] = [],
+): KeyMisfit | undefined {
+  if (engine !== "postgres") return undefined;
+  const name = index.columns[at] ?? "";
+  const own = columns.find((column) => column.name === name)?.collation;
+  const key = index.collations?.[at];
+  if (key && own && key.name !== own.name)
+    return { column: name, collation: key.name, columnCollation: own.name };
+  const operatorClass = index.operatorClasses?.[at];
+  return operatorClass && PATTERN_CLASS.test(operatorClass)
+    ? { column: name, operatorClass }
+    : undefined;
+}
+
+/** The first key the query uses otherwise than the index holds its column, if any. */
+function unfitKey(input: AdviceInput, index: Index, uses: KeyUse[]): KeyMisfit | undefined {
+  for (const [at, use] of uses.entries()) {
+    const misfit = keyMisfit(input.engine, index, at, input.columns);
+    if (!misfit) continue;
+    if (use === "order") return misfit;
+    if (misfit.collation === undefined) continue;
+    // LIKE with a fixed start reads a range of a key that sorts by bytes, whatever the column's collation.
+    if (use === "match" && !sortsByLanguage(index.collations?.[at])) continue;
+    return misfit;
+  }
+  return undefined;
 }
 
 /** LIKE 'abc%', which an index can read as a range, unlike LIKE '%abc'. */
@@ -271,8 +383,7 @@ function servesLike(engine: Engine, index: Index, column: Column | undefined): b
   if (engine === "sqlite") return /^nocase$/i.test(index.collations?.[0]?.name ?? "");
   if (plainServesLike(engine, column)) return true;
   return (
-    /_pattern_ops$/.test(index.operatorClasses?.[0] ?? "") ||
-    !sortsByLanguage(index.collations?.[0])
+    PATTERN_CLASS.test(index.operatorClasses?.[0] ?? "") || !sortsByLanguage(index.collations?.[0])
   );
 }
 

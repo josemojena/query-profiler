@@ -3,6 +3,8 @@ import {
   adviseIndex,
   adviseKeyOrder,
   adviseSortIndex,
+  misfitLookup,
+  misfitSort,
   patternClass,
   patternText,
   prefixPattern,
@@ -13,6 +15,7 @@ import {
   writeAdvice,
   type AdviceInput,
   type IndexAdvice,
+  type KeyMisfit,
 } from "../advisor.js";
 import type { ForeignKey, Index, Table, TableName } from "../catalog.js";
 import { allSteps, type Engine, type Plan, type PlanStep } from "../plan.js";
@@ -93,7 +96,7 @@ function planSubjects(context: Context): Analyzed[] {
   return steps.flatMap((step, position): Analyzed[] => {
     if (step.kind === "read") return [readSubject(step, position)];
     if (step.kind === "sort" || step.kind === "group") {
-      const sorted = sortAdvice(context);
+      const { advice: sorted, misfit } = sortAdvice(context);
       const grouped = step.kind === "group" ? groupAdvice(context) : undefined;
       const advice = step.kind === "group" ? grouped : sorted;
       return [
@@ -103,14 +106,16 @@ function planSubjects(context: Context): Analyzed[] {
             temporary: step.temporary === true,
             onDisk: step.onDisk === true,
             limited,
-            sortable: sorted !== undefined,
+            sortable: sorted !== undefined && !misfit,
             groupable: grouped !== undefined,
             measured: step.measured !== undefined,
+            ...misfitFacts(misfit?.key),
           },
           {
             keys: step.keys?.join(", "),
             table: advice?.table.name,
             columns: advice?.columns.map((column) => column.name).join(", "),
+            ...misfitValues(misfit),
           },
           { advice, step: position, table: advice?.table },
         ),
@@ -152,6 +157,8 @@ function planSubjects(context: Context): Analyzed[] {
           )
         : undefined;
     const advice = hidden ? undefined : visibleAdvice;
+    // An index that has the column first, but holds it in another collation or operator class.
+    const misfit = input && advice ? misfitLookup(input) : undefined;
     const partial = input && table ? partialKey(step, table, input) : undefined;
     const enforcedAdvice =
       enforced && identity
@@ -199,9 +206,10 @@ function planSubjects(context: Context): Analyzed[] {
               condition.column.table !== undefined &&
               sameTable(engine, condition.column.table, identity),
           ),
-        missing: advice !== undefined,
+        missing: advice !== undefined && !misfit,
         served: wanted.length > 0 && advice === undefined && table !== undefined && !hidden,
         hiddenIndex: hidden !== undefined,
+        ...misfitFacts(misfit?.key),
         nocaseNeeded: engine === "sqlite" && like !== undefined,
         patternOpsNeeded: engine === "postgres" && like !== undefined && !like.leading,
         small: rows !== undefined && rows < SMALL_TABLE,
@@ -265,6 +273,7 @@ function planSubjects(context: Context): Analyzed[] {
         last: partial?.used.at(-1),
         skipped: partial?.skipped.join(", "),
         references: enforced?.references.table,
+        ...misfitValues(misfit),
       },
       { advice: fixAdvice, step: position, table: identity },
     );
@@ -414,14 +423,17 @@ function planSubjects(context: Context): Analyzed[] {
   }
 }
 
-function sortAdvice(context: Context): IndexAdvice | undefined {
+function sortAdvice(context: Context): {
+  advice?: IndexAdvice;
+  misfit?: { index: Index; key: KeyMisfit };
+} {
   const { statement, engine } = context;
   const [first] = statement.query.orderBy;
   const owner = first?.column?.table;
-  if (!owner) return undefined;
+  if (!owner) return {};
   const table = context.tables.find((candidate) => sameTable(engine, candidate, owner));
-  if (!table) return undefined;
-  return adviseSortIndex({
+  if (!table) return {};
+  const input: AdviceInput = {
     engine,
     version: context.version,
     table: { schema: table.schema, name: table.name },
@@ -430,8 +442,26 @@ function sortAdvice(context: Context): IndexAdvice | undefined {
     params: context.params,
     existing: table.indexes.filter((index) => index.valid !== false),
     columns: table.columns,
-  });
+  };
+  return { advice: adviseSortIndex(input), misfit: misfitSort(input) };
 }
+
+// An index key that holds its column otherwise than the query compares it: a *_pattern_ops class
+// has no <, and another collation sorts and compares by other rules.
+const misfitFacts = (key: KeyMisfit | undefined) => ({
+  patternOpsKey: key?.operatorClass !== undefined,
+  collationKey: key?.collation !== undefined,
+});
+
+const misfitValues = (misfit: { index: Index; key: KeyMisfit } | undefined) => ({
+  misfit: misfit?.index.name,
+  misfitColumn: misfit?.key.column,
+  misfitClass: misfit?.key.operatorClass,
+  misfitCollation: quotedName(misfit?.key.collation),
+  columnCollation: quotedName(misfit?.key.columnCollation),
+});
+
+const quotedName = (name: string | undefined) => (name === undefined ? undefined : `"${name}"`);
 
 function groupAdvice(context: Context): IndexAdvice | undefined {
   const { statement, engine } = context;

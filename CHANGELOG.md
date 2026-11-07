@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **A PostgreSQL index that serves `LIKE` but not a range or `ORDER BY`.** An index with
+  `text_pattern_ops` (`varchar_pattern_ops`, `bpchar_pattern_ops`) serves `=` and `LIKE 'abc%'`, but
+  not `<`, `<=`, `>`, `>=` or `ORDER BY`, and an index key in another collation than its column's
+  (`COLLATE "C"` on an ICU column) serves none of `=`, `<`, `>` or `ORDER BY`. The analysis counted
+  either as serving them, so it blamed the statistics for the full read, or said nothing about the
+  sort. It now asks for a plain `@@index`, and says why the index it has does not count
+  (`full-scan-pattern-ops-index`, `full-scan-collation-index`, `sort-pattern-ops-index`,
+  `sort-collation-index`).
+
 ## 0.4.1
 
 Fixes to the query analysis and the bar. The index advice uses your schema's names and is one the
