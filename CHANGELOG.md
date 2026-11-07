@@ -64,9 +64,10 @@
   the plan lists that search as one more read. The analysis took it for a read with nothing to find.
   It now says when the child has no index on the key, so that each such write reads all of it, and
   gives the index (`foreign-key-check-scan`).
-- **MariaDB's rowid filter and subquery cache.** A read with a rowid filter now notes the second
-  index it uses (`Using rowid filter (…)`). A subquery under MariaDB's subquery cache, which the plan
-  dropped with every table it reads, is now in it, with how often the cache answered.
+- **MariaDB's rowid filter and subquery cache.** A subquery under MariaDB's subquery cache, which
+  the plan dropped with every table it reads, is now in it, so the analysis checks those reads too.
+  In the plan that `explain_query` and the API give, a read with a rowid filter notes the second
+  index it uses (`Using rowid filter (…)`), and a cached subquery how often the cache answered.
 
 ## 0.4.0
 
