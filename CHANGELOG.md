@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.4.2
+
+The last details of the query analysis. A PostgreSQL index with `text_pattern_ops` or another
+collation no longer counts as serving a range or a sort; SQLite says when its foreign keys are off;
+and Explain shows the notes the database adds to each step.
 
 ### Fixed
 
