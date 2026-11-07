@@ -118,6 +118,7 @@ describe("the profiler page", () => {
         view: "stats",
         stats: {
           profiles: 4,
+          kinds: { document: 2, data: 1, script: 1 },
           slowest: [
             {
               fingerprint: "f",
@@ -134,7 +135,7 @@ describe("the profiler page", () => {
         },
       }),
     );
-    expect(html).toContain("Across the last 4 requests");
+    expect(html).toContain("Across the last 3 requests and 1 script.");
     expect(html).toContain("SELECT &lt;b&gt;");
     expect(html).toContain("<b>Order</b>");
   });
