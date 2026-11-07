@@ -118,6 +118,22 @@ export function adviseSortIndex(input: AdviceInput): IndexAdvice | undefined {
   );
 }
 
+/**
+ * The index that looks up every column an equality fixes before the one range, when the index a
+ * read uses stops at a range before such a column. Undefined when an index already starts with
+ * all of them.
+ */
+export function adviseKeyOrder(input: AdviceInput): IndexAdvice | undefined {
+  const { equalities } = wantedParts(input);
+  const columns = wantedColumns(input);
+  const fixed = new Set(equalities);
+  const startsWithAll = (index: Index) =>
+    index.columns.length >= fixed.size &&
+    index.columns.slice(0, fixed.size).every((name) => fixed.has(name));
+  if (!fixed.size || ordered(input).some(startsWithAll)) return undefined;
+  return writeAdvice(input.engine, input.table, columns, input.version);
+}
+
 /** The columns an index on this table would use for the query, in the order it should list them. */
 export function wantedColumns(input: AdviceInput): IndexColumn[] {
   const { equalities, sorts, ranges } = wantedParts(input);

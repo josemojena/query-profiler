@@ -476,6 +476,28 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     },
   );
 
+  it.runIf(engine === "mysql")(
+    "finds a range that stops an index before a column an equality fixes, and the index with the equalities first",
+    async () => {
+      const sql = `SELECT id FROM qp_visit WHERE page = ? AND seconds > ? AND device = ?`;
+      for (const measure of [false, true]) {
+        const { analysis } = await analyze(sql, ["page-7", 900, "phone"], { measure });
+        expect(finding(analysis, "range-before-equality")).toMatchObject({
+          table: "qp_visit",
+          message: expect.stringContaining(
+            "through qp_visit_page_seconds_device_idx by page, seconds only",
+          ),
+          fix: { prisma: "@@index([page, device, seconds])" },
+        });
+      }
+      const { analysis: whole } = await analyze(
+        `SELECT id FROM qp_visit WHERE page = ? AND seconds = ? AND device = ?`,
+        ["page-7", 900, "phone"],
+      );
+      expect(rules(whole)).not.toContain("range-before-equality");
+    },
+  );
+
   it("tries the suggested index in a transaction it rolls back, where the engine can undo it", async () => {
     const { query, analysis } = await analyze(`SELECT id FROM qp_post WHERE title = ${p(1)}`, [
       "Post 77",

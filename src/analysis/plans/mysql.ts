@@ -297,12 +297,23 @@ function hashed(current: PlanStep, inHash: boolean): PlanStep {
   };
 }
 
+// A lookup or a range: the table, the index, what it reads by, and what Index Condition Pushdown
+// checks on the entries it reads.
 const READ_LINES: [RegExp, Access][] = [
   [/^Table scan on (\S+)/, "full"],
   [/^(?:Covering )?[Ii]ndex scan on (\S+) using (\S+)/, "index-full"],
-  [/^Single-row (?:covering )?index lookup on (\S+) using (\S+) \((.*)\)/, "unique"],
-  [/^Covering index (?:lookup|range scan) on (\S+) using (\S+) (?:over )?\((.*)\)/, "index-only"],
-  [/^Index (?:lookup|range scan) on (\S+) using (\S+) (?:over )?\((.*)\)/, "index"],
+  [
+    /^Single-row (?:covering )?index lookup on (\S+) using (\S+) \((.*?)\)(?:, with index condition: (.*))?$/,
+    "unique",
+  ],
+  [
+    /^Covering index (?:lookup|range scan) on (\S+) using (\S+) (?:over )?\((.*?)\)(?:, with index condition: (.*))?$/,
+    "index-only",
+  ],
+  [
+    /^Index (?:lookup|range scan) on (\S+) using (\S+) (?:over )?\((.*?)\)(?:, with index condition: (.*))?$/,
+    "index",
+  ],
   [/^Constant row from (\S+)/, "unique"],
 ];
 
@@ -317,6 +328,7 @@ function treeStep(label: string): PlanStep {
         access,
         index: match[2],
         lookup: match[3],
+        notes: match[4] === undefined ? undefined : ["Using index condition"],
       });
   }
   const filter = /^Filter: (.*)$/.exec(label)?.[1];

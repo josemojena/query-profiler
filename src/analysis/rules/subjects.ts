@@ -1,13 +1,16 @@
 import {
   adviseIndex,
+  adviseKeyOrder,
   adviseSortIndex,
   patternClass,
   patternText,
+  prefixPattern,
   sameTable,
   unservedPrefix,
   usableWrapper,
   wantedColumns,
   writeAdvice,
+  type AdviceInput,
   type IndexAdvice,
 } from "../advisor.js";
 import type { Index, Table, TableName } from "../catalog.js";
@@ -144,6 +147,8 @@ function planSubjects(context: Context): Analyzed[] {
           )
         : undefined;
     const advice = hidden ? undefined : visibleAdvice;
+    const partial = input && table ? partialKey(step, table, input) : undefined;
+    const fixAdvice = advice ?? partial?.advice;
     const like = table && identity ? unservedLike(table, identity) : undefined;
     const rows = table?.rows ?? step.rowsRead ?? step.rows;
     const measured = step.measured;
@@ -196,6 +201,7 @@ function planSubjects(context: Context): Analyzed[] {
         manyLoops: (measured?.loops ?? 0) >= MANY_LOOPS,
         inner,
         dependent,
+        partialKey: partial !== undefined,
         joinBuffer: (step.notes ?? []).some((note) => note.startsWith("Using join buffer")),
         wasteful: removed >= WASTED_ROWS && removed >= WASTE * Math.max(measured?.rows ?? 0, 1),
         considered: (step.possibleIndexes?.length ?? 0) > 0 && !step.index,
@@ -222,7 +228,7 @@ function planSubjects(context: Context): Analyzed[] {
       {
         table: identity?.name,
         rows,
-        columns: (advice?.columns ?? wanted).map((column) => column.name).join(", "),
+        columns: (fixAdvice?.columns ?? wanted).map((column) => column.name).join(", "),
         index: step.index,
         filter: step.filter,
         loops: measured?.loops,
@@ -240,9 +246,47 @@ function planSubjects(context: Context): Analyzed[] {
         hidden: hidden?.name,
         like: like?.column,
         operatorClass: patternClass(like?.type),
+        used: partial?.used.join(", "),
+        last: partial?.used.at(-1),
+        skipped: partial?.skipped.join(", "),
       },
-      { advice, step: position, table: identity },
+      { advice: fixAdvice, step: position, table: identity },
     );
+  }
+
+  // The index the read looks up by, used only up to a range on one of its columns: an equality on
+  // a later column is checked on each entry the range reads instead of narrowing it.
+  function partialKey(step: PlanStep, table: Table, input: AdviceInput) {
+    if (step.access !== "index" && step.access !== "index-only") return undefined;
+    const index = table.indexes.find(
+      (each) => each.name.toLowerCase() === step.index?.toLowerCase(),
+    );
+    if (!index || index.expression || (index.method && !/^btree$/i.test(index.method)))
+      return undefined;
+    const lookup = step.lookup ?? "";
+    const reach = index.columns.findIndex((column) => !mentions(lookup, column));
+    const used = index.columns.slice(0, reach < 0 ? index.columns.length : reach);
+    if (!used.length || used.length === index.columns.length) return undefined;
+    const own = conditions.filter(
+      (condition) =>
+        !condition.alternative &&
+        condition.clause !== "having" &&
+        usableWrapper(condition.wrapper) &&
+        condition.value.kind !== "column" &&
+        condition.column.table !== undefined &&
+        sameTable(engine, condition.column.table, input.table),
+    );
+    const on = (column: string) => own.filter((condition) => condition.column.column === column);
+    const ranged = on(used.at(-1)!).some(
+      (condition) => condition.kind === "range" || prefixPattern(condition, context.params),
+    );
+    const skipped = index.columns
+      .slice(used.length)
+      .filter((column) =>
+        on(column).some((condition) => condition.kind === "equality" || condition.kind === "null"),
+      );
+    const advice = ranged && skipped.length ? adviseKeyOrder(input) : undefined;
+    return advice ? { used, skipped, advice } : undefined;
   }
 
   // A LIKE with a fixed start on this table that a plain index would not serve, and none of its indexes does.

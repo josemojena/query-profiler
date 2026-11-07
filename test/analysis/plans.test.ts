@@ -107,6 +107,19 @@ describe("MySQL's subqueries", () => {
     ]);
     expect(reads(steps).map((read) => read.table)).toEqual(["a", "p", "p"]);
   });
+
+  it("keeps what a range reads by apart from the index condition it checks on each entry", () => {
+    // From MySQL 8.4.
+    const [read] = readMysqlTree(
+      "-> Index range scan on qs_post using qs_post_status_views_created_idx over (status = 'draft' AND 400 < views), with index condition: ((qs_post.created_at = TIMESTAMP'2026-01-05 00:00:00') and (qs_post.`status` = 'draft') and (qs_post.views > 400))  (cost=594 rows=1320) (actual time=0.108..0.108 rows=0 loops=1)",
+    );
+    expect(read).toMatchObject({
+      access: "index",
+      index: "qs_post_status_views_created_idx",
+      lookup: "status = 'draft' AND 400 < views",
+      notes: ["Using index condition"],
+    });
+  });
 });
 
 describe("MariaDB's plan", () => {
