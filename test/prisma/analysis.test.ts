@@ -458,6 +458,15 @@ describe.each(ENGINES)("%s", (engine, connect) => {
           .filter((each) => each.about === "query" && each.table === "qp_post")
           .map(({ rule }) => rule),
       ).toEqual([rule]);
+      // A table joined inside the subquery is the join's to tell.
+      const { analysis: joined } = await analyze(
+        `SELECT a.id, (SELECT COUNT(*) FROM qp_post p JOIN qp_fresh f ON f.kind = p.status WHERE p.author_id = a.id) AS c FROM qp_author a WHERE a.id < 10`,
+      );
+      const onJoined = joined.findings
+        .filter((each) => each.about === "query" && each.table === "qp_fresh")
+        .map(({ rule }) => rule);
+      expect(onJoined).toContain(engine === "mysql" ? "join-buffer" : "automatic-index");
+      expect(onJoined).not.toContain(rule);
     },
   );
 
