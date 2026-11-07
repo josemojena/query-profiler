@@ -1,5 +1,5 @@
 import type { RunSql } from "../../core/index.js";
-import { pickTables, split, type Table, type TableName } from "../catalog.js";
+import { pickTables, split, type Table, type TableName, inTurn } from "../catalog.js";
 import { asNumber } from "../plan.js";
 
 // Lists come back joined with the unit separator, as text: every driver returns text the same way.
@@ -68,8 +68,10 @@ const COLUMNS = (names: string) => `
 export async function readPostgresCatalog(run: RunSql, asked: TableName[]): Promise<Table[]> {
   const names = [...new Set(asked.map((table) => table.name))];
   const list = names.map((_, index) => `$${index + 1}`).join(", ");
-  const [tables, indexes, foreignKeys, columns, statistics] = await Promise.all(
-    [TABLES, INDEXES, FOREIGN_KEYS, COLUMNS, STATISTICS].map((query) => run(query(list), names)),
+  const [tables, indexes, foreignKeys, columns, statistics] = await inTurn(
+    [TABLES, INDEXES, FOREIGN_KEYS, COLUMNS, STATISTICS].map(
+      (query) => () => run(query(list), names),
+    ),
   );
   const current = tables!.rows[0]?.[9] as string | undefined;
   const of = (row: unknown[], table: Table) => row[0] === table.schema && row[1] === table.name;
