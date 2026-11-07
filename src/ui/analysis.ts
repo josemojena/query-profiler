@@ -338,10 +338,13 @@ function trialHtml(
       : "";
   const said = trial.used
     ? `✓ With the index, the database uses it${read ? `: ${escape(read.label)}` : ""}${cost}.`
-    : "With the index, the database still does not use it for this query.";
+    : trial.inconclusive
+      ? escape(trial.inconclusive)
+      : "With the index, the database still does not use it for this query.";
+  const tone = trial.used ? "" : trial.inconclusive ? " inconclusive" : " unused";
   return {
     link,
-    result: `<div class="tried${trial.used ? "" : " unused"}">${said} <span class="sub">Created and rolled back in a transaction: your database is as it was.</span></div>`,
+    result: `<div class="tried${tone}">${said} <span class="sub">Created and rolled back in a transaction: your database is as it was.</span></div>`,
   };
 }
 

@@ -171,6 +171,7 @@ td.rows { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .find .docs { color: var(--accent); font-size: 12px; white-space: nowrap; }
 .tried { color: var(--ok); font-size: 12.5px; }
 .tried.unused, .tried.failed { color: var(--warn); }
+.tried.inconclusive { color: var(--ink-2); }
 .tried .sub { color: inherit; opacity: .85; margin: 0; }
 .fold { margin-top: 12px; color: var(--ink-2); font-size: 12.5px; }
 .fold b { color: var(--ink); font-weight: 650; }

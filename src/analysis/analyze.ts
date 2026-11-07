@@ -1,4 +1,4 @@
-import type { Database, Provider } from "../core/index.js";
+import type { Database, Provider, RunSql } from "../core/index.js";
 import type { IndexAdvice } from "./advisor.js";
 import { readCatalog, type Table, type TableName } from "./catalog.js";
 import { engineOf, explain, type NoPlan } from "./explain.js";
@@ -52,6 +52,8 @@ export interface Trial {
   index: string;
   /** The database chose the index once it existed. */
   used: boolean;
+  /** Why the trial cannot tell whether the database would use it, when it cannot. */
+  inconclusive?: string;
   /** The plan's estimated cost without the index, and with it. */
   before?: number;
   after?: number;
@@ -126,6 +128,21 @@ export function readFindings(
   return findingsOf(found, engine, "", names);
 }
 
+const UNUSABLE_IN_TRIAL =
+  "PostgreSQL does not use an index in the transaction that builds it while another transaction can still see older versions of some rows of the table, so this trial cannot tell. Try it again once those transactions end, or create the index in a migration.";
+
+/**
+ * Whether PostgreSQL keeps a new index from the transaction that built it: the table had rows that
+ * other, older transactions still see in another version (pg_index.indcheckxmin).
+ */
+async function waitsForOlderTransactions(run: RunSql, index: string): Promise<boolean> {
+  const { rows } = await run(
+    "SELECT i.indcheckxmin FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = $1",
+    [index],
+  );
+  return rows[0]?.[0] === true;
+}
+
 /**
  * The plan once the suggested index exists, created in a transaction that is rolled back. Only
  * PostgreSQL and SQLite can undo a CREATE INDEX; on a small table PostgreSQL is told to avoid full
@@ -145,11 +162,12 @@ export async function tryIndex(
   const before = await explain(database, query);
   const name = `qp_trial_${Math.random().toString(36).slice(2, 10)}`;
   const sql = advice.sql.replace(/^CREATE INDEX\s+("[^"]*"|`[^`]*`)/, `CREATE INDEX "${name}"`);
-  const after = await database.rolledBack(async (run) => {
+  const { after, unusable } = await database.rolledBack(async (run) => {
     if (engine === "postgres") await run("SET LOCAL statement_timeout = '5s'");
     await run(sql);
+    const unusable = engine === "postgres" && (await waitsForOlderTransactions(run, name));
     if (engine === "postgres") await run("SET LOCAL enable_seqscan = off");
-    return explain(database, query, { run });
+    return { after: await explain(database, query, { run }), unusable };
   });
   if ("problem" in after) return after;
   const cost = (plan: Plan | NoPlan) => ("problem" in plan ? undefined : plan.steps[0]?.cost);
@@ -157,6 +175,7 @@ export async function tryIndex(
     index: advice.name,
     // Avoiding full reads only discourages them: the index counts once it looks rows up.
     used: allSteps(after.steps).some((step) => step.index === name && step.lookup !== undefined),
+    ...(unusable ? { inconclusive: UNUSABLE_IN_TRIAL } : {}),
     before: cost(before),
     after: cost(after),
     plan: { ...after, raw: after.raw.replaceAll(name, advice.name) },

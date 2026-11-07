@@ -9,6 +9,10 @@
   (`@@index([author_id])`), which Prisma does not accept. It now says `@@index([authorId])`, and
   names the model, from the `schema.prisma` the profiler already reads; so do the trigram and
   `@@fulltext` lines. The SQL keeps the database's names.
+- **Try this index says when it cannot tell.** PostgreSQL does not use an index inside the
+  transaction that builds it while another transaction can still see older versions of some rows
+  (`pg_index.indcheckxmin`), and the trial said the database would not use it. It now says the trial
+  cannot tell, and why.
 - **Explain sends one catalog query at a time.** It read a table's catalog with several queries at
   once, which in a rolled back transaction (Measure it, Try this index) all went to one connection.
   `pg` warned that this stops working in its next major version, and MySQL and SQLite took them in
