@@ -439,6 +439,43 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     expect(rules(analysis)).toContain("automatic-index");
   });
 
+  it.runIf(engine === "mysql" || engine === "sqlite")(
+    "finds a correlated subquery that reads a whole table again for each outer row, and the index that makes each run a lookup",
+    async () => {
+      const { analysis } = await analyze(
+        `SELECT a.id, (SELECT COUNT(*) FROM qp_post p WHERE p.title = a.name) AS c FROM qp_author a`,
+      );
+      const rule = engine === "mysql" ? "dependent-subquery-scan" : "correlated-scan";
+      expect(finding(analysis, rule)).toMatchObject({
+        severity: "problem",
+        table: "qp_post",
+        fix: { prisma: "@@index([title])" },
+      });
+      // One finding for the read, not another that takes it for a read of its own.
+      expect(
+        analysis.findings
+          .filter((each) => each.about === "query" && each.table === "qp_post")
+          .map(({ rule }) => rule),
+      ).toEqual([rule]);
+    },
+  );
+
+  it.runIf(engine === "mysql")(
+    "counts the runs of a correlated subquery that looks its rows up through an index",
+    async () => {
+      const sql = `SELECT a.id, (SELECT COUNT(*) FROM qp_post p WHERE p.author_id = a.id) AS c FROM qp_author a`;
+      const { analysis } = await analyze(sql, [], { measure: true });
+      expect(finding(analysis, "dependent-subquery-loops")).toMatchObject({
+        table: "qp_post",
+        message: expect.stringContaining("1,000 times"),
+      });
+      const { analysis: estimated } = await analyze(sql);
+      expect(
+        estimated.findings.filter((each) => each.about === "query" && each.table === "qp_post"),
+      ).toEqual([]);
+    },
+  );
+
   it("tries the suggested index in a transaction it rolls back, where the engine can undo it", async () => {
     const { query, analysis } = await analyze(`SELECT id FROM qp_post WHERE title = ${p(1)}`, [
       "Post 77",

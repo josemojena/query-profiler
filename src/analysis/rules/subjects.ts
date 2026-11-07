@@ -19,6 +19,8 @@ import type { Subject, SubjectKind } from "./engine.js";
 const IMPOSSIBLE =
   /Impossible (?:WHERE|HAVING)(?: noticed after reading const tables)?|no matching row in const table|const row not found|unique row not found|No matching min\/max row|Zero limit|No matching rows after partition pruning/i;
 const TEXT_TYPE = /char|text|enum|set/i;
+// A subquery run again for each row of the outer query: MySQL's dependent one, SQLite's correlated.
+const RERUN = /^Select #\d+ \(.*\bdependent\)$|^CORRELATED (?:SCALAR|LIST) SUBQUERY \d+$/;
 
 /** Fewer rows than this, and reading them all is often what the database should do. */
 export const SMALL_TABLE = 1000;
@@ -118,6 +120,7 @@ function planSubjects(context: Context): Analyzed[] {
     const table = name && context.tables.find((candidate) => sameTable(engine, candidate, name));
     const identity = table ? { schema: table.schema, name: table.name } : name;
     const inner = innerSide(step);
+    const dependent = rerun(step);
     const input = identity && {
       engine,
       table: identity,
@@ -126,7 +129,7 @@ function planSubjects(context: Context): Analyzed[] {
       params: context.params,
       existing: (table?.indexes ?? []).filter((index) => index.valid !== false),
       columns: table?.columns,
-      joins: inner || filteredElsewhere(identity),
+      joins: inner || dependent || filteredElsewhere(identity),
       version: context.version,
     };
     const wanted = input ? wantedColumns(input) : [];
@@ -192,6 +195,7 @@ function planSubjects(context: Context): Analyzed[] {
           !stopsEarly(step),
         manyLoops: (measured?.loops ?? 0) >= MANY_LOOPS,
         inner,
+        dependent,
         joinBuffer: (step.notes ?? []).some((note) => note.startsWith("Using join buffer")),
         wasteful: removed >= WASTED_ROWS && removed >= WASTE * Math.max(measured?.rows ?? 0, 1),
         considered: (step.possibleIndexes?.length ?? 0) > 0 && !step.index,
@@ -270,6 +274,13 @@ function planSubjects(context: Context): Analyzed[] {
     // SQLite lists the tables of a join in loop order, outer first, as siblings.
     const siblings = parents.get(step)?.children ?? plan!.steps;
     return siblings.filter((sibling) => sibling.kind === "read").indexOf(step) > 0;
+  }
+
+  // Inside a subquery that runs again for each outer row, which reads the table each time.
+  function rerun(step: PlanStep): boolean {
+    for (let parent = parents.get(step); parent; parent = parents.get(parent))
+      if (RERUN.test(parent.label)) return true;
+    return false;
   }
 
   // Under a LIMIT, in a semi or anti join (EXISTS, NOT EXISTS), or on a merge join's inner side,

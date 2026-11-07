@@ -95,6 +95,20 @@ describe("MySQL's plan", () => {
   });
 });
 
+describe("MySQL's subqueries", () => {
+  it("puts each subquery under the step MySQL's tree prints for it, which says whether it runs again for each outer row", () => {
+    const steps = readMysqlPlan(json("mysql-subqueries"));
+    expect(outline(steps)).toEqual([
+      "ALL",
+      "  Select #3 (subquery in condition; dependent)",
+      "    ALL",
+      "Select #2 (subquery in projection; dependent)",
+      "  ALL",
+    ]);
+    expect(reads(steps).map((read) => read.table)).toEqual(["a", "p", "p"]);
+  });
+});
+
 describe("MariaDB's plan", () => {
   it("marks a table joined through a join buffer, read in full, with its join condition", () => {
     expect(reads(readMariadbPlan(json("mariadb-join-without-index")))[1]).toMatchObject({

@@ -127,8 +127,44 @@ const defined = <T extends object>(fields: T): Partial<T> =>
     Object.entries(fields).filter(([, value]) => value !== undefined),
   ) as Partial<T>;
 
+// Where a query block keeps its subqueries, and where MySQL's tree says each one runs.
+const SUBQUERIES: [string, string][] = [
+  ["select_list_subqueries", "projection"],
+  ["order_by_subqueries", "projection"],
+  ["group_by_subqueries", "projection"],
+  ["having_subqueries", "condition"],
+];
+
 function block(node: Json | undefined): PlanStep[] {
   if (!node) return [];
+  const nested = SUBQUERIES.flatMap(([key, place]) =>
+    ((node[key] as Json[] | undefined) ?? []).map((each) => subquery(each, place)),
+  );
+  return [...blockSteps(node), ...nested];
+}
+
+/**
+ * A subquery as the step EXPLAIN ANALYZE's tree prints for it: "Select #2 (subquery in
+ * condition; dependent)", run again for each outer row, uncacheable, or run only once.
+ */
+function subquery(node: Json, place: string): PlanStep {
+  const inner = node.query_block as Json | undefined;
+  const runs =
+    node.dependent === true
+      ? "dependent"
+      : node.cacheable === false
+        ? "uncacheable"
+        : "run only once";
+  return step(
+    {
+      label: `Select #${String(inner?.select_id ?? "?")} (subquery in ${place}; ${runs})`,
+      kind: "other",
+    },
+    block(node),
+  );
+}
+
+function blockSteps(node: Json): PlanStep[] {
   if (typeof node.message === "string") return [step({ label: node.message, kind: "other" })];
   if (node.query_block) return block(node.query_block as Json);
   if (node.table) return [table(node.table as Json)];
@@ -188,7 +224,9 @@ function table(node: Json): PlanStep {
   const cost = node.cost_info as Json | undefined;
   const subqueries = [
     ...block(node.materialized_from_subquery as Json | undefined),
-    ...((node.attached_subqueries as Json[] | undefined) ?? []).flatMap(block),
+    ...((node.attached_subqueries as Json[] | undefined) ?? []).map((each) =>
+      subquery(each, "condition"),
+    ),
   ];
   return step(
     {
