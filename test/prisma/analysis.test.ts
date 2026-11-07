@@ -498,6 +498,38 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     },
   );
 
+  it.runIf(engine === "mysql")(
+    "finds a grouping through a temporary table that an index would give already grouped",
+    async () => {
+      const { analysis } = await analyze(`SELECT title, COUNT(*) FROM qp_post GROUP BY title`);
+      expect(finding(analysis, "group-without-index")).toMatchObject({
+        table: "qp_post",
+        fix: { prisma: "@@index([title])" },
+      });
+      expect(rules(analysis)).not.toContain("temporary-group");
+      const { analysis: filtered } = await analyze(
+        `SELECT seconds, COUNT(*) FROM qp_visit WHERE device = ? GROUP BY seconds`,
+        ["phone"],
+      );
+      expect(finding(filtered, "group-without-index")!.fix!.prisma).toBe(
+        "@@index([device, seconds])",
+      );
+      // MySQL keeps the index that finds page's rows, and groups them in a temporary table even
+      // when an index on page and device exists.
+      const { analysis: found } = await analyze(
+        `SELECT device, COUNT(*) FROM qp_visit WHERE page = ? GROUP BY device`,
+        ["page-7"],
+      );
+      const { analysis: expression } = await analyze(
+        `SELECT LEFT(title, 6), COUNT(*) FROM qp_post GROUP BY LEFT(title, 6)`,
+      );
+      for (const each of [found, expression]) {
+        expect(rules(each)).toContain("temporary-group");
+        expect(rules(each)).not.toContain("group-without-index");
+      }
+    },
+  );
+
   it("tries the suggested index in a transaction it rolls back, where the engine can undo it", async () => {
     const { query, analysis } = await analyze(`SELECT id FROM qp_post WHERE title = ${p(1)}`, [
       "Post 77",

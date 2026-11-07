@@ -119,6 +119,39 @@ export function adviseSortIndex(input: AdviceInput): IndexAdvice | undefined {
 }
 
 /**
+ * The index that would give this query's rows already grouped: the columns an equality fixes, then
+ * the GROUP BY columns in their order. Undefined when an index already starts that way.
+ */
+export function adviseGroupIndex(
+  input: AdviceInput & { groupBy: string[] },
+): IndexAdvice | undefined {
+  const { equalities } = wantedParts({ ...input, orderBy: [], joins: false });
+  const leading = equalities.filter((name) => !input.groupBy.includes(name));
+  if (!input.groupBy.length || leading.length + input.groupBy.length > MOST_COLUMNS)
+    return undefined;
+  const finds = (index: Index) => {
+    const head = new Set(index.columns.slice(0, leading.length));
+    return leading.every((name) => head.has(name));
+  };
+  const serves = (index: Index) => {
+    // A prefix index holds the first characters only, so it cannot give the groups.
+    if (input.groupBy.some((name) => index.prefix?.[name] !== undefined)) return false;
+    const next = index.columns.slice(leading.length, leading.length + input.groupBy.length);
+    return finds(index) && input.groupBy.every((name, at) => next[at] === name);
+  };
+  // MySQL keeps an index that already finds the equality's rows, and groups them in a temporary
+  // table, even when another index would give them grouped.
+  const found = leading.length > 0 && ordered(input).some(finds);
+  if (found || ordered(input).some(serves)) return undefined;
+  return writeAdvice(
+    input.engine,
+    input.table,
+    [...leading, ...input.groupBy].map((name) => ({ name })),
+    input.version,
+  );
+}
+
+/**
  * The index that looks up every column an equality fixes before the one range, when the index a
  * read uses stops at a range before such a column. Undefined when an index already starts with
  * all of them.

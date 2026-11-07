@@ -1,4 +1,5 @@
 import {
+  adviseGroupIndex,
   adviseIndex,
   adviseKeyOrder,
   adviseSortIndex,
@@ -92,7 +93,9 @@ function planSubjects(context: Context): Analyzed[] {
   return steps.flatMap((step, position): Analyzed[] => {
     if (step.kind === "read") return [readSubject(step, position)];
     if (step.kind === "sort" || step.kind === "group") {
-      const advice = sortAdvice(context);
+      const sorted = sortAdvice(context);
+      const grouped = step.kind === "group" ? groupAdvice(context) : undefined;
+      const advice = step.kind === "group" ? grouped : sorted;
       return [
         subject(
           step.kind,
@@ -100,7 +103,8 @@ function planSubjects(context: Context): Analyzed[] {
             temporary: step.temporary === true,
             onDisk: step.onDisk === true,
             limited,
-            sortable: advice !== undefined,
+            sortable: sorted !== undefined,
+            groupable: grouped !== undefined,
             measured: step.measured !== undefined,
           },
           {
@@ -402,6 +406,31 @@ function sortAdvice(context: Context): IndexAdvice | undefined {
     params: context.params,
     existing: table.indexes.filter((index) => index.valid !== false),
     columns: table.columns,
+  });
+}
+
+function groupAdvice(context: Context): IndexAdvice | undefined {
+  const { statement, engine } = context;
+  const { groupBy, groupsByExpression } = statement.query;
+  const owner = groupBy[0]?.table;
+  if (
+    !owner ||
+    groupsByExpression ||
+    groupBy.some((column) => !column.table || !sameTable(engine, column.table, owner))
+  )
+    return undefined;
+  const table = context.tables.find((candidate) => sameTable(engine, candidate, owner));
+  if (!table) return undefined;
+  return adviseGroupIndex({
+    engine,
+    version: context.version,
+    table: { schema: table.schema, name: table.name },
+    conditions: statement.query.conditions,
+    orderBy: [],
+    params: context.params,
+    existing: table.indexes.filter((index) => index.valid !== false),
+    columns: table.columns,
+    groupBy: groupBy.map((column) => column.column),
   });
 }
 
