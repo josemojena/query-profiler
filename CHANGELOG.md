@@ -17,6 +17,12 @@
   Stats and the session's analysis still said "the last 14 requests". They now say "the last 12
   requests, 1 script and 1 task" (`kinds` in `/api/stats` and `/api/stats/analysis`), and "By
   route" lists only requests, where the seed showed as a route requested once.
+- **The bar fits a narrow screen.** Below about 720 pixels its strip piled up (the theme switch,
+  Recent and the name over the summary, which could no longer be clicked), and its panel's tabs and
+  tables ran off the side. Now the strip keeps the status, the path, the queries and the warnings,
+  dropping the name and, below 480, the time in the database; the theme switch moves to the end of
+  the panel's tabs, which scroll sideways; and each table row folds into lines, the SQL first. Wider
+  screens are as they were.
 - **Explain sends one catalog query at a time.** It read a table's catalog with several queries at
   once, which in a rolled back transaction (Measure it, Try this index) all went to one connection.
   `pg` warned that this stops working in its next major version, and MySQL and SQLite took them in

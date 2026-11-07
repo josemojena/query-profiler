@@ -59,6 +59,9 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
 .themes button + button { border-left: 1px solid var(--line); }
 .themes button:hover { color: var(--ink); }
 .themes button.on { background: var(--line); color: var(--ink); }
+.tabs .themes, .unit { display: none; }
+.summary { overflow: hidden; }
+.chip, .brand, .strip .themes { flex: none; }
 
 .panel {
   position: fixed; left: 0; right: 0; bottom: ${STRIP_HEIGHT}px; z-index: 2147483500;
@@ -195,7 +198,7 @@ dt { color: var(--ink-2); }
 dd { margin: 0; }
 
 .recent {
-  position: fixed; right: 12px; bottom: ${STRIP_HEIGHT + 6}px; z-index: 2147483647; width: 380px; max-height: 50vh; overflow: auto;
+  position: fixed; right: 12px; bottom: ${STRIP_HEIGHT + 6}px; z-index: 2147483647; width: min(380px, calc(100vw - 24px)); max-height: 50vh; overflow: auto;
   background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 6px;
 }
 .recent > button { display: block; width: 100%; text-align: left; padding: 8px 10px; border-radius: 6px; }
@@ -209,6 +212,29 @@ dd { margin: 0; }
   position: fixed; right: 12px; bottom: 12px; z-index: 2147483600; display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 12px; border-radius: 999px; background: var(--chrome); border: 1px solid var(--line); box-shadow: var(--shadow);
   font-size: 12px; color: var(--ink-2);
+}
+
+/* A narrow screen: the strip keeps what happened, the theme moves into the panel, and each table
+   row folds into lines, the SQL or name first. */
+@media (max-width: 720px) {
+  .strip, .summary { gap: 10px; }
+  .strip { padding: 0 8px; }
+  .strip .themes, .brand-name, .panel thead, .panel td.num, .panel td .meter, .panel td.origin .sub { display: none; }
+  .strip .url { max-width: none; }
+  .panel .tabs { overflow-x: auto; scrollbar-width: none; padding: 0 8px; }
+  .tab, .tabs > a { white-space: nowrap; flex: none; }
+  .tabs .themes { display: inline-flex; flex: none; margin-left: 12px; }
+  .panel table, .panel tbody, .panel td { display: block; }
+  .panel tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+  .panel tr.tools { display: block; padding: 0; }
+  .panel td { padding: 0; border: 0; width: auto; }
+  .panel tr.warn { background: var(--warn-row); }
+  .panel tr.warn td { background: none; }
+  .panel tr > td:nth-child(2) { flex-basis: 100%; order: -1; }
+  .unit { display: inline; }
+}
+@media (max-width: 480px) {
+  .summary .db, .summary .word, .paren { display: none; }
 }
 `;
 

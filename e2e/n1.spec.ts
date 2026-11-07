@@ -139,9 +139,9 @@ test("shows the rows of each query, of each run of an N+1, and of each operation
   page,
 }) => {
   const { app, asked } = await open(page);
-  await expect(app.locator("td.rows")).toHaveText(["6", "6 × 1"]);
+  await expect(app.locator("td.rows")).toHaveText(["6", "6 × 1"], { useInnerText: true });
   await app.getByRole("button", { name: /^Operations/ }).click();
-  await expect(app.locator("td.rows").first()).toHaveText("6");
+  await expect(app.locator("td.rows").first()).toHaveText("6", { useInnerText: true });
   expect(asked).toEqual([]);
 });
 

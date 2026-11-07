@@ -57,19 +57,23 @@ function strip(state: ViewState): string {
        <span class="url">${escape(page.request.url)}</span>
        ${state.calls.length ? `<span><b>${state.calls.length}</b> ${state.calls.length === 1 ? "call" : "calls"}</span>` : ""}
        <span><b>${sum.queries}</b> queries</span>
-       <span><b>${ms(sum.dbTimeMs)}</b> in DB</span>
-       ${sum.warnings ? `<span><i class="dot"></i>${count(sum.warnings, "warning")}</span>` : ""}
-       ${sum.errors ? `<span><i class="dot bad"></i>${count(sum.errors, "error")}</span>` : ""}`
+       <span class="db"><b>${ms(sum.dbTimeMs)}</b> in DB</span>
+       ${sum.warnings ? `<span><i class="dot"></i>${counted(sum.warnings, "warning")}</span>` : ""}
+       ${sum.errors ? `<span><i class="dot bad"></i>${counted(sum.errors, "error")}</span>` : ""}`
     : `<span class="url">No profile for this page yet</span>`;
   return `<div class="strip">
     <button class="summary" data-action="toggle" aria-expanded="${state.open}" title="${state.open ? "Close" : "Open"} the database profiler">${summary}</button>
     ${state.pinned ? `<button class="chip" data-action="follow">Back to this page</button>` : ""}
-    <button class="chip${state.showRecent ? " on" : ""}" data-action="recent">Recent (${state.recent.length})</button>
+    <button class="chip${state.showRecent ? " on" : ""}" data-action="recent">Recent <span class="paren">(</span>${state.recent.length}<span class="paren">)</span></button>
     ${themeSwitch(state.theme)}
-    <span class="brand">${LOGO}Query Profiler</span>
+    <span class="brand">${LOGO}<span class="brand-name">Query Profiler</span></span>
     <button class="chip" data-action="minimize" title="Minimize" aria-label="Minimize">▾</button>
   </div>`;
 }
+
+// A narrow screen keeps the number and drops the word.
+const counted = (n: number, one: string) =>
+  `${n}<span class="word"> ${n === 1 ? one : `${one}s`}</span>`;
 
 function pill(state: ViewState): string {
   const sum = totals(state);
@@ -124,7 +128,7 @@ function panel(state: ViewState): string {
     : "";
   return `<div class="panel" style="height:${state.height}px">
     <div class="handle" data-drag title="Drag to resize"></div>
-    <div class="tabs">${tabs}<span class="spacer"></span>${json}</div>
+    <div class="tabs">${tabs}<span class="spacer"></span>${json}${themeSwitch(state.theme)}</div>
     <div class="body">${state.tab === "requests" ? requestsTab(state) : profile ? body(state, profile) : `<div class="empty">Open a page or run a request to see what the database did.</div>`}</div>
   </div>`;
 }
