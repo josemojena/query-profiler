@@ -3,8 +3,17 @@ import { link } from "../data/site";
 import demo from "./profiles.json";
 
 const profiles = demo.profiles as Profile[];
-// Each N+1's fix, as the example's profiler gave it: it reads the example's schema.prisma.
-const fixes = demo.fixes;
+// Recorded from the example's profiler, as it answered: each N+1's fix (from the example's
+// schema.prisma), what each query's SQL shows, each query's estimated plan, and the session.
+const fixes: Record<string, unknown> = demo.fixes;
+const findings: Record<string, unknown> = demo.findings;
+const analyses: Record<string, Record<string, unknown>> = demo.analyses;
+const QUERY = /^\/profiles\/([0-9a-f]{6})\/queries\/(q_\d+)\/(analysis|trial)$/;
+const CANNOT_RUN = {
+  error: "no_database",
+  message:
+    "this demo has no database behind it: its plans were recorded, but it cannot run a query or create an index. In your app, it asks yours.",
+};
 
 /** Where the demo's profiler lives: no server behind it, the browser answers with sample profiles. */
 export const DEMO_BASE = link("demo-profiler");
@@ -25,14 +34,19 @@ const listItem = ({
 function answer(path: string, params: URLSearchParams, stats: unknown): Response {
   if (path === "/meta") return Response.json({ root: demo.root });
   if (path === "/stats") return Response.json(stats ?? {});
-  if (path === "/stats/analysis")
-    return Response.json(
-      {
-        error: "no_database",
-        message: "this demo has no database behind it. In your app, it asks yours.",
-      },
-      { status: 409 },
-    );
+  if (path === "/stats/analysis") return Response.json(demo.session);
+  const asked = QUERY.exec(path);
+  if (asked) {
+    const [, token, queryId, action] = asked;
+    const analysis = analyses[token!]?.[queryId!];
+    if (action === "trial" || params.get("measure") === "1")
+      return Response.json(CANNOT_RUN, { status: 409 });
+    return analysis
+      ? Response.json(analysis)
+      : Response.json({ error: "not_found" }, { status: 404 });
+  }
+  const found = /^\/profiles\/([0-9a-f]{6})\/findings$/.exec(path)?.[1];
+  if (found) return Response.json(findings[found] ?? {});
   if (path === "/profiles") {
     const parent = params.get("parent");
     const limit = Number(params.get("limit")) || 50;

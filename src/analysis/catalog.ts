@@ -27,6 +27,21 @@ export interface Index {
   parts?: string[];
   /** False for an index PostgreSQL could not finish building: it is kept, and never used. */
   valid?: boolean;
+  /** False for an index the optimizer may not use: MySQL's INVISIBLE, MariaDB's IGNORED. */
+  visible?: boolean;
+  /** Each key part's operator class (PostgreSQL): text_ops, text_pattern_ops… */
+  operatorClasses?: string[];
+  /** Each key part's collation (PostgreSQL and SQLite), undefined for a type without one. */
+  collations?: (Collation | undefined)[];
+}
+
+/** How text compares: SQLite's BINARY or NOCASE, or a PostgreSQL collation with how it sorts. */
+export interface Collation {
+  name: string;
+  /** PostgreSQL's provider for it: the database's own for the default collation. */
+  provider?: "libc" | "icu" | "builtin";
+  /** The locale it sorts by: C, en_US.utf8… */
+  locale?: string;
 }
 
 export interface ForeignKey {
@@ -39,6 +54,8 @@ export interface Column {
   name: string;
   type: string;
   nullable: boolean;
+  /** How a text column sorts (PostgreSQL). */
+  collation?: Collation;
 }
 
 export interface Table {

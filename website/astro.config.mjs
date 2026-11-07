@@ -6,10 +6,10 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
   site: "https://query-profiler.dev",
   trailingSlash: "never",
-  // The Express and Fastify guides became one guide for every Node server.
+  // The Express and Fastify guides moved under Node servers.
   redirects: {
-    "/docs/guides/express": "/docs/guides/node",
-    "/docs/guides/fastify": "/docs/guides/node",
+    "/docs/guides/express": "/docs/guides/node/express",
+    "/docs/guides/fastify": "/docs/guides/node/fastify",
   },
   build: { format: "file" },
   integrations: [
@@ -37,7 +37,18 @@ export default defineConfig({
           label: "Guides",
           items: [
             "docs/guides/react-router",
-            "docs/guides/node",
+            {
+              label: "Node servers",
+              items: [
+                { slug: "docs/guides/node", label: "Setup" },
+                "docs/guides/node/express",
+                "docs/guides/node/fastify",
+                "docs/guides/node/nestjs",
+                "docs/guides/node/koa",
+                "docs/guides/node/hapi",
+                "docs/guides/node/hono",
+              ],
+            },
             "docs/guides/scripts",
             "docs/guides/mcp",
             "docs/guides/prisma",

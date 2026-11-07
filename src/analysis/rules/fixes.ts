@@ -10,7 +10,10 @@ export interface Fix {
   text: string;
   /** The index it adds, by name: what a trial of it asks for. */
   index?: string;
-  /** The table and columns of the index it adds, in order, a descending one with " DESC". */
+  /**
+   * The table and columns of the index it adds, in order: a descending one with " DESC", one with
+   * an operator class or a collation with it.
+   */
   on?: { table: string; columns: string[] };
   prisma?: string;
   sql?: string;
@@ -156,6 +159,29 @@ export function fixFor(
         sql: `CREATE EXTENSION IF NOT EXISTS pg_trgm;\nCREATE INDEX ${quoted(name)} ON ${quoted(table)} USING gin (${quoted(column)} gin_trgm_ops);`,
       };
     }
+    case "pattern-ops": {
+      const on = String(subject.values.like ?? column);
+      const operatorClass = String(subject.values.operatorClass ?? "text_pattern_ops");
+      const name = `${table}_${on}_pattern_idx`;
+      return {
+        kind,
+        text: `An index with ${operatorClass} serves LIKE with a fixed start and =, but not <, > or ORDER BY, which need a plain index. ${RAW_MIGRATION}`,
+        index: name,
+        on: { table, columns: [`${on} ${operatorClass}`] },
+        sql: `CREATE INDEX ${quoted(name)} ON ${target} (${quoted(on)} ${operatorClass});`,
+      };
+    }
+    case "nocase-index": {
+      const on = String(subject.values.like ?? column);
+      const name = `${table}_${on}_nocase_idx`;
+      return {
+        kind,
+        text: "LIKE ignores case for ASCII letters, so SQLite only uses an index built with COLLATE NOCASE. schema.prisma cannot declare the collation: add it to a migration created with prisma migrate dev --create-only.",
+        index: name,
+        on: { table, columns: [`${on} COLLATE NOCASE`] },
+        sql: `CREATE INDEX ${quoted(name)} ON ${target} (${quoted(on)} COLLATE NOCASE);`,
+      };
+    }
     case "fulltext":
       return {
         kind,
@@ -222,6 +248,8 @@ export function fixFor(
             : "An index that gives the rows in order avoids the sort; otherwise the sort needs more memory.",
       };
     case "drop-index": {
+      // A unique index is a constraint too: dropping it lets duplicates in.
+      if (subject.facts.unique) return undefined;
       const index = String(subject.values.index ?? "");
       return {
         kind,

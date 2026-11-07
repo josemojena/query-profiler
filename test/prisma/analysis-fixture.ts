@@ -1,7 +1,7 @@
 import type { Engine } from "../../src/analysis/plan.js";
 
 /** The analysis fixture's tables, children first, the order to drop them in. */
-export const ANALYSIS_TABLES = ["qp_post", "qp_fresh", "qp_author"];
+export const ANALYSIS_TABLES = ["qp_post", "qp_fresh", "qp_author", "qp_tag"];
 
 export const AUTHORS = 1000;
 export const POSTS = 20000;
@@ -14,7 +14,8 @@ const NUMBERS = `(SELECT a.d + 10 * b.d + 100 * c.d + 1000 * e.d + 10000 * f.d A
 /**
  * Tables built to have the problems the rules look for, with enough rows that each database plans
  * as it would in production: a foreign key with no index (InnoDB adds one by itself), a redundant
- * and a duplicate index, text to search, columns to sort and group by, and a table never analyzed.
+ * and a duplicate index, text to search, columns to sort and group by, a table never analyzed, and
+ * indexes that LIKE or the optimizer cannot use.
  */
 export function analysisFixture(engine: Engine): string[] {
   const text = engine === "mysql" || engine === "mariadb" ? "VARCHAR(191)" : "TEXT";
@@ -23,6 +24,10 @@ export function analysisFixture(engine: Engine): string[] {
     `CREATE TABLE qp_author (id INTEGER PRIMARY KEY, name ${text} NOT NULL, email ${text} NOT NULL, country ${text} NOT NULL)`,
     `CREATE TABLE qp_post (id INTEGER PRIMARY KEY, author_id INTEGER NOT NULL REFERENCES qp_author (id), title ${text} NOT NULL, status ${text} NOT NULL, created_at ${time} NOT NULL, views INTEGER NOT NULL)`,
     `CREATE TABLE qp_fresh (id INTEGER PRIMARY KEY, kind ${text} NOT NULL)`,
+    engine === "postgres"
+      ? // Sorted by a language's rules whatever the database's own locale, and one column by bytes.
+        `CREATE TABLE qp_tag (id INTEGER PRIMARY KEY, name TEXT COLLATE "und-x-icu" NOT NULL, code TEXT COLLATE "und-x-icu" NOT NULL, slug VARCHAR(100) COLLATE "und-x-icu" NOT NULL, label TEXT COLLATE "C" NOT NULL)`
+      : `CREATE TABLE qp_tag (id INTEGER PRIMARY KEY, name ${text} NOT NULL, code ${text} NOT NULL, slug ${text} NOT NULL)`,
     "CREATE INDEX qp_post_status_idx ON qp_post (status)",
     "CREATE INDEX qp_post_status_created_idx ON qp_post (status, created_at)",
     "CREATE INDEX qp_post_views_a ON qp_post (views)",
@@ -39,8 +44,30 @@ export function analysisFixture(engine: Engine): string[] {
       "author_id INTEGER NOT NULL REFERENCES qp_author (id)",
       "author_id INTEGER NOT NULL, FOREIGN KEY (author_id) REFERENCES qp_author (id)",
     );
+  tables.push(...TAG_INDEXES[engine]);
   return [...tables, ...rows(engine), ...statistics(engine)];
 }
+
+// On name, an index LIKE or the optimizer cannot use; on code, one LIKE can, or a hidden unique one;
+// none on slug.
+const TAG_INDEXES: Record<Engine, string[]> = {
+  postgres: [
+    "CREATE INDEX qp_tag_name_idx ON qp_tag (name)",
+    "CREATE INDEX qp_tag_code_idx ON qp_tag (code text_pattern_ops)",
+  ],
+  sqlite: [
+    "CREATE INDEX qp_tag_name_idx ON qp_tag (name)",
+    "CREATE INDEX qp_tag_code_idx ON qp_tag (code COLLATE NOCASE)",
+  ],
+  mysql: [
+    "CREATE INDEX qp_tag_name_idx ON qp_tag (name) INVISIBLE",
+    "CREATE UNIQUE INDEX qp_tag_code_idx ON qp_tag (code) INVISIBLE",
+  ],
+  mariadb: [
+    "CREATE INDEX qp_tag_name_idx ON qp_tag (name) IGNORED",
+    "CREATE UNIQUE INDEX qp_tag_code_idx ON qp_tag (code) IGNORED",
+  ],
+};
 
 function rows(engine: Engine): string[] {
   const country = (n: string) =>
@@ -52,6 +79,7 @@ function rows(engine: Engine): string[] {
       `INSERT INTO qp_author SELECT n, 'Author ' || n, 'author' || n || '@example.test', ${country("n")} FROM generate_series(1, ${AUTHORS}) n`,
       `INSERT INTO qp_post SELECT n, 1 + n % ${AUTHORS}, 'Post ' || n, ${status("n")}, TIMESTAMP '2026-01-01' + n * INTERVAL '1 minute', n % 500 FROM generate_series(1, ${POSTS}) n`,
       `INSERT INTO qp_fresh SELECT n, 'kind ' || (n % 7) FROM generate_series(1, ${POSTS}) n`,
+      `INSERT INTO qp_tag SELECT n, 'Tag ' || n, 'code-' || n, 'tag-' || n, 'Tag ' || n FROM generate_series(1, ${POSTS}) n`,
     ];
   if (engine === "sqlite") {
     const series = (count: number) =>
@@ -60,6 +88,7 @@ function rows(engine: Engine): string[] {
       `${series(AUTHORS)} INSERT INTO qp_author SELECT n, 'Author ' || n, 'author' || n || '@example.test', ${country("n")} FROM s`,
       `${series(POSTS)} INSERT INTO qp_post SELECT n, 1 + n % ${AUTHORS}, 'Post ' || n, ${status("n")}, datetime('2026-01-01', '+' || n || ' minutes'), n % 500 FROM s`,
       `${series(POSTS)} INSERT INTO qp_fresh SELECT n, 'kind ' || (n % 7) FROM s`,
+      `${series(POSTS)} INSERT INTO qp_tag SELECT n, 'Tag ' || n, 'code-' || n, 'tag-' || n FROM s`,
     ];
   }
   const numbers = (count: number) => `${NUMBERS} numbers WHERE n BETWEEN 1 AND ${count}`;
@@ -67,6 +96,7 @@ function rows(engine: Engine): string[] {
     `INSERT INTO qp_author SELECT n, CONCAT('Author ', n), CONCAT('author', n, '@example.test'), ${country("n")} FROM ${numbers(AUTHORS)}`,
     `INSERT INTO qp_post SELECT n, 1 + n % ${AUTHORS}, CONCAT('Post ', n), ${status("n")}, TIMESTAMP '2026-01-01 00:00:00' + INTERVAL n MINUTE, n % 500 FROM ${numbers(POSTS)}`,
     `INSERT INTO qp_fresh SELECT n, CONCAT('kind ', n % 7) FROM ${numbers(POSTS)}`,
+    `INSERT INTO qp_tag SELECT n, CONCAT('Tag ', n), CONCAT('code-', n), CONCAT('tag-', n) FROM ${numbers(POSTS)}`,
   ];
 }
 
@@ -77,9 +107,10 @@ function statistics(engine: Engine): string[] {
       ...ANALYSIS_TABLES.map((table) => `ALTER TABLE ${table} SET (autovacuum_enabled = false)`),
       "ANALYZE qp_author",
       "ANALYZE qp_post",
+      "ANALYZE qp_tag",
     ];
-  if (engine === "sqlite") return ["ANALYZE qp_author", "ANALYZE qp_post"];
-  return ["ANALYZE TABLE qp_author, qp_post"];
+  if (engine === "sqlite") return ["ANALYZE qp_author", "ANALYZE qp_post", "ANALYZE qp_tag"];
+  return ["ANALYZE TABLE qp_author, qp_post, qp_tag"];
 }
 
 export const dropAnalysisFixture = () =>

@@ -1,8 +1,10 @@
 import {
   adviseIndex,
   adviseSortIndex,
+  patternClass,
   patternText,
   sameTable,
+  unservedPrefix,
   usableWrapper,
   wantedColumns,
   writeAdvice,
@@ -123,11 +125,23 @@ function planSubjects(context: Context): Analyzed[] {
       orderBy: statement.query.orderBy,
       params: context.params,
       existing: (table?.indexes ?? []).filter((index) => index.valid !== false),
+      columns: table?.columns,
       joins: inner || filteredElsewhere(identity),
       version: context.version,
     };
     const wanted = input ? wantedColumns(input) : [];
-    const advice = input && table ? adviseIndex(input) : undefined;
+    const visibleAdvice = input && table ? adviseIndex(input) : undefined;
+    // An index the optimizer may not use, which would serve the read if it could.
+    const hidden =
+      input && visibleAdvice
+        ? input.existing.find(
+            (index) =>
+              index.visible === false &&
+              !adviseIndex({ ...input, existing: [{ ...index, visible: true }] }),
+          )
+        : undefined;
+    const advice = hidden ? undefined : visibleAdvice;
+    const like = table && identity ? unservedLike(table, identity) : undefined;
     const rows = table?.rows ?? step.rowsRead ?? step.rows;
     const measured = step.measured;
     // Estimates are per loop; what ran is measured over every loop.
@@ -164,7 +178,10 @@ function planSubjects(context: Context): Analyzed[] {
               sameTable(engine, condition.column.table, identity),
           ),
         missing: advice !== undefined,
-        served: wanted.length > 0 && advice === undefined && table !== undefined,
+        served: wanted.length > 0 && advice === undefined && table !== undefined && !hidden,
+        hiddenIndex: hidden !== undefined,
+        nocaseNeeded: engine === "sqlite" && like !== undefined,
+        patternOpsNeeded: engine === "postgres" && like !== undefined && !like.leading,
         small: rows !== undefined && rows < SMALL_TABLE,
         unanalyzed: table !== undefined && !table.analyzed,
         known: table !== undefined,
@@ -216,9 +233,26 @@ function planSubjects(context: Context): Analyzed[] {
         related: related.join(", "),
         heapFetches,
         batches,
+        hidden: hidden?.name,
+        like: like?.column,
+        operatorClass: patternClass(like?.type),
       },
       { advice, step: position, table: identity },
     );
+  }
+
+  // A LIKE with a fixed start on this table that a plain index would not serve, and none of its indexes does.
+  function unservedLike(table: Table, identity: TableName) {
+    return conditions
+      .filter(
+        (condition) =>
+          !condition.alternative &&
+          condition.clause !== "having" &&
+          condition.column.table !== undefined &&
+          sameTable(engine, condition.column.table, identity),
+      )
+      .map((condition) => unservedPrefix(engine, condition, context.params, table))
+      .find((unserved) => unserved !== undefined);
   }
 
   // The inner side of a nested loop is read again for every row of the outer side; a hash join, a
@@ -312,6 +346,7 @@ function sortAdvice(context: Context): IndexAdvice | undefined {
     orderBy: statement.query.orderBy,
     params: context.params,
     existing: table.indexes.filter((index) => index.valid !== false),
+    columns: table.columns,
   });
 }
 
@@ -329,12 +364,13 @@ function conditionSubjects({ statement, params, tables, engine }: Context): Anal
       const size = value.kind === "list" ? value.size : undefined;
       const valued = value.kind === "param" || value.kind === "list";
       const table = condition.column.table;
+      const owner = table && tables.find((each) => sameTable(engine, each, table));
       const partial = valued
-        ? tables
-            .filter((each) => table && sameTable(engine, each, table))
-            .flatMap((each) => each.indexes)
-            .find((index) => index.where && mentions(index.where, condition.column.column))
+        ? owner?.indexes.find(
+            (index) => index.where && mentions(index.where, condition.column.column),
+          )
         : undefined;
+      const unserved = owner ? unservedPrefix(engine, condition, params, owner) : undefined;
       return subject(
         "condition",
         {
@@ -365,6 +401,7 @@ function conditionSubjects({ statement, params, tables, engine }: Context): Anal
           join: condition.clause === "join",
           having: condition.clause === "having",
           written: query.kind !== "select",
+          patternOpsMissing: engine === "postgres" && unserved?.leading !== undefined,
         },
         {
           table: table?.name,
@@ -375,8 +412,13 @@ function conditionSubjects({ statement, params, tables, engine }: Context): Anal
           size,
           index: partial?.name,
           predicate: partial?.where,
+          leadingIndex: unserved?.leading?.name,
+          operatorClass: patternClass(unserved?.type),
         },
-        { table, column: condition.column.column },
+        {
+          table: owner ? { schema: owner.schema, name: owner.name } : table,
+          column: condition.column.column,
+        },
       );
     }),
   );
@@ -491,11 +533,13 @@ function indexSubjects({ tables }: Context): Analyzed[] {
       const comparable = (other: Index) =>
         other !== index &&
         other.valid !== false &&
+        other.visible !== false &&
         !other.expression &&
         !other.where &&
         (other.method ?? "") === (index.method ?? "");
       const plain =
         index.valid !== false &&
+        index.visible !== false &&
         !index.expression &&
         !index.where &&
         !index.unique &&
@@ -518,6 +562,8 @@ function indexSubjects({ tables }: Context): Analyzed[] {
           redundant: plain && longer !== undefined,
           duplicate: plain && same !== undefined,
           invalid: index.valid === false,
+          invisible: index.visible === false,
+          unique: index.unique || index.primary,
         },
         { table: table.name, index: index.name, other: (same ?? longer)?.name },
         { table: { schema: table.schema, name: table.name } },
@@ -551,6 +597,7 @@ function buriedIndex(table: Table, wanted: { name: string }[]): Index | undefine
   return table.indexes.find(
     (index) =>
       index.valid !== false &&
+      index.visible !== false &&
       !index.expression &&
       !index.where &&
       (index.method === undefined || /^btree$/i.test(index.method)) &&
