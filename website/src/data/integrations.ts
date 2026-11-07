@@ -63,7 +63,7 @@ export const integrations: Integration[] = [
     note: "Through the preload",
     logo: siExpress,
     status: "ready",
-    guide: NODE,
+    guide: `${NODE}/express`,
   },
   {
     name: "Fastify",
@@ -72,7 +72,7 @@ export const integrations: Integration[] = [
     note: "Through the preload",
     logo: siFastify,
     status: "ready",
-    guide: NODE,
+    guide: `${NODE}/fastify`,
   },
   {
     name: "NestJS",
@@ -81,7 +81,7 @@ export const integrations: Integration[] = [
     note: "Through the preload, on Express",
     logo: siNestjs,
     status: "ready",
-    guide: NODE,
+    guide: `${NODE}/nestjs`,
   },
   {
     name: "Koa",
@@ -90,7 +90,7 @@ export const integrations: Integration[] = [
     note: "Through the preload",
     logo: siKoa,
     status: "ready",
-    guide: NODE,
+    guide: `${NODE}/koa`,
   },
   {
     name: "Hapi",
@@ -98,7 +98,7 @@ export const integrations: Integration[] = [
     versions: "21",
     note: "Through the preload",
     status: "ready",
-    guide: NODE,
+    guide: `${NODE}/hapi`,
   },
   {
     name: "Hono",
@@ -107,7 +107,7 @@ export const integrations: Integration[] = [
     note: "Through the preload, on @hono/node-server",
     logo: siHono,
     status: "ready",
-    guide: NODE,
+    guide: `${NODE}/hono`,
   },
   {
     name: "Any Node server",

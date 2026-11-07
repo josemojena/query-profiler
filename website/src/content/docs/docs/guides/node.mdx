@@ -163,16 +163,16 @@ If it is off, the terminal says why: a `NODE_ENV` other than `development`, or a
 ## Frameworks
 
 Any framework that serves through Node's `http` module works the same way. These are tested in CI,
-with Prisma against PostgreSQL:
+with Prisma against PostgreSQL, and each has a page with its dev command and its own notes:
 
-| Framework | Tested with                 |
-| --------- | --------------------------- |
-| Express   | 4.18 and later, 5           |
-| Fastify   | 4.26 and later, 5           |
-| Koa       | 3                           |
-| Hapi      | 21                          |
-| NestJS    | 12, on Express              |
-| Hono      | 4, on `@hono/node-server` 2 |
+| Framework                            | Tested with                 |
+| ------------------------------------ | --------------------------- |
+| [Express](/docs/guides/node/express) | 4.18 and later, 5           |
+| [Fastify](/docs/guides/node/fastify) | 4.26 and later, 5           |
+| [Koa](/docs/guides/node/koa)         | 3                           |
+| [Hapi](/docs/guides/node/hapi)       | 21                          |
+| [NestJS](/docs/guides/node/nestjs)   | 12, on Express              |
+| [Hono](/docs/guides/node/hono)       | 4, on `@hono/node-server` 2 |
 
 Before Express 4.18, its body parser loses the request's async context: a route that reads a body
 runs outside its profile, and its queries land in a background profile instead.
