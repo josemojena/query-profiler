@@ -1,20 +1,45 @@
 ---
-import { fullName, integrations, type Status } from "../../data/integrations";
+import { integrations, type Kind, type Status } from "../../data/integrations";
 import { link } from "../../data/site";
 
 const labels: Record<Status, string> = { ready: "Ready", next: "Next", planned: "Planned" };
+// Where each sits: the server it runs in, Prisma between, the database it talks to.
+const groups: [Kind, string][] = [
+  ["framework", "Frameworks"],
+  ["orm", "ORM"],
+  ["database", "Databases"],
+];
 ---
 
-<table>
-  <thead><tr><th scope="col">Integration</th><th scope="col">Status</th></tr></thead>
-  <tbody>
-    {
-      integrations.map((integration) => (
+{
+  groups.map(([kind, title]) => (
+    <table>
+      <thead>
         <tr>
-          <td>{integration.guide ? <a href={link(integration.guide)}>{fullName(integration)}</a> : fullName(integration)}</td>
-          <td>{labels[integration.status]}</td>
+          <th scope="col">{title}</th>
+          <th scope="col">Versions</th>
+          <th scope="col">How</th>
+          <th scope="col">Status</th>
         </tr>
-      ))
-    }
-  </tbody>
-</table>
+      </thead>
+      <tbody>
+        {integrations
+          .filter((integration) => integration.kind === kind)
+          .map((integration) => (
+            <tr>
+              <td>
+                {integration.guide ? (
+                  <a href={link(integration.guide)}>{integration.name}</a>
+                ) : (
+                  integration.name
+                )}
+              </td>
+              <td>{integration.versions ?? "—"}</td>
+              <td>{integration.note ?? "—"}</td>
+              <td>{labels[integration.status]}</td>
+            </tr>
+          ))}
+      </tbody>
+    </table>
+  ))
+}
