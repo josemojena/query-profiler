@@ -138,6 +138,51 @@ describe("MariaDB's plan", () => {
     expect(steps[0]!.keys).toEqual(["count(0) desc"]);
   });
 
+  it("measures from 11.5 the rows that leave a read after every check, the rows filtered estimates", () => {
+    // ANALYZE FORMAT=JSON from 11.5, as MariaDB's manual shows it: r_index_rows entries enumerated,
+    // r_rows left after the index condition and the rowid filter, r_filtered for the rest.
+    const [read] = readMariadbPlan({
+      query_block: {
+        select_id: 1,
+        r_loops: 1,
+        nested_loop: [
+          {
+            table: {
+              table_name: "lineitem",
+              access_type: "range",
+              key: "i_l_quantity",
+              rowid_filter: {
+                range: { key: "i_l_shipdate", used_key_parts: ["l_shipDATE"] },
+                rows: 8335,
+                selectivity_pct: 8.476269722,
+                r_selectivity_pct: 9.742120344,
+              },
+              loops: 1,
+              r_loops: 1,
+              rows: 426,
+              r_index_rows: 349,
+              r_rows: 34,
+              filtered: 8.476269722,
+              r_total_filtered: 9.742120344,
+              index_condition: "lineitem.l_quantity > 47",
+              r_icp_filtered: 100,
+              attached_condition: "lineitem.l_shipDATE between '1997-01-01' and '1997-06-30'",
+              r_filtered: 100,
+            },
+          },
+        ],
+      },
+    });
+    expect(read).toMatchObject({
+      rows: 36.11,
+      rowsRead: 426,
+      notes: ["Using index condition", "Using rowid filter (i_l_shipdate)"],
+      measured: { rows: 34, loops: 1, removedByFilter: 0 },
+    });
+    // The same rows as r_index_rows × r_total_filtered: rows × filtered compares with them.
+    expect(read!.measured!.rows).toBe(Math.round((349 * 9.742120344) / 100));
+  });
+
   it("reads ANALYZE's measured rows, time and rows thrown away", () => {
     const [read] = reads(readMariadbPlan(json("mariadb-analyze")));
     expect(read).toMatchObject({ table: "Order", access: "full", filter: "`Order`.total > 1" });

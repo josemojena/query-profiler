@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { analyzeQuery, tryIndex, type Analysis } from "../../src/analysis/analyze.js";
+import { allSteps } from "../../src/analysis/plan.js";
 import { prismaNames, readSchema } from "../../src/analysis/schema.js";
 import { analyzeSession } from "../../src/analysis/session.js";
 import {
@@ -553,6 +554,31 @@ describe.each(ENGINES)("%s", (engine, connect) => {
         999_999,
       ]);
       expect(rules(renamed)).not.toContain("foreign-key-check-scan");
+    },
+  );
+
+  it.runIf(engine === "mariadb")(
+    "reads a rowid filter and a subquery cache, and finds no misestimate in a read they narrow",
+    async () => {
+      const { analysis } = await analyze(
+        `SELECT id, title FROM qp_post WHERE status = ? AND created_at > ? AND views < ?`,
+        ["draft", "2026-01-05", 60],
+        { measure: true },
+      );
+      const [read] = allSteps(analysis.plan!.steps).filter((step) => step.kind === "read");
+      expect(read!.notes).toContain("Using rowid filter (qp_post_status_created_idx)");
+      // The estimate counts the rowid filter in, and the measured rows come after it.
+      expect(read!.rows! / read!.measured!.rows).toBeGreaterThan(0.5);
+      expect(read!.rows! / read!.measured!.rows).toBeLessThan(2);
+      expect(rules(analysis)).not.toContain("misestimated-rows");
+      const { analysis: cached } = await analyze(
+        `SELECT a.id, (SELECT COUNT(*) FROM qp_post p WHERE p.title = a.country) AS c FROM qp_author a`,
+        [],
+        { measure: true },
+      );
+      const inside = allSteps(cached.plan!.steps).find((step) => step.table === "p")!;
+      expect(inside.notes).toEqual(["Subquery cache: 996 of 1,000 runs answered from the cache"]);
+      expect(inside.measured!.loops).toBe(4);
     },
   );
 

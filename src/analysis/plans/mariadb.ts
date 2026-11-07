@@ -68,7 +68,7 @@ function block(node: Json | undefined): PlanStep[] {
   const join = node["block-nl-join"] as Json | undefined;
   if (join) steps.push(...joinBuffer(join));
   for (const subquery of (node.subqueries as Json[] | undefined) ?? [])
-    steps.push(...block(subquery));
+    steps.push(...cached(subquery));
   const union = node.union_result as Json | undefined;
   if (union)
     steps.push(
@@ -78,6 +78,22 @@ function block(node: Json | undefined): PlanStep[] {
       ),
     );
   return steps;
+}
+
+// A subquery whose results MariaDB keeps by the outer values it was run with: subquery_cache from
+// 11.4.6, expression_cache before. Measured, it says how often the cache answered instead.
+function cached(subquery: Json): PlanStep[] {
+  const cache = (subquery.subquery_cache ?? subquery.expression_cache) as Json | undefined;
+  if (!cache) return block(subquery);
+  const [first, ...rest] = block(cache);
+  if (!first) return [];
+  const lookups = asNumber(cache.r_loops);
+  const hits = asNumber(cache.r_hit_ratio);
+  const note =
+    lookups === undefined || hits === undefined
+      ? "Subquery cache"
+      : `Subquery cache: ${Math.round((lookups * hits) / 100).toLocaleString("en-US")} of ${lookups.toLocaleString("en-US")} runs answered from the cache`;
+  return [{ ...first, notes: [...(first.notes ?? []), note] }, ...rest];
 }
 
 // The table read for a block nested loop join is the inner side, read in full for each batch.
@@ -119,16 +135,27 @@ function table(node: Json): PlanStep {
           : Math.round(((rowsRead * filtered) / 100) * 100) / 100,
       rowsRead,
       cost: asNumber(node.cost),
-      notes: [asText(node.index_condition) && "Using index condition", asText(node.message)].filter(
-        (note): note is string => typeof note === "string",
-      ),
+      notes: [
+        asText(node.index_condition) && "Using index condition",
+        rowidFilter(node),
+        asText(node.message),
+      ].filter((note): note is string => typeof note === "string"),
       measured: measure(node),
     },
     [...block(node.materialized as Json | undefined), ...block(node.derived as Json | undefined)],
   );
 }
 
-// MariaDB gives the rows read per loop, and the share of them the condition kept.
+// A second index, read before the table to know which rows can match: the step uses both.
+function rowidFilter(node: Json): string | undefined {
+  const filter = node.rowid_filter as Json | undefined;
+  const key = asText((filter?.range as Json | undefined)?.key);
+  return key && `Using rowid filter (${key})`;
+}
+
+// MariaDB gives the rows read per loop, after the index condition and the rowid filter, and the
+// share of them the attached condition kept: the rows that leave the table, as rows × filtered
+// estimates them.
 function measure(node: Json): Measured | undefined {
   const loops = asNumber(node.r_loops);
   const perLoop = asNumber(node.r_rows);
