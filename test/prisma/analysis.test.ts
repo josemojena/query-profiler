@@ -530,6 +530,32 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     },
   );
 
+  it.runIf(engine === "sqlite")(
+    "finds a write that makes SQLite read a whole table to check a foreign key, and the index that finds the rows",
+    async () => {
+      for (const sql of [
+        `DELETE FROM qp_author WHERE id = ?`,
+        `UPDATE qp_author SET id = id + 100000 WHERE id = ?`,
+      ]) {
+        const { analysis } = await analyze(sql, [999_999]);
+        expect(finding(analysis, "foreign-key-check-scan")).toMatchObject({
+          severity: "problem",
+          table: "qp_post",
+          message: expect.stringContaining(
+            "in qp_author makes SQLite look for the rows of qp_post",
+          ),
+          fix: { prisma: "@@index([author_id])" },
+        });
+      }
+      // Only a change to the key checks it.
+      const { analysis: renamed } = await analyze(`UPDATE qp_author SET name = ? WHERE id = ?`, [
+        "Author",
+        999_999,
+      ]);
+      expect(rules(renamed)).not.toContain("foreign-key-check-scan");
+    },
+  );
+
   it("tries the suggested index in a transaction it rolls back, where the engine can undo it", async () => {
     const { query, analysis } = await analyze(`SELECT id FROM qp_post WHERE title = ${p(1)}`, [
       "Post 77",

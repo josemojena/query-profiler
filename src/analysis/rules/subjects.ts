@@ -14,7 +14,7 @@ import {
   type AdviceInput,
   type IndexAdvice,
 } from "../advisor.js";
-import type { Index, Table, TableName } from "../catalog.js";
+import type { ForeignKey, Index, Table, TableName } from "../catalog.js";
 import { allSteps, type Engine, type Plan, type PlanStep } from "../plan.js";
 import type { Condition, Count, Operand, Query, Statement } from "../statement.js";
 import type { Subject, SubjectKind } from "./engine.js";
@@ -126,7 +126,8 @@ function planSubjects(context: Context): Analyzed[] {
       ((step.relation ?? step.table) ? { name: (step.relation ?? step.table)! } : undefined);
     const table = name && context.tables.find((candidate) => sameTable(engine, candidate, name));
     const identity = table ? { schema: table.schema, name: table.name } : name;
-    const inner = innerSide(step);
+    const enforced = table ? enforcedKey(table) : undefined;
+    const inner = innerSide(step) && !enforced;
     const dependent = rerun(step);
     const input = identity && {
       engine,
@@ -152,7 +153,16 @@ function planSubjects(context: Context): Analyzed[] {
         : undefined;
     const advice = hidden ? undefined : visibleAdvice;
     const partial = input && table ? partialKey(step, table, input) : undefined;
-    const fixAdvice = advice ?? partial?.advice;
+    const enforcedAdvice =
+      enforced && identity
+        ? writeAdvice(
+            engine,
+            identity,
+            enforced.columns.map((column) => ({ name: column })),
+            context.version,
+          )
+        : undefined;
+    const fixAdvice = advice ?? partial?.advice ?? enforcedAdvice;
     const like = table && identity ? unservedLike(table, identity) : undefined;
     const rows = table?.rows ?? step.rowsRead ?? step.rows;
     const measured = step.measured;
@@ -206,6 +216,7 @@ function planSubjects(context: Context): Analyzed[] {
         inner,
         dependent,
         partialKey: partial !== undefined,
+        enforcement: enforced !== undefined,
         joinBuffer: (step.notes ?? []).some((note) => note.startsWith("Using join buffer")),
         wasteful: removed >= WASTED_ROWS && removed >= WASTE * Math.max(measured?.rows ?? 0, 1),
         considered: (step.possibleIndexes?.length ?? 0) > 0 && !step.index,
@@ -253,6 +264,7 @@ function planSubjects(context: Context): Analyzed[] {
         used: partial?.used.join(", "),
         last: partial?.used.at(-1),
         skipped: partial?.skipped.join(", "),
+        references: enforced?.references.table,
       },
       { advice: fixAdvice, step: position, table: identity },
     );
@@ -291,6 +303,18 @@ function planSubjects(context: Context): Analyzed[] {
       );
     const advice = ranged && skipped.length ? adviseKeyOrder(input) : undefined;
     return advice ? { used, skipped, advice } : undefined;
+  }
+
+  // In a DELETE or UPDATE, a read of a table the SQL does not name, with a foreign key to the
+  // table written: the rows that reference the ones deleted or re-keyed, found to check the key.
+  function enforcedKey(table: Table): ForeignKey | undefined {
+    const target = statement.query.tables[0]?.table;
+    if (!written || !target || statement.tables.some((named) => sameTable(engine, named, table)))
+      return undefined;
+    const keys = table.foreignKeys.filter((key) =>
+      sameTable(engine, { name: key.references.table }, target),
+    );
+    return keys.find((key) => !keyIndexed(engine, table, key)) ?? keys[0];
   }
 
   // A LIKE with a fixed start on this table that a plain index would not serve, and none of its indexes does.
@@ -570,23 +594,28 @@ function querySubject({ statement, params, tables, plan, engine, returned }: Con
   );
 }
 
+/** Whether an index finds the rows of a foreign key's columns. */
+function keyIndexed(engine: Engine, table: Table, key: ForeignKey): boolean {
+  const columns = new Set(key.columns);
+  // A lookup by the key's columns needs a B-tree leading with them, or a hash on just one.
+  return table.indexes.some(
+    (index) =>
+      index.valid !== false &&
+      !index.expression &&
+      !index.where &&
+      (engine === "sqlite" ||
+        index.method === undefined ||
+        /^btree$/i.test(index.method) ||
+        (/^hash$/i.test(index.method) && index.columns.length === 1 && columns.size === 1)) &&
+      index.columns.slice(0, columns.size).every((column) => columns.has(column)) &&
+      index.columns.length >= columns.size,
+  );
+}
+
 function foreignKeySubjects({ tables, engine, version }: Context): Analyzed[] {
   return tables.flatMap((table) =>
     table.foreignKeys.map((key) => {
-      const columns = new Set(key.columns);
-      // A lookup by the key's columns needs a B-tree leading with them, or a hash on just one.
-      const indexed = table.indexes.some(
-        (index) =>
-          index.valid !== false &&
-          !index.expression &&
-          !index.where &&
-          (engine === "sqlite" ||
-            index.method === undefined ||
-            /^btree$/i.test(index.method) ||
-            (/^hash$/i.test(index.method) && index.columns.length === 1 && columns.size === 1)) &&
-          index.columns.slice(0, columns.size).every((column) => columns.has(column)) &&
-          index.columns.length >= columns.size,
-      );
+      const indexed = keyIndexed(engine, table, key);
       const identity = { schema: table.schema, name: table.name };
       return subject(
         "foreign-key",
