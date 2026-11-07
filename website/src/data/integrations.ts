@@ -150,6 +150,5 @@ export const integrations: Integration[] = [
     status: "ready",
     guide: DATABASES,
   },
-  { name: "Next.js", kind: "framework", status: "planned" },
   { name: "Prisma ORM", kind: "orm", versions: "8", status: "planned" },
 ];
