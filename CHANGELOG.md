@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **A PostgreSQL index that serves `LIKE` but not a range or `ORDER BY`.** An index with
+  `text_pattern_ops` (`varchar_pattern_ops`, `bpchar_pattern_ops`) serves `=` and `LIKE 'abc%'`, but
+  not `<`, `<=`, `>`, `>=` or `ORDER BY`, and an index key in another collation than its column's
+  (`COLLATE "C"` on an ICU column) serves none of `=`, `<`, `>` or `ORDER BY`. The analysis counted
+  either as serving them, so it blamed the statistics for the full read, or said nothing about the
+  sort. It now asks for a plain `@@index`, and says why the index it has does not count
+  (`full-scan-pattern-ops-index`, `full-scan-collation-index`, `sort-pattern-ops-index`,
+  `sort-collation-index`).
+- **SQLite with foreign keys off.** SQLite enforces foreign keys only while `PRAGMA foreign_keys`
+  is on, for each connection. Prisma's better-sqlite3 and libSQL adapters start with it on, but a
+  `PRAGMA foreign_keys = OFF` run through the client, in a seed or a reset, leaves it off for the
+  client's connection: deletes stop cascading and a row can point at a parent that does not exist.
+  The analysis now reads the pragma, and when it is off and the query's tables have foreign keys,
+  says so once, with the pragma that turns them back on and `PRAGMA foreign_key_check`
+  (`foreign-keys-off`).
+- **Explain shows each step's notes.** MySQL, MariaDB and SQLite add notes to some steps of a plan:
+  `Using index condition`, the index of a rowid filter, how often a subquery cache answered. The
+  profiler read them, but only `explain_query` and the API gave them. Explain plan and Measure it
+  now show them under the step, on a line of their own.
+
 ## 0.4.1
 
 Fixes to the query analysis and the bar. The index advice uses your schema's names and is one the

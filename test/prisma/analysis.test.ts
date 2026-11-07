@@ -208,6 +208,63 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     },
   );
 
+  it.runIf(engine === "postgres")(
+    "asks for a plain index for a range or ORDER BY that a text_pattern_ops index cannot serve, and for = too under another collation",
+    async () => {
+      const own = (analysis: Analysis) =>
+        analysis.findings.filter((each) => each.about === "query").map(({ rule }) => rule);
+      const { analysis: equal } = await analyze(`SELECT id FROM qp_tag WHERE code = $1`, [
+        "code-1234",
+      ]);
+      expect(own(equal)).toEqual([]);
+      const { query, analysis: range } = await analyze(
+        `SELECT id FROM qp_tag WHERE code > $1 AND code < $2`,
+        ["code-12340", "code-12345"],
+      );
+      expect(own(range)).toEqual(["full-scan-pattern-ops-index"]);
+      const advice = finding(range, "full-scan-pattern-ops-index")!;
+      expect(advice).toMatchObject({
+        message: expect.stringContaining(
+          "qp_tag_code_idx leads with code: its operator class, text_pattern_ops,",
+        ),
+        fix: { prisma: "@@index([code])" },
+      });
+      const trial = await tryIndex(findDatabase(query.database)!, query, {
+        name: advice.fix!.index!,
+        sql: advice.fix!.sql!,
+      });
+      expect(trial).toMatchObject({ used: true });
+      const { analysis: sorted } = await analyze(`SELECT id FROM qp_tag ORDER BY code LIMIT 10`);
+      expect(own(sorted)).toEqual(["full-scan-pattern-ops-index", "sort-pattern-ops-index"]);
+      expect(finding(sorted, "sort-pattern-ops-index")!.fix!.prisma).toBe("@@index([code])");
+      // handle sorts by ICU, and its only index by bytes: LIKE can read it, nothing else can.
+      const { analysis: like } = await analyze(`SELECT id FROM qp_tag WHERE handle LIKE $1`, [
+        "handle-1234%",
+      ]);
+      expect(own(like)).toEqual([]);
+      for (const [sql, params] of [
+        [`SELECT id FROM qp_tag WHERE handle = $1`, ["handle-1234"]],
+        [
+          `SELECT id FROM qp_tag WHERE handle > $1 AND handle < $2`,
+          ["handle-12340", "handle-12345"],
+        ],
+      ] as const) {
+        const { analysis } = await analyze(sql, [...params]);
+        expect(own(analysis)).toEqual(["full-scan-collation-index"]);
+        expect(finding(analysis, "full-scan-collation-index")).toMatchObject({
+          message: expect.stringContaining(
+            'qp_tag_handle_idx leads with handle: the index holds it in the collation "C", and the query compares it in the column\'s, "und-x-icu".',
+          ),
+          fix: { prisma: "@@index([handle])" },
+        });
+      }
+      const { analysis: byHandle } = await analyze(
+        `SELECT id FROM qp_tag ORDER BY handle LIMIT 10`,
+      );
+      expect(own(byHandle)).toEqual(["full-scan-collation-index", "sort-collation-index"]);
+    },
+  );
+
   it.runIf(engine === "sqlite")(
     "asks for an index built with COLLATE NOCASE for LIKE, and is content with one",
     async () => {
@@ -563,6 +620,38 @@ describe.each(ENGINES)("%s", (engine, connect) => {
         999_999,
       ]);
       expect(rules(renamed)).not.toContain("foreign-key-check-scan");
+    },
+  );
+
+  it.runIf(engine === "sqlite")(
+    "tells once when the connection has foreign keys off, which then go unchecked",
+    async () => {
+      const join = `SELECT p.id FROM qp_post p JOIN qp_author a ON a.id = p.author_id WHERE a.country = ?`;
+      const { analysis: on } = await analyze(join, ["es"]);
+      expect(rules(on)).not.toContain("foreign-keys-off");
+      await prisma.$executeRawUnsafe("PRAGMA foreign_keys = OFF");
+      try {
+        const { analysis: joined } = await analyze(join, ["es"]);
+        const off = joined.findings.filter((each) => each.rule === "foreign-keys-off");
+        expect(off).toHaveLength(1);
+        expect(off[0]).toMatchObject({
+          about: "table",
+          severity: "warning",
+          message: expect.stringContaining("Foreign keys are off on this connection"),
+          fix: { sql: "PRAGMA foreign_keys = ON;\nPRAGMA foreign_key_check;" },
+        });
+        // A delete in the parent table no longer checks its children, so the plan reads none.
+        const { analysis: deleted } = await analyze(
+          `DELETE FROM qp_author WHERE id = ?`,
+          [999_999],
+        );
+        expect(finding(deleted, "foreign-keys-off")).toMatchObject({ table: "qp_author" });
+        expect(rules(deleted)).not.toContain("foreign-key-check-scan");
+        const { analysis: unrelated } = await analyze(`SELECT id FROM qp_visit WHERE id = ?`, [1]);
+        expect(rules(unrelated)).not.toContain("foreign-keys-off");
+      } finally {
+        await prisma.$executeRawUnsafe("PRAGMA foreign_keys = ON");
+      }
     },
   );
 

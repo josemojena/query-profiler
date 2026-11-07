@@ -26,7 +26,7 @@ export function analysisFixture(engine: Engine): string[] {
     `CREATE TABLE qp_fresh (id INTEGER PRIMARY KEY, kind ${text} NOT NULL)`,
     engine === "postgres"
       ? // Sorted by a language's rules whatever the database's own locale, and one column by bytes.
-        `CREATE TABLE qp_tag (id INTEGER PRIMARY KEY, name TEXT COLLATE "und-x-icu" NOT NULL, code TEXT COLLATE "und-x-icu" NOT NULL, slug VARCHAR(100) COLLATE "und-x-icu" NOT NULL, label TEXT COLLATE "C" NOT NULL)`
+        `CREATE TABLE qp_tag (id INTEGER PRIMARY KEY, name TEXT COLLATE "und-x-icu" NOT NULL, code TEXT COLLATE "und-x-icu" NOT NULL, slug VARCHAR(100) COLLATE "und-x-icu" NOT NULL, label TEXT COLLATE "C" NOT NULL, handle TEXT COLLATE "und-x-icu" NOT NULL)`
       : `CREATE TABLE qp_tag (id INTEGER PRIMARY KEY, name ${text} NOT NULL, code ${text} NOT NULL, slug ${text} NOT NULL)`,
     "CREATE INDEX qp_post_status_idx ON qp_post (status)",
     "CREATE INDEX qp_post_status_created_idx ON qp_post (status, created_at)",
@@ -51,11 +51,12 @@ export function analysisFixture(engine: Engine): string[] {
 }
 
 // On name, an index LIKE or the optimizer cannot use; on code, one LIKE can, or a hidden unique one;
-// none on slug.
+// none on slug; on handle, one in another collation than the column's.
 const TAG_INDEXES: Record<Engine, string[]> = {
   postgres: [
     "CREATE INDEX qp_tag_name_idx ON qp_tag (name)",
     "CREATE INDEX qp_tag_code_idx ON qp_tag (code text_pattern_ops)",
+    'CREATE INDEX qp_tag_handle_idx ON qp_tag (handle COLLATE "C")',
   ],
   sqlite: [
     "CREATE INDEX qp_tag_name_idx ON qp_tag (name)",
@@ -83,7 +84,7 @@ function rows(engine: Engine): string[] {
       `INSERT INTO qp_author SELECT n, 'Author ' || n, 'author' || n || '@example.test', ${country("n")} FROM generate_series(1, ${AUTHORS}) n`,
       `INSERT INTO qp_post SELECT n, 1 + n % ${AUTHORS}, 'Post ' || n, ${status("n")}, TIMESTAMP '2026-01-01' + n * INTERVAL '1 minute', n % 500 FROM generate_series(1, ${POSTS}) n`,
       `INSERT INTO qp_fresh SELECT n, 'kind ' || (n % 7) FROM generate_series(1, ${POSTS}) n`,
-      `INSERT INTO qp_tag SELECT n, 'Tag ' || n, 'code-' || n, 'tag-' || n, 'Tag ' || n FROM generate_series(1, ${POSTS}) n`,
+      `INSERT INTO qp_tag SELECT n, 'Tag ' || n, 'code-' || n, 'tag-' || n, 'Tag ' || n, 'handle-' || n FROM generate_series(1, ${POSTS}) n`,
       `INSERT INTO qp_visit SELECT n, 'page-' || (n % 20), ${device("n")}, n % 997 FROM generate_series(1, ${POSTS}) n`,
     ];
   if (engine === "sqlite") {

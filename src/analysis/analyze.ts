@@ -1,6 +1,6 @@
 import type { Database, Provider, RunSql } from "../core/index.js";
 import type { IndexAdvice } from "./advisor.js";
-import { readCatalog, type Table, type TableName } from "./catalog.js";
+import { readCatalog, readUnenforced, type Table, type TableName } from "./catalog.js";
 import { engineOf, explain, type NoPlan } from "./explain.js";
 import { allSteps, type Engine, type Plan } from "./plan.js";
 import { COMMON } from "./rules/common.js";
@@ -98,6 +98,8 @@ export async function analyzeQuery(
   const tables = await readCatalog(database.run, engine, [...statement.tables, ...relations]).catch(
     () => [],
   );
+  // On the connection itself, not in a rolled back transaction: a pragma set there is undone.
+  const unenforced = await readUnenforced(database.run, engine, tables).catch(() => undefined);
   const found = subjects({
     engine,
     version,
@@ -106,6 +108,7 @@ export async function analyzeQuery(
     tables,
     params: query.params,
     returned: query.rows,
+    unenforced,
   });
   return {
     engine,

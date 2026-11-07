@@ -164,6 +164,8 @@ td.rows { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .step.flagged .what b { text-decoration: underline wavy var(--warn-mark); text-underline-offset: 3px; }
 .step .tree { color: var(--ink-3); font-size: 12px; }
 .step .detail { color: var(--ink-2); margin-left: 4px; }
+.step .notes { display: block; color: var(--ink-3); font-size: 12px; margin-top: 2px; }
+.step .notes:first-child { margin-top: 0; }
 .step .rows { color: var(--ink-3); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .find { display: grid; grid-template-columns: 76px 1fr auto; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .find:last-child { border-bottom: 0; }

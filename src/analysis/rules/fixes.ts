@@ -233,6 +233,12 @@ export function fixFor(
             ? 'Load the relation in the same query with relationLoadStrategy: "join" (the relationJoins preview feature), or page the parent rows with take so each list of ids stays short.'
             : "Page the parent rows with take, so each list of ids stays short.",
       };
+    case "foreign-keys-on":
+      return {
+        kind,
+        text: "Turn them back on once the work that turned them off is done, outside a transaction: inside one the pragma does nothing. PRAGMA foreign_key_check then lists the rows that break a key.",
+        sql: "PRAGMA foreign_keys = ON;\nPRAGMA foreign_key_check;",
+      };
     case "optimize":
       return {
         kind,
