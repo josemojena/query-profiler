@@ -43,7 +43,7 @@ export {
   SLOW_QUERY_MS,
 } from "./analyze.js";
 export { createHandler, toListItem, type HandlerOptions } from "./http.js";
-export { stats, type StatementStat, type Stats } from "./stats.js";
+export { countKinds, stats, type KindCounts, type StatementStat, type Stats } from "./stats.js";
 export {
   ANALYSIS_HEADER,
   DEFAULT_BASE,

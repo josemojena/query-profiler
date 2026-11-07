@@ -13,6 +13,10 @@
   transaction that builds it while another transaction can still see older versions of some rows
   (`pg_index.indcheckxmin`), and the trial said the database would not use it. It now says the trial
   cannot tell, and why.
+- **Stats says what it counts.** Since 0.4.0 the stored profiles include scripts and tasks, and
+  Stats and the session's analysis still said "the last 14 requests". They now say "the last 12
+  requests, 1 script and 1 task" (`kinds` in `/api/stats` and `/api/stats/analysis`), and "By
+  route" lists only requests, where the seed showed as a route requested once.
 - **Explain sends one catalog query at a time.** It read a table's catalog with several queries at
   once, which in a rolled back transaction (Measure it, Try this index) all went to one connection.
   `pg` warned that this stops working in its next major version, and MySQL and SQLite took them in

@@ -1,4 +1,4 @@
-import type { Profile } from "./profile.js";
+import { fromRequest, type Profile, type ProfileKind } from "./profile.js";
 
 export interface StatementStat {
   fingerprint: string;
@@ -11,8 +11,19 @@ export interface StatementStat {
   token: string;
 }
 
+/** How many profiles there are of each kind: documents, calls, scripts, tasks… */
+export type KindCounts = Partial<Record<ProfileKind, number>>;
+
+/** How many of these profiles there are of each kind. */
+export function countKinds(profiles: Profile[]): KindCounts {
+  const kinds: KindCounts = {};
+  for (const { kind } of profiles) kinds[kind] = (kinds[kind] ?? 0) + 1;
+  return kinds;
+}
+
 export interface Stats {
   profiles: number;
+  kinds: KindCounts;
   slowest: StatementStat[];
   repeated: StatementStat[];
   models: { model: string; operations: number; totalMs: number }[];
@@ -22,7 +33,7 @@ export interface Stats {
 const TOP = 10;
 const round = (ms: number) => Math.round(ms * 100) / 100;
 
-/** What the stored profiles add up to: the statements to look at first, by model and by route. */
+/** What the stored profiles add up to: the statements to look at first, by model, and by route for requests. */
 export function stats(profiles: Profile[]): Stats {
   const statements = new Map<string, StatementStat>();
   const models = new Map<string, Stats["models"][number]>();
@@ -50,6 +61,7 @@ export function stats(profiles: Profile[]): Stats {
       model.totalMs = round(model.totalMs + (op.durationMs ?? 0));
       models.set(name, model);
     }
+    if (!fromRequest(profile)) continue;
     const path = profile.request.url.split("?")[0]!;
     const route = routes.get(path) ?? { path, requests: 0, queries: 0, dbTimeMs: 0, warnings: 0 };
     route.requests += 1;
@@ -61,6 +73,7 @@ export function stats(profiles: Profile[]): Stats {
   const all = [...statements.values()];
   return {
     profiles: profiles.length,
+    kinds: countKinds(profiles),
     slowest: [...all].sort((a, b) => b.maxMs - a.maxMs).slice(0, TOP),
     repeated: [...all].sort((a, b) => b.count - a.count).slice(0, TOP),
     models: [...models.values()].sort((a, b) => b.totalMs - a.totalMs),

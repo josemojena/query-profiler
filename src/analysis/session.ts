@@ -1,4 +1,10 @@
-import type { Database, Profile, QueryRecord } from "../core/index.js";
+import {
+  countKinds,
+  type Database,
+  type KindCounts,
+  type Profile,
+  type QueryRecord,
+} from "../core/index.js";
 import { analyzeQuery, type Analysis, type Finding } from "./analyze.js";
 import { statementKind } from "./explain.js";
 import { allSteps, type Engine } from "./plan.js";
@@ -52,8 +58,10 @@ export interface TableUse {
 }
 
 export interface SessionAnalysis {
-  /** The stored requests it adds up. */
+  /** The stored profiles it adds up: requests, scripts and tasks. */
   requests: number;
+  /** How many of them there are of each kind. */
+  kinds: KindCounts;
   /** Statement shapes in the session. */
   shapes: number;
   analyzed: number;
@@ -116,6 +124,7 @@ export async function analyzeSession(
   );
   return {
     requests: profiles.length,
+    kinds: countKinds(profiles),
     shapes: groups.size,
     analyzed: analyzed.length,
     skipped,

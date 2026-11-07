@@ -1,7 +1,8 @@
+import type { KindCounts } from "../core/index.js";
 import type { Finding } from "../analysis/analyze.js";
 import type { IndexPick, RuleSum, SessionAnalysis, Shape, TableUse } from "../analysis/session.js";
 import { ENGINES } from "./analysis.js";
-import { count } from "./count.js";
+import { count, countedKinds } from "./count.js";
 import { escape, ms } from "./format.js";
 import { askProfiler } from "./http.js";
 
@@ -21,27 +22,28 @@ export const emptySession = (): SessionView => ({ open: new Set() });
 const SHOWN_WARNINGS = 6;
 
 /** The section on top of Stats: how to ask for the analysis, or what it found. */
-export function sessionSection(view: SessionView, base: string, requests: number): string {
+export function sessionSection(view: SessionView, base: string, kinds: KindCounts): string {
+  const stored = Object.values(kinds).reduce((sum, n) => sum + (n ?? 0), 0);
   const { state } = view;
   const loading = state !== undefined && "loading" in state;
   const label = loading ? "Analyzing…" : state ? "Analyze again ›" : "Analyze the session ›";
-  const button = requests
+  const button = stored
     ? `<button class="analyze" data-action="session-analyze"${loading ? " disabled" : ""}>${label}</button>`
     : "";
   const head = `<div class="session-head"><h2>Analysis of the session</h2>${button}</div>`;
   const lead = (text: string) =>
     `<section class="session">${head}<div class="lead">${text}</div></section>`;
-  if (!requests) return lead("Nothing to analyze yet. Open a page of your app.");
+  if (!stored) return lead("Nothing to analyze yet. Open a page of your app.");
   if (!state)
     return lead(
-      `Asks your database for the plan of every distinct statement in the last ${count(requests, "request")} (the same SQL with other values counts once), and adds up which indexes and fixes save the most time. Nothing is run.`,
+      `Asks your database for the plan of every distinct statement in the last ${countedKinds(kinds)} (the same SQL with other values counts once), and adds up which indexes and fixes save the most time. Nothing is run.`,
     );
   if ("loading" in state) return lead("Asking the database about each statement…");
   if ("error" in state) return lead(`Couldn't analyze the session: ${escape(state.error)}`);
   const { session } = state;
   if (!session.shapes)
     return lead(
-      `No statement in the last ${count(session.requests, "request")} is one the database can be asked about.`,
+      `No statement in the last ${countedKinds(session.kinds)} is one the database can be asked about.`,
     );
   return `<section class="session">${head}<div class="lead">${summary(view, session)}</div>${failures(view, session)}
     ${indexesTable(view, base, session)}
@@ -65,7 +67,7 @@ function summary(view: SessionView, session: SessionAnalysis): string {
   const failed = session.failed.length
     ? ` The database could not plan ${count(session.failed.length, "statement")}. ${toggle(view, "failed", "Show why", "Hide")}`
     : "";
-  return `${which} in ${count(session.requests, "request")}, each planned by ${databases} once, through its slowest run. Nothing was run.${skipped}${failed}`;
+  return `${which} in ${countedKinds(session.kinds)}, each planned by ${databases} once, through its slowest run. Nothing was run.${skipped}${failed}`;
 }
 
 function failures(view: SessionView, session: SessionAnalysis): string {

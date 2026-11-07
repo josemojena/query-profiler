@@ -1,6 +1,6 @@
 import type { Profile, ProfileListItem, StatementStat, Stats } from "../core/index.js";
 import { LOGO } from "./brand.js";
-import { count } from "./count.js";
+import { count, countedKinds } from "./count.js";
 import { detail, tabLabel, type Detail, type DetailTab } from "./detail.js";
 import { escape, fromRequest, kindPill, ms, statusTone } from "./format.js";
 import { sessionSection, type SessionView } from "./session.js";
@@ -134,8 +134,8 @@ function statementRows(state: PageState, rows: StatementStat[]): string {
 function statsView(state: PageState): string {
   const { stats } = state;
   if (!stats) return `<div class="empty">Loading…</div>`;
-  return `<header class="head"><div><h1>Stats</h1><div class="sub">Across the last ${count(stats.profiles, "request")}.</div></div></header>
-    ${sessionSection(state.session, state.base, stats.profiles)}
+  return `<header class="head"><div><h1>Stats</h1><div class="sub">Across the last ${countedKinds(stats.kinds)}.</div></div></header>
+    ${sessionSection(state.session, state.base, stats.kinds)}
     <h2>Slowest statements</h2>${statementRows(state, stats.slowest)}
     <h2>Most repeated statements</h2>${statementRows(state, stats.repeated)}
     <h2>By model</h2><table><thead><tr><th>Model</th><th>Operations</th><th>Time</th></tr></thead><tbody>${stats.models

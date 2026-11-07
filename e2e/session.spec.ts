@@ -31,7 +31,14 @@ const POSTS: Profile = {
   summary: { queryCount: 2, dbTimeMs: 10.4, operationCount: 0, errorCount: 0 },
 };
 
-const STATS: Stats = { profiles: 4, slowest: [], repeated: [], models: [], routes: [] };
+const STATS: Stats = {
+  profiles: 4,
+  kinds: { document: 4 },
+  slowest: [],
+  repeated: [],
+  models: [],
+  routes: [],
+};
 
 const shape = (
   fingerprint: string,
@@ -62,6 +69,7 @@ const rule = (n: number, severity: RuleSum["severity"], totalMs: number): RuleSu
 
 const SESSION: SessionAnalysis = {
   requests: 4,
+  kinds: { document: 4 },
   shapes: 17,
   analyzed: 17,
   skipped: 0,

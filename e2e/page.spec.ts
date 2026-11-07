@@ -45,6 +45,7 @@ async function open(page: Page, path: string, profiles = [...PROFILES], stream =
     if (url.pathname === "/_profiler/api/stats")
       return json({
         profiles: 3,
+        kinds: { document: 2, data: 1 },
         slowest: [
           {
             fingerprint: "e",

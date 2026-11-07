@@ -90,4 +90,13 @@ describe("stats", () => {
     ]);
     expect(result.profiles).toBe(3);
   });
+
+  it("counts each kind of profile, and lists by route only what requests asked for", () => {
+    const seed = { ...profile("dddddd", "prisma/seed.ts", [["INSERT INTO u", 9]]), kind: "script" };
+    const page = { ...profile("eeeeee", "/orders", [["SELECT 1", 1]]), kind: "document" };
+    const both = stats([seed, page] as Profile[]);
+    expect(both.kinds).toEqual({ script: 1, document: 1 });
+    expect(both.routes.map((route) => route.path)).toEqual(["/orders"]);
+    expect(both.slowest.map((stat) => stat.sql)).toContain("INSERT INTO u");
+  });
 });
