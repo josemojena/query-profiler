@@ -148,6 +148,113 @@ describe.each(ENGINES)("%s", (engine, connect) => {
     expect(finding(analysis, "leading-wildcard")?.fix?.kind).toBe(kinds[engine]);
   });
 
+  it("advises for a LIKE with a fixed start an index the engine can read it with", async () => {
+    const { query, analysis } = await analyze(`SELECT id FROM qp_tag WHERE slug LIKE ${p(1)}`, [
+      "tag-1234%",
+    ]);
+    // A PostgreSQL B-tree finds a fixed start only in byte order, and SQLite's LIKE ignores case.
+    const expected = {
+      postgres: [
+        "full-scan-needs-pattern-ops",
+        'CREATE INDEX "qp_tag_slug_pattern_idx" ON "public"."qp_tag" ("slug" varchar_pattern_ops);',
+      ],
+      sqlite: [
+        "like-needs-nocase-index",
+        'CREATE INDEX "qp_tag_slug_nocase_idx" ON "qp_tag" ("slug" COLLATE NOCASE);',
+      ],
+      mysql: ["full-scan-missing-index", "CREATE INDEX `qp_tag_slug_idx` ON `qp_tag` (`slug`);"],
+      mariadb: ["full-scan-missing-index", "CREATE INDEX `qp_tag_slug_idx` ON `qp_tag` (`slug`);"],
+    }[engine];
+    expect(
+      analysis.findings.filter((each) => each.about === "query").map(({ rule }) => rule),
+    ).toEqual([expected[0]]);
+    const advice = finding(analysis, expected[0]!)!;
+    expect(advice.fix!.sql).toBe(expected[1]);
+    if (!innodb) {
+      const trial = await tryIndex(findDatabase(query.database)!, query, {
+        name: advice.fix!.index!,
+        sql: advice.fix!.sql!,
+      });
+      expect(trial).toMatchObject({ used: true });
+    }
+  });
+
+  it.runIf(engine === "postgres")(
+    "tells a LIKE with a fixed start that its index sorts by a language's rules, and leaves alone an index that serves it",
+    async () => {
+      const { analysis: plain } = await analyze(`SELECT id FROM qp_tag WHERE name LIKE $1`, [
+        "Tag 1234%",
+      ]);
+      expect(finding(plain, "prefix-needs-pattern-ops")).toMatchObject({
+        message: expect.stringContaining("qp_tag_name_idx"),
+        fix: {
+          sql: 'CREATE INDEX "qp_tag_name_pattern_idx" ON "public"."qp_tag" ("name" text_pattern_ops);',
+        },
+      });
+      expect(
+        plain.findings.filter((each) => each.about === "query").map(({ rule }) => rule),
+      ).toEqual(["prefix-needs-pattern-ops"]);
+      const { analysis: pattern } = await analyze(`SELECT id FROM qp_tag WHERE code LIKE $1`, [
+        "code-1234%",
+      ]);
+      expect(pattern.plan!.raw).toContain("qp_tag_code_idx");
+      expect(pattern.findings.filter((each) => each.about === "query")).toEqual([]);
+      const { analysis: bytes } = await analyze(`SELECT id FROM qp_tag WHERE label LIKE $1`, [
+        "Tag 12%",
+      ]);
+      expect(finding(bytes, "full-scan-missing-index")!.fix!.prisma).toBe("@@index([label])");
+      expect(rules(bytes)).not.toContain("full-scan-needs-pattern-ops");
+    },
+  );
+
+  it.runIf(engine === "sqlite")(
+    "asks for an index built with COLLATE NOCASE for LIKE, and is content with one",
+    async () => {
+      const { analysis: binary } = await analyze(`SELECT id FROM qp_tag WHERE name LIKE ?`, [
+        "Tag 1234%",
+      ]);
+      expect(finding(binary, "like-needs-nocase-index")!.fix!.sql).toBe(
+        'CREATE INDEX "qp_tag_name_nocase_idx" ON "qp_tag" ("name" COLLATE NOCASE);',
+      );
+      // SQLite reads the whole index, which holds every name, rather than the table.
+      expect(
+        binary.findings.filter((each) => each.about === "query").map(({ rule }) => rule),
+      ).toEqual(["like-needs-nocase-index"]);
+      const { analysis: nocase } = await analyze(`SELECT id FROM qp_tag WHERE code LIKE ?`, [
+        "code-1234%",
+      ]);
+      expect(nocase.plan!.raw).toContain("qp_tag_code_idx");
+      expect(nocase.findings.filter((each) => each.about === "query")).toEqual([]);
+      const [tag] = nocase.tables;
+      expect(tag!.indexes.find((index) => index.name === "qp_tag_code_idx")!.collations).toEqual([
+        { name: "NOCASE" },
+      ]);
+    },
+  );
+
+  it.runIf(innodb)(
+    "tells an index the optimizer may not use, and a read it would serve, instead of asking for another",
+    async () => {
+      const [serves, hidden] =
+        engine === "mysql"
+          ? ["invisible-index-would-serve", "invisible-index"]
+          : ["ignored-index-would-serve", "ignored-index"];
+      const { analysis } = await analyze(`SELECT id FROM qp_tag WHERE name = ?`, ["Tag 12"]);
+      expect(finding(analysis, serves)!.message).toContain("qp_tag_name_idx");
+      expect(rules(analysis)).not.toContain("full-scan-missing-index");
+      const notes = analysis.findings.filter((each) => each.rule === hidden);
+      const about = (index: string) => notes.find((note) => note.message.includes(index))!;
+      expect(about("qp_tag_name_idx").fix!.kind).toBe("drop-index");
+      // A unique index still keeps duplicates out, so dropping it is not offered.
+      expect(about("qp_tag_code_idx").fix).toBeUndefined();
+      const { analysis: unindexed } = await analyze(`SELECT id FROM qp_tag WHERE slug = ?`, [
+        "tag-12",
+      ]);
+      expect(rules(unindexed)).toContain("full-scan-missing-index");
+      expect(rules(unindexed)).not.toContain(serves);
+    },
+  );
+
   it("finds a function on a filtered column, with the expression index to add", async () => {
     const { analysis } = await analyze(`SELECT id FROM qp_author WHERE lower(email) = ${p(1)}`, [
       "a",

@@ -15,9 +15,19 @@ const TABLES = (names: string) => `
   FROM information_schema.TABLES
   WHERE TABLE_NAME IN (${names}) AND TABLE_TYPE = 'BASE TABLE'`;
 
-const INDEXES = (names: string) => `
+// MySQL 8.0 marks an index the optimizer may not use with IS_VISIBLE, MariaDB 10.6 with IGNORED.
+const HIDING = `
+  SELECT COLUMN_NAME FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'information_schema' AND TABLE_NAME = 'STATISTICS'
+    AND COLUMN_NAME IN ('IS_VISIBLE', 'IGNORED')`;
+const HIDDEN: Record<string, string> = {
+  IS_VISIBLE: "IS_VISIBLE = 'NO'",
+  IGNORED: "IGNORED = 'YES'",
+};
+
+const INDEXES = (names: string, hidden: string) => `
   SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, NON_UNIQUE, COLUMN_NAME, INDEX_TYPE, SUB_PART,
-    COLLATION
+    COLLATION, ${hidden}
   FROM information_schema.STATISTICS
   WHERE TABLE_NAME IN (${names})
   ORDER BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`;
@@ -39,8 +49,11 @@ const COLUMNS = (names: string) => `
 export async function readMysqlCatalog(run: RunSql, asked: TableName[]): Promise<Table[]> {
   const names = [...new Set(asked.map((table) => table.name))];
   const list = names.map(() => "?").join(", ");
+  const hiding = await run(HIDING);
+  const hidden = HIDDEN[String(hiding.rows[0]?.[0])] ?? "FALSE";
+  const indexesOf = (within: string) => INDEXES(within, hidden);
   const [tables, indexes, foreignKeys, columns] = await inTurn(
-    [TABLES, INDEXES, FOREIGN_KEYS, COLUMNS].map((query) => () => run(query(list), names)),
+    [TABLES, indexesOf, FOREIGN_KEYS, COLUMNS].map((query) => () => run(query(list), names)),
   );
   const current = tables!.rows[0]?.[4] as string | undefined;
   const of = (row: unknown[], table: Table) => row[0] === table.schema && row[1] === table.name;
@@ -112,9 +125,13 @@ function groupIndexes(rows: unknown[][]): Index[] {
         (row) =>
           `${row[4] === null ? EXPRESSION : String(row[4])}${row[6] ? `(${String(row[6])})` : ""}${row[7] === "D" ? " DESC" : ""}`,
       ),
+      ...(isTrue(first![8]) ? { visible: false } : {}),
     };
   });
 }
+
+// The drivers give a comparison's result as 1, 1n or "1".
+const isTrue = (value: unknown) => value === true || Number(value) === 1;
 
 function group(rows: unknown[][], key: (row: unknown[]) => string): Map<string, unknown[][]> {
   const groups = new Map<string, unknown[][]>();

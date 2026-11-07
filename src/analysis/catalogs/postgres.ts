@@ -1,5 +1,13 @@
 import type { RunSql } from "../../core/index.js";
-import { pickTables, split, type Table, type TableName, inTurn } from "../catalog.js";
+import {
+  pickTables,
+  SEPARATOR,
+  split,
+  type Collation,
+  type Table,
+  type TableName,
+  inTurn,
+} from "../catalog.js";
 import { asNumber } from "../plan.js";
 
 // Lists come back joined with the unit separator, as text: every driver returns text the same way.
@@ -19,6 +27,16 @@ const TABLES = (names: string) => `
   WHERE c.relkind IN ('r', 'p', 'm') AND c.relname IN (${names})
     AND n.nspname NOT IN ('pg_catalog', 'information_schema')`;
 
+// A collation as its name, provider (c libc, i ICU, b builtin) and locale, joined with the record
+// separator. The default one sorts as the database does, and pg_database has datlocprovider only
+// from PostgreSQL 15: every database before it uses libc.
+const COLLATION = (oid: string) => `coalesce((
+  SELECT co.collname || E'\\x1e' || CASE co.collprovider
+    WHEN 'd' THEN coalesce(to_jsonb(d) ->> 'datlocprovider', 'c') || E'\\x1e' || d.datcollate
+    ELSE co.collprovider::text || E'\\x1e' || coalesce(co.collcollate, '') END
+  FROM pg_collation co JOIN pg_database d ON d.datname = current_database()
+  WHERE co.oid = ${oid}), '')`;
+
 const INDEXES = (names: string) => `
   SELECT n.nspname, t.relname, i.relname, ix.indisunique, ix.indisprimary, am.amname,
     pg_get_expr(ix.indpred, ix.indrelid),
@@ -26,7 +44,11 @@ const INDEXES = (names: string) => `
       FROM generate_series(1, ix.indnkeyatts) k),
     (SELECT string_agg(pg_get_indexdef(ix.indexrelid, k, true), E'\\x1f' ORDER BY k)
       FROM generate_series(ix.indnkeyatts + 1, ix.indnatts) k),
-    0 = ANY (ix.indkey::int2[]), ix.indisvalid, pg_get_indexdef(ix.indexrelid)
+    0 = ANY (ix.indkey::int2[]), ix.indisvalid, pg_get_indexdef(ix.indexrelid),
+    (SELECT string_agg(o.opcname, E'\\x1f' ORDER BY k)
+      FROM generate_series(0, ix.indnkeyatts - 1) k JOIN pg_opclass o ON o.oid = ix.indclass[k]),
+    (SELECT string_agg(${COLLATION("ix.indcollation[k]")}, E'\\x1f' ORDER BY k)
+      FROM generate_series(0, ix.indnkeyatts - 1) k)
   FROM pg_index ix
   JOIN pg_class i ON i.oid = ix.indexrelid
   JOIN pg_class t ON t.oid = ix.indrelid
@@ -57,7 +79,8 @@ const STATISTICS = (names: string) => `
   WHERE tablename IN (${names})`;
 
 const COLUMNS = (names: string) => `
-  SELECT n.nspname, t.relname, a.attname, format_type(a.atttypid, a.atttypmod), NOT a.attnotnull
+  SELECT n.nspname, t.relname, a.attname, format_type(a.atttypid, a.atttypmod), NOT a.attnotnull,
+    ${COLLATION("a.attcollation")}
   FROM pg_attribute a
   JOIN pg_class t ON t.oid = a.attrelid
   JOIN pg_namespace n ON n.oid = t.relnamespace
@@ -89,7 +112,15 @@ export async function readPostgresCatalog(run: RunSql, asked: TableName[]): Prom
   for (const table of found) {
     table.columns = columns!.rows
       .filter((row) => of(row, table))
-      .map((row) => ({ name: String(row[2]), type: String(row[3]), nullable: row[4] === true }));
+      .map((row) => {
+        const collation = readCollation(row[5]);
+        return {
+          name: String(row[2]),
+          type: String(row[3]),
+          nullable: row[4] === true,
+          ...(collation ? { collation } : {}),
+        };
+      });
     table.indexes = indexes!.rows
       .filter((row) => of(row, table))
       .map((row) => ({
@@ -103,6 +134,10 @@ export async function readPostgresCatalog(run: RunSql, asked: TableName[]): Prom
         method: String(row[5]),
         parts: keyParts(String(row[11])),
         ...(row[10] === false ? { valid: false } : {}),
+        ...(split(row[12]).length ? { operatorClasses: split(row[12]) } : {}),
+        ...(typeof row[13] === "string"
+          ? { collations: row[13].split(SEPARATOR).map(readCollation) }
+          : {}),
       }));
     table.statistics = statistics!.rows
       .filter((row) => of(row, table))
@@ -161,6 +196,15 @@ export function keyParts(definition: string): string[] {
     }
   }
   return parts;
+}
+
+const PROVIDERS: Record<string, Collation["provider"]> = { c: "libc", i: "icu", b: "builtin" };
+
+function readCollation(text: unknown): Collation | undefined {
+  if (typeof text !== "string" || !text) return undefined;
+  const [name, provider, locale] = text.split("\u001e");
+  const known = PROVIDERS[provider ?? ""];
+  return { name: name!, ...(known ? { provider: known } : {}), ...(locale ? { locale } : {}) };
 }
 
 /** A column name as pg_get_indexdef prints it ("userId"), without its quotes. */

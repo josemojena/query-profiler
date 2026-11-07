@@ -27,6 +27,22 @@
   once, which in a rolled back transaction (Measure it, Try this index) all went to one connection.
   `pg` warned that this stops working in its next major version, and MySQL and SQLite took them in
   turn anyway.
+- **No index for `LIKE 'abc%'` that PostgreSQL could not use.** On a column that sorts by a
+  language's rules (any locale but `C`, or ICU), a B-tree finds a fixed start only with
+  `text_pattern_ops` (`varchar_pattern_ops`, `bpchar_pattern_ops`) or the `C` collation. The
+  analysis asked for a plain `@@index` when the column had none, and blamed the statistics when it
+  had one. It now asks for that index, as SQL for a migration since `schema.prisma` cannot declare
+  it, and says when the column's index cannot serve the `LIKE` (`prefix-needs-pattern-ops`,
+  `full-scan-needs-pattern-ops`).
+- **No index for `LIKE` that SQLite could not use.** SQLite's `LIKE` ignores case, so it uses only
+  an index built with `COLLATE NOCASE`. The analysis asked for a plain one, or blamed the
+  statistics; it now asks for that one (`like-needs-nocase-index`).
+- **Invisible and ignored indexes.** An index MySQL marks `INVISIBLE`, or MariaDB `IGNORED`, counted
+  as serving the query, so a full read got "gather statistics" as its fix. Now such an index serves
+  nothing: the analysis says when making it visible would serve the read
+  (`invisible-index-would-serve`, `ignored-index-would-serve`) rather than asking for another, and
+  notes every such index on the tables a query reads (`invisible-index`, `ignored-index`), with no
+  offer to drop a unique one.
 
 ## 0.4.0
 

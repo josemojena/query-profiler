@@ -1,4 +1,4 @@
-import type { Index, TableName } from "./catalog.js";
+import type { Collation, Column, Index, Table, TableName } from "./catalog.js";
 import { atLeast } from "./explain.js";
 import type { Engine } from "./plan.js";
 import { DATABASE_NAMES, type PrismaNames } from "./schema.js";
@@ -41,6 +41,8 @@ export interface AdviceInput {
   /** The recorded parameters, to tell LIKE 'abc%' from LIKE '%abc'. */
   params: unknown[];
   existing: Index[];
+  /** The table's columns, for how each sorts: LIKE reads a range only of an index in a fitting order. */
+  columns?: Column[];
   /**
    * Count a join's columns too: when another table is filtered, or this one is read again for
    * each joined row, the rows of this table are found through the join.
@@ -53,6 +55,8 @@ const HARMLESS = /^::(?:text|varchar|character varying|bpchar)$/;
 const MOST_COLUMNS = 4;
 // PostgreSQL's limit on a name; Prisma truncates its own index names to it.
 const NAME_LENGTH = 63;
+// The libc locales in which PostgreSQL sorts text by its bytes.
+const BYTE_ORDER = /^(?:C|POSIX)$/;
 
 /** Whether an index on the column can serve a condition that wraps it this way. */
 export const usableWrapper = (wrapper: string | undefined) => !wrapper || HARMLESS.test(wrapper);
@@ -150,9 +154,13 @@ function wantedParts(input: AdviceInput): {
       continue;
     }
     if (!own) continue;
+    const column = input.columns?.find((each) => each.name === condition.column.column);
     if (condition.kind === "equality" || condition.kind === "null")
       filters.push(condition.column.column);
-    else if (condition.kind === "range" || prefixPattern(condition, input.params))
+    else if (
+      condition.kind === "range" ||
+      (prefixPattern(condition, input.params) && plainServesLike(input.engine, column))
+    )
       ranges.push(condition.column.column);
   }
   const equalities = [...filters, ...(input.joins === false ? [] : joins)];
@@ -187,13 +195,80 @@ export function patternText(value: Operand, params: unknown[]): string | undefin
 }
 
 /**
- * The indexes that keep their rows in key order, the only ones that find rows by =, by a range or
- * give them sorted: B-trees, not FULLTEXT, GIN, hash or partial ones.
+ * Whether text in this collation sorts by a language's rules: PostgreSQL's ICU, or libc in a locale
+ * other than C and POSIX. False when unknown, and for the builtin provider, which sorts by code point.
  */
-function ordered({ existing, engine }: AdviceInput): Index[] {
+export function sortsByLanguage(collation: Collation | undefined): boolean {
+  if (collation?.provider === "icu") return true;
+  return (
+    collation?.provider === "libc" &&
+    collation.locale !== undefined &&
+    !BYTE_ORDER.test(collation.locale)
+  );
+}
+
+/**
+ * Whether a plain index on the column, as writeAdvice() writes it, reads LIKE 'abc%' as a range.
+ * SQLite's LIKE ignores case, unlike its plain indexes; a PostgreSQL B-tree finds a fixed start only
+ * when it sorts by bytes or code points.
+ */
+function plainServesLike(engine: Engine, column: Column | undefined): boolean {
+  if (engine === "sqlite") return false;
+  return engine !== "postgres" || !sortsByLanguage(column?.collation);
+}
+
+/** Whether an index that leads with the column reads LIKE 'abc%' on it as a range. */
+function servesLike(engine: Engine, index: Index, column: Column | undefined): boolean {
+  if (engine === "sqlite") return /^nocase$/i.test(index.collations?.[0]?.name ?? "");
+  if (plainServesLike(engine, column)) return true;
+  return (
+    /_pattern_ops$/.test(index.operatorClasses?.[0] ?? "") ||
+    !sortsByLanguage(index.collations?.[0])
+  );
+}
+
+/**
+ * A LIKE 'abc%' that a plain index cannot read as a range, and no index of its table serves: with
+ * the column's type and the index that leads with the column, when one does. Undefined for any
+ * other condition.
+ */
+export function unservedPrefix(
+  engine: Engine,
+  condition: Condition,
+  params: unknown[],
+  table: Pick<Table, "columns" | "indexes">,
+): { column: string; type?: string; leading?: Index } | undefined {
+  if (!prefixPattern(condition, params) || !usableWrapper(condition.wrapper)) return undefined;
+  const name = condition.column.column;
+  const column = table.columns.find((each) => each.name === name);
+  if (plainServesLike(engine, column)) return undefined;
+  const leading = ordered({ engine, existing: table.indexes }).filter(
+    (index) => index.columns[0] === name,
+  );
+  if (leading.some((index) => servesLike(engine, index, column))) return undefined;
+  return {
+    column: name,
+    ...(column ? { type: column.type } : {}),
+    ...(leading[0] ? { leading: leading[0] } : {}),
+  };
+}
+
+/** The operator class that lets a PostgreSQL B-tree serve LIKE on a column of this type. */
+export function patternClass(type = ""): string {
+  if (/^character varying\b/.test(type)) return "varchar_pattern_ops";
+  return /^(?:character|bpchar)\b/.test(type) ? "bpchar_pattern_ops" : "text_pattern_ops";
+}
+
+/**
+ * The indexes that keep their rows in key order, the only ones that find rows by =, by a range or
+ * give them sorted: B-trees, not FULLTEXT, GIN, hash or partial ones, nor one the optimizer may
+ * not use.
+ */
+function ordered({ existing, engine }: Pick<AdviceInput, "engine" | "existing">): Index[] {
   return existing.filter(
     (index) =>
       index.valid !== false &&
+      index.visible !== false &&
       !index.expression &&
       !index.where &&
       (engine === "sqlite" || index.method === undefined || /^btree$/i.test(index.method)),
