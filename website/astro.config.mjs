@@ -2,9 +2,13 @@
 import sitemap from "@astrojs/sitemap";
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
+import { OG_IMAGE, OG_IMAGE_ALT } from "./src/data/site.ts";
+
+const SITE = "https://query-profiler.dev";
+const ogImage = `${SITE}/${OG_IMAGE}`;
 
 export default defineConfig({
-  site: "https://query-profiler.dev",
+  site: SITE,
   trailingSlash: "never",
   // The Express and Fastify guides moved under Node servers.
   redirects: {
@@ -20,6 +24,13 @@ export default defineConfig({
       description:
         "The database profiler for Prisma ORM, in development: every query of a request, the line of code behind it, N+1, slow and duplicate warnings.",
       logo: { src: "./src/assets/logo.svg" },
+      head: [
+        { tag: "meta", attrs: { property: "og:image", content: ogImage } },
+        { tag: "meta", attrs: { property: "og:image:width", content: "1280" } },
+        { tag: "meta", attrs: { property: "og:image:height", content: "640" } },
+        { tag: "meta", attrs: { property: "og:image:alt", content: OG_IMAGE_ALT } },
+        { tag: "meta", attrs: { name: "twitter:image", content: ogImage } },
+      ],
       social: [
         { icon: "github", label: "GitHub", href: "https://github.com/josemojena/query-profiler" },
       ],
