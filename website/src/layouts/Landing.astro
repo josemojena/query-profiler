@@ -9,7 +9,7 @@ import "../styles/landing.css";
 import DemoBar from "../components/landing/DemoBar.astro";
 import Footer from "../components/landing/Footer.astro";
 import Nav from "../components/landing/Nav.astro";
-import { link } from "../data/site";
+import { OG_IMAGE, OG_IMAGE_ALT, link } from "../data/site";
 
 interface Props {
   title: string;
@@ -17,6 +17,9 @@ interface Props {
 }
 
 const { title, description } = Astro.props;
+const image = new URL(link(OG_IMAGE), Astro.site).href;
+// The build writes files (index.html, …): a shared link names the page as people visit it.
+const url = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Astro.site).href;
 ---
 
 <!doctype html>
@@ -28,6 +31,14 @@ const { title, description } = Astro.props;
     <meta name="description" content={description} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={url} />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+    <meta property="og:image:alt" content={OG_IMAGE_ALT} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={image} />
     <link rel="icon" href={link("favicon.svg")} type="image/svg+xml" />
   </head>
   <body>

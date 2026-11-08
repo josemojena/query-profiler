@@ -9,6 +9,8 @@
 **The database profiler for Prisma ORM**, in development. Inspired by the Symfony profiler: for
 every request your app serves, what Prisma did in the database and why.
 
+[![The bar at the foot of a page flags an N+1; its queries show the line of code behind each; the profiler page gives the code that replaces the loop and the index the database is missing.](https://query-profiler.dev/media/first-look.gif)](https://query-profiler.dev)
+
 - Every **Prisma operation** (`User.findMany`, `Order.create`…) with its arguments and the **line
   of your code** that called it.
 - Every **SQL statement** Prisma sent for it, with its parameters, its duration and the rows it
